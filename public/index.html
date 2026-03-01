@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CEUTEC - Equivalencias MVP</title>
+    <!-- TODO: DEUDA TÉCNICA - [Construcción CSS] Se está usando Tailwind procesado por CDN o build step estático, configurar en package.json commands. -->
+    <link href="./css/output.css" rel="stylesheet">
+</head>
+
+<body class="bg-gray-100 flex flex-col min-h-screen font-sans text-gray-800">
+
+    <!-- Reusable Layout Navbar -->
+    <nav class="bg-ceutec-red text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl tracking-wide">CEUTEC Equivalencias</span>
+                </div>
+                <div class="hidden md:block">
+                    <!-- Nav items go here -->
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Layout -->
+    <main class="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative min-h-full">
+
+        <!-- Login Card Module -->
+        <div id="login-container" class="max-w-md w-full space-y-8 ceutec-card z-10">
+            <div>
+                <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">Iniciar Sesión</h2>
+                <p class="mt-2 text-center text-sm text-gray-600">Sistema de Equivalencias Institucional</p>
+            </div>
+            <form id="login-form" class="mt-8 space-y-6">
+                <div class="rounded-md space-y-4">
+                    <div>
+                        <label for="email-address" class="block text-sm font-medium text-gray-700">Correo
+                            Institucional</label>
+                        <input id="email-address" name="email" type="email" autocomplete="email" required
+                            class="ceutec-input" placeholder="correo@unitec.edu">
+                    </div>
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                        <input id="password" name="password" type="password" autocomplete="current-password" required
+                            class="ceutec-input" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <div id="error-message" class="text-sm text-ceutec-red font-medium hidden">
+                    Credenciales incorrectas o error en el inicio de sesión.
+                </div>
+
+                <div>
+                    <button type="submit" class="ceutec-btn">Ingresar</button>
+                    <!-- TODO: Añadir un spinner u overlay de carga para MVP mejorado -->
+                </div>
+            </form>
+        </div>
+
+        <!-- Dashboard (Hidden initially) -->
+        <div id="dashboard-container" class="hidden max-w-4xl w-full space-y-6 z-10">
+            <div class="ceutec-card">
+                <h3 class="text-2xl font-bold mb-4">Módulo de Ingesta (Excel-to-JSON)</h3>
+                <form id="upload-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Subir Plan de Estudio (.xlsx)</label>
+                        <input type="file" id="excel-file" accept=".xlsx, .xls"
+                            class="mt-1 block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-ceutec-red hover:file:bg-gray-200">
+                    </div>
+                    <button type="submit"
+                        class="w-auto bg-gray-800 text-white py-2 px-6 rounded font-medium hover:bg-gray-900 transition">Procesar
+                        Archivo</button>
+                </form>
+                <div id="upload-response" class="mt-4 text-sm font-medium"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Firebase SDK Scripts -->
+    <!-- TODO: DEUDA TÉCNICA - [Modulo Frontend] No se usaron bundlers (Webpack/Vite) por prioridad de MVP. Se importan directamente de Firebase modular via unpkg o bundler. Usar una etiqueta module -->
+    <script type="module" src="./js/auth.js"></script>
+
+</body>
+
+</html>
