@@ -1,0 +1,35 @@
+{
+  "name": "proyect-e",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "build:css": "npx @tailwindcss/cli -i ./public/css/style.css -o ./public/css/output.css"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/John-F-Ramos/Proyect-E.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/John-F-Ramos/Proyect-E/issues"
+  },
+  "homepage": "https://github.com/John-F-Ramos/Proyect-E#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "firebase-admin": "^13.7.0",
+    "multer": "^2.1.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.27",
+    "jest": "^30.2.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19"
+  }
+}
