@@ -10,8 +10,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Servir archivos
+// Servir archivos estáticos (CSS, JS, imágenes)
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Ruta principal - Sirve el index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // Import variables
 const ingestRoutes = require('./routes/ingest.routes');
@@ -24,5 +29,5 @@ app.get('/api/health', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
 });
