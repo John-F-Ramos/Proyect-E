@@ -1,0 +1,179 @@
+CREATE DATABASE AppEquivalenciasDB;
+GO
+USE AppEquivalenciasDB;
+GO
+
+-- 
+-- 1. CATÁLOGOS MAESTROS (Configurados por Jefes Académicos)
+-- 
+
+CREATE TABLE Carreras (
+    CodigoCarrera VARCHAR(20) PRIMARY KEY,
+    NombreCarrera VARCHAR(150) NOT NULL
+);
+
+CREATE TABLE PlanesEstudio (
+    IdPlan INT IDENTITY(1,1) PRIMARY KEY,
+    CodigoCarrera VARCHAR(20) FOREIGN KEY REFERENCES Carreras(CodigoCarrera),
+    AnioPlan INT NOT NULL, -- Ej. 2014, 2022
+    NombrePlan VARCHAR(100)
+);
+
+CREATE TABLE Materias (
+    CodigoMateria VARCHAR(20) PRIMARY KEY,
+    NombreMateria VARCHAR(150) NOT NULL,
+    UVS INT DEFAULT 0
+);
+
+-- El pensum oficial de cada plan
+CREATE TABLE Pensum_Materias (
+    IdPlan INT FOREIGN KEY REFERENCES PlanesEstudio(IdPlan),
+    CodigoMateria VARCHAR(20) FOREIGN KEY REFERENCES Materias(CodigoMateria),
+    Semestre INT,
+    PRIMARY KEY (IdPlan, CodigoMateria)
+);
+
+-- 
+-- 2. MOTOR DE REGLAS DE EQUIVALENCIA
+-- 
+
+CREATE TABLE ReglasEquivalencia (
+    IdRegla INT IDENTITY(1,1) PRIMARY KEY,
+    Tipo VARCHAR(20) CHECK (Tipo IN ('INTERNA', 'EXTERNA')),
+    InstitucionOrigen VARCHAR(150), -- Nulo si es Interna (Cambio de plan)
+    Observaciones VARCHAR(255)
+);
+
+CREATE TABLE Regla_MateriaOrigen (
+    IdDetalleOrigen INT IDENTITY(1,1) PRIMARY KEY,
+    IdRegla INT FOREIGN KEY REFERENCES ReglasEquivalencia(IdRegla),
+    CodigoCursada VARCHAR(50) NOT NULL,
+    NombreCursada VARCHAR(150) NOT NULL
+);
+
+CREATE TABLE Regla_MateriaDestino (
+    IdDetalleDestino INT IDENTITY(1,1) PRIMARY KEY,
+    IdRegla INT FOREIGN KEY REFERENCES ReglasEquivalencia(IdRegla),
+    CodigoOtorgada VARCHAR(20) FOREIGN KEY REFERENCES Materias(CodigoMateria)
+);
+
+-- 
+-- 3. DATOS IMPORTADOS (La "Fotografía" del Excel)
+-- 
+
+CREATE TABLE Alumnos (
+    NumeroCuenta VARCHAR(50) PRIMARY KEY,
+    NombreCompleto VARCHAR(200) NOT NULL,
+    IdPlanActual INT FOREIGN KEY REFERENCES PlanesEstudio(IdPlan), 
+    IndiceAcademico DECIMAL(5,2) DEFAULT 0.00,
+    UltimaSincronizacion DATETIME DEFAULT GETDATE() -- Vital para saber qué tan viejo es el dato
+);
+
+-- Aquí caen las filas del Excel tal cual. Es un repositorio de lectura.
+CREATE TABLE Historial_Importado (
+    IdRegistro INT IDENTITY(1,1) PRIMARY KEY,
+    NumeroCuenta VARCHAR(50) FOREIGN KEY REFERENCES Alumnos(NumeroCuenta),
+    CodigoMateria VARCHAR(20), -- No lo amarramos a "Materias" porque a veces traen códigos raros/viejos
+    NombreMateria VARCHAR(150),
+    Nota DECIMAL(5,2),
+    Estado VARCHAR(20) -- Ej. 'APB', 'REP', 'EQV'
+);
+
+-- 
+-- 4. GESTIÓN DE LA APLICACIÓN Y MÉTRICAS (Aqui es donde la parte del backend hara las peticiones para los dashboards)
+-- 
+
+-- Tabla que funciona como "Log" o Bitácora de uso para tus Dashboards
+CREATE TABLE RegistroConsultas (
+    IdConsulta INT IDENTITY(1,1) PRIMARY KEY,
+    NumeroCuenta VARCHAR(50) FOREIGN KEY REFERENCES Alumnos(NumeroCuenta),
+    TipoConsulta VARCHAR(50), -- Ej: 'MAPEO_ACTUAL', 'SIMULACION_NUEVO_PLAN'
+    IdPlanDestino INT FOREIGN KEY REFERENCES PlanesEstudio(IdPlan), -- Hacia qué plan hizo la proyección
+    FechaConsulta DATETIME DEFAULT GETDATE()
+);
+
+-- Lo que la calculadora en Node.js determinó y plasmó en el PDF
+CREATE TABLE DetalleConsulta_Equivalencias (
+    IdDetalle INT IDENTITY(1,1) PRIMARY KEY,
+    IdConsulta INT FOREIGN KEY REFERENCES RegistroConsultas(IdConsulta),
+    IdReglaAplicada INT FOREIGN KEY REFERENCES ReglasEquivalencia(IdRegla),
+    CodigoMateriaOtorgada VARCHAR(20) FOREIGN KEY REFERENCES Materias(CodigoMateria),
+    Motivo VARCHAR(255) -- Ej: "Se otorgó por equivalencia de MAT101 y MAT102"
+);
+
+-- 
+-- 5. Sugerencia de ruta de clases a cursar
+-- 
+
+-- Define qué clase es requisito de otra en un plan específico
+CREATE TABLE Requisitos_Pensum (
+    IdPlan INT FOREIGN KEY REFERENCES PlanesEstudio(IdPlan),
+    CodigoMateria VARCHAR(20) FOREIGN KEY REFERENCES Materias(CodigoMateria),
+    CodigoRequisito VARCHAR(20) FOREIGN KEY REFERENCES Materias(CodigoMateria),
+    
+    -- La llave primaria compuesta evita que se duplique el mismo requisito por error
+    PRIMARY KEY (IdPlan, CodigoMateria, CodigoRequisito) 
+);
+
+-- 
+-- 6. SEGURIDAD Y ACCESOS (Autenticación Local)
+-- 
+
+-- 1. Catálogo de Roles (Se mantiene igual)
+CREATE TABLE Roles (
+    IdRol INT PRIMARY KEY,
+    NombreRol VARCHAR(50) NOT NULL,
+    Descripcion VARCHAR(150)
+);
+
+-- 2. Tabla de Usuarios con PasswordHash
+CREATE TABLE Usuarios (
+    IdUsuario INT IDENTITY(1,1) PRIMARY KEY,
+    CorreoInstitucional VARCHAR(150) UNIQUE NOT NULL,
+    PasswordHash VARCHAR(255) NOT NULL, -- AQUÍ GUARDAMOS LA CONTRASEÑA ENCRIPTADA
+    NombreCompleto VARCHAR(200) NOT NULL,
+    IdRol INT FOREIGN KEY REFERENCES Roles(IdRol),
+    
+    -- Puente con la tabla Alumnos (NULL si es admin o jefe)
+    NumeroCuenta VARCHAR(50) NULL FOREIGN KEY REFERENCES Alumnos(NumeroCuenta), 
+    
+    Activo BIT DEFAULT 1,
+    FechaCreacion DATETIME DEFAULT GETDATE()
+);
+
+-- 
+-- 7.INSERCIÓN DE DATOS DE PRUEBA
+-- 
+
+INSERT INTO Roles (IdRol, NombreRol, Descripcion) VALUES 
+(1, 'ADMINISTRADOR', 'Acceso total: Configuración técnica y gestión.'),
+(2, 'COORDINADOR', 'Gestión académica: Subida de Excel y Dashboards.'),
+(3, 'ALUMNO', 'Solo lectura y simulación de su propio récord.');
+
+
+
+-- Usuario 1: El Administrador
+INSERT INTO Usuarios (CorreoInstitucional, PasswordHash, NombreCompleto, IdRol, Activo) 
+VALUES ('admin.it@unitec.edu', '$2a$12$R9h/cIPz0gi.URNNX3cam2OsrvZ1.dCGe.GvQ82w.m0uVqYvT8s5O', 'Administrador del Sistema', 1, 1);
+
+-- Usuario 2: El Coordinador
+INSERT INTO Usuarios (CorreoInstitucional, PasswordHash, NombreCompleto, IdRol, Activo) 
+VALUES ('jefe.logistica@unitec.edu', '$2a$12$R9h/cIPz0gi.URNNX3cam2OsrvZ1.dCGe.GvQ82w.m0uVqYvT8s5O', 'Coordinador de Logística', 2, 1);
+
+--- Usuario3: Almuno
+
+-- 1. Primero creamos una Carrera de prueba
+INSERT INTO Carreras (CodigoCarrera, NombreCarrera) 
+VALUES ('I-09', 'Ingeniería en Gestión Logística');
+
+-- 2. Luego creamos un Plan de Estudio para esa carrera 
+-- (Al ser el primer registro, tomará automáticamente el IdPlan = 1)
+INSERT INTO PlanesEstudio (CodigoCarrera, AnioPlan, NombrePlan) 
+VALUES ('I-09', 2018, 'Ingeniería en Gestión Logística Plan 2018');
+
+-- 3. Ahora creamos al Alumno vinculándolo al Plan 1
+INSERT INTO Alumnos (NumeroCuenta, NombreCompleto, IdPlanActual, IndiceAcademico) 
+VALUES ('20911091', 'JOSÉ BLAS GARCÍA GUERRA', 1, 76.18);
+
+INSERT INTO Usuarios (CorreoInstitucional, PasswordHash, NombreCompleto, IdRol, NumeroCuenta, Activo) 
+VALUES ('jose.garcia@unitec.edu', '$2a$12$R9h/cIPz0gi.URNNX3cam2OsrvZ1.dCGe.GvQ82w.m0uVqYvT8s5O', 'JOSÉ BLAS GARCÍA GUERRA', 3, '20911091', 1);
