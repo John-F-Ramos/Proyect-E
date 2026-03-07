@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | CEUTEC Equivalencias</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    </style>
+</head>
+<body class="flex min-h-screen">
+
+    <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
+        <div class="p-6">
+            <img src="/assets/images/logo-ceutec.png" alt="CEUTEC" class="h-10 mb-8">
+            <nav class="space-y-1">
+                <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition group">
+                    <i class="fas fa-home mr-3 text-gray-400 group-hover:text-[#B20000]"></i> Panel
+                </a>
+                <a href="#" class="flex items-center px-4 py-3 bg-slate-100 text-slate-900 font-semibold rounded-lg">
+                    <i class="fas fa-exchange-alt mr-3 text-[#B20000]"></i> Mis Equivalencias
+                </a>
+                <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-book mr-3 text-gray-400"></i> Plan de Estudio
+                </a>
+                <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-file-alt mr-3 text-gray-400"></i> Reportes
+                </a>
+                <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-user mr-3 text-gray-400"></i> Mi Perfil
+                </a>
+            </nav>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-8 overflow-y-auto">
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-2xl font-bold text-slate-800">Bienvenido, [Nombre del Alumno]</h1>
+            <div class="flex items-center space-x-4">
+                <i class="far fa-calendar text-slate-400"></i>
+                <i class="far fa-bell text-slate-400"></i>
+                <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000]">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
+                <h3 class="text-sm font-semibold text-slate-500 mb-4 flex justify-between items-center">
+                    Progreso Curricular <i class="far fa-clock"></i>
+                </h3>
+                <div class="relative inline-flex items-center justify-center mb-4">
+                    <svg class="w-32 h-32">
+                        <circle class="text-gray-100" stroke-width="8" stroke="currentColor" fill="transparent" r="50" cx="64" cy="64"/>
+                        <circle class="text-[#B20000]" stroke-width="8" stroke-dasharray="314" stroke-dashoffset="110" stroke-linecap="round" stroke="currentColor" fill="transparent" r="50" cx="64" cy="64"/>
+                    </svg>
+                    <span class="absolute text-2xl font-bold">65%</span>
+                </div>
+                <p class="text-xs text-slate-400">Comparativo Plan 2018 vs. 2024</p>
+                <div class="flex justify-around mt-4 pt-4 border-t">
+                    <div><p class="text-lg font-bold">100</p><p class="text-[10px] text-slate-400">Total UVs</p></div>
+                    <div><p class="text-lg font-bold">30%</p><p class="text-[10px] text-slate-400">UVs</p></div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 class="text-sm font-semibold text-slate-500 mb-4 flex justify-between items-center">
+                    Equivalencias Automatizadas <i class="fas fa-sliders-h"></i>
+                </h3>
+                <div class="h-32 flex items-end justify-around space-x-2 mb-4">
+                    <div class="w-8 bg-slate-800 rounded-t h-[80%]"></div>
+                    <div class="w-8 bg-red-400 rounded-t h-[20%]"></div>
+                    <div class="w-8 bg-orange-300 rounded-t h-[5%]"></div>
+                </div>
+                <div class="grid grid-cols-3 text-center text-[10px]">
+                    <div><span class="font-bold block text-lg">25</span> Aprobadas</div>
+                    <div><span class="font-bold block text-lg">3</span> En Proceso</div>
+                    <div><span class="font-bold block text-lg">0</span> Pendientes</div>
+                </div>
+                <button class="w-full mt-4 bg-slate-800 text-white py-2 rounded-lg text-xs font-semibold hover:bg-slate-700">Analizar Nuevo Plan</button>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 class="text-sm font-semibold text-slate-500 mb-4 flex justify-between items-center">
+                    Asignaturas Pendientes <i class="far fa-clock text-red-400"></i>
+                </h3>
+                <div class="flex justify-center mb-4">
+                    <div class="w-32 h-32 rounded-full border-[12px] border-slate-800 flex items-center justify-center relative">
+                        <div class="absolute inset-0 border-[12px] border-red-500 rounded-full" style="clip-path: polygon(50% 50%, 100% 0, 100% 100%, 0 100%);"></div>
+                        <span class="text-center leading-tight font-bold text-xs uppercase">Clases<br>Pendientes</span>
+                    </div>
+                </div>
+                <div class="space-y-1 text-[10px]">
+                    <div class="flex items-center"><span class="w-2 h-2 bg-slate-800 rounded-full mr-2"></span> Fundamentales <span class="ml-auto font-bold">12</span></div>
+                    <div class="flex items-center"><span class="w-2 h-2 bg-red-400 rounded-full mr-2"></span> Optativas <span class="ml-auto">clases</span></div>
+                    <div class="flex items-center"><span class="w-2 h-2 bg-orange-300 rounded-full mr-2"></span> Técnicas <span class="ml-auto text-slate-400">restante</span></div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 class="text-sm font-semibold text-slate-500 mb-4 flex justify-between items-center">
+                    Ruta Óptima Sugerida <i class="fas fa-download text-slate-400"></i>
+                </h3>
+                <div class="space-y-4 mb-6">
+                    <div class="flex items-start">
+                        <div class="mr-3 mt-1"><div class="w-2 h-2 bg-slate-800 rounded-full"></div></div>
+                        <div><p class="text-[10px] font-bold">Q3 2024 • Base de Datos I</p><p class="text-[9px] text-slate-400">27 de de 2024</p></div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="mr-3 mt-1"><div class="w-2 h-2 bg-slate-800 rounded-full"></div></div>
+                        <div><p class="text-[10px] font-bold">Q3 2024 • Programación III</p><p class="text-[9px] text-slate-400">21 de de 2024</p></div>
+                    </div>
+                </div>
+                <button class="w-full bg-slate-800 text-white py-2 rounded-lg text-xs font-semibold flex items-center justify-center">
+                    Descargar Ruta PDF
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-6 border-b border-gray-100">
+                <h3 class="font-bold text-slate-800">Historial de Equivalencias Recientes</h3>
+            </div>
+            <table class="w-full text-left">
+                <thead class="bg-slate-50 text-slate-400 text-[10px] uppercase font-semibold">
+                    <tr>
+                        <th class="px-6 py-4">Código Original</th>
+                        <th class="px-6 py-4">Clase Original</th>
+                        <th class="px-6 py-4">Código Nuevo</th>
+                        <th class="px-6 py-4">Clase Nueva</th>
+                        <th class="px-6 py-4">Estado</th>
+                        <th class="px-6 py-4">Nota</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 text-sm">
+                    <tr>
+                        <td class="px-6 py-4 text-slate-500">001021</td>
+                        <td class="px-6 py-4 font-medium">Base de Datos I</td>
+                        <td class="px-6 py-4 text-slate-500">001028</td>
+                        <td class="px-6 py-4">Clases Fundamentales</td>
+                        <td class="px-6 py-4"><span class="bg-green-100 text-green-600 px-3 py-1 rounded-full text-[10px] font-bold uppercase">Aprobado</span></td>
+                        <td class="px-6 py-4">-</td>
+                    </tr>
+                    <tr>
+                        <td class="px-6 py-4 text-slate-500">001022</td>
+                        <td class="px-6 py-4 font-medium">Programación III</td>
+                        <td class="px-6 py-4 text-slate-500">001023</td>
+                        <td class="px-6 py-4">Programación III</td>
+                        <td class="px-6 py-4"><span class="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-[10px] font-bold uppercase">Revisión</span></td>
+                        <td class="px-6 py-4">-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</body>
+</html>

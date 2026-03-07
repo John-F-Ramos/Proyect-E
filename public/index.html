@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CEUTEC · Sistema de Equivalencias</title>
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tus estilos personalizados -->
+    <link href="./css/style.css" rel="stylesheet">
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-white to-slate-100 font-['Inter'] antialiased min-h-screen flex flex-col relative overflow-x-hidden">
+
+    <!-- Partículas decorativas de fondo (sutiles) -->
+    <div class="particles-container fixed inset-0 -z-10 pointer-events-none">
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-100 via-transparent to-transparent"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-slate-100/50 via-transparent to-transparent"></div>
+    </div>
+
+    <!-- Navbar con efecto glass -->
+    <nav class="bg-white/80 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-50 animate-slide-down">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo y título con animación hover -->
+                <div class="flex items-center space-x-3 group">
+                    <div class="relative">
+                        <img src="./assets/images/logo-ceutec.png" 
+                             alt="CEUTEC" 
+                             class="h-9 w-auto transition-all duration-500 group-hover:scale-110 group-hover:rotate-2">
+                        <div class="absolute -inset-2 bg-[#B20000]/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    </div>
+                    <div class="h-6 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent"></div>
+                    <span class="text-sm font-medium text-gray-700 tracking-wide animate-slide-right" style="animation-delay: 0.1s">
+                        Sistema de Equivalencias
+                    </span>
+                </div>
+                
+                <!-- Badge de versión interactivo -->
+                <div class="flex items-center space-x-2">
+                    <span class="px-3 py-1 bg-gradient-to-r from-gray-100 to-gray-50 text-gray-600 text-xs font-medium rounded-full border border-gray-200/50 hover:border-[#B20000]/30 hover:shadow-lg hover:shadow-[#B20000]/10 transition-all duration-300 cursor-default group">
+                        <i class="far fa-circle-check mr-1 text-[#B20000] group-hover:scale-110 transition-transform duration-300"></i>
+                        <span class="group-hover:text-[#B20000] transition-colors duration-300">MVP v1.0</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido principal -->
+    <main class="flex-grow flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div class="w-full max-w-md mx-auto">
+            
+            <!-- Login Card con efecto glass y animación -->
+            <div id="login-container" class="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200/50 p-8 animate-scale-in hover:shadow-2xl transition-shadow duration-500 relative overflow-hidden group">
+                
+                <!-- Efecto shine sutil en hover -->
+                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 pointer-events-none"></div>
+                
+                <!-- Header -->
+                <div class="text-center mb-8 animate-slide-down">
+                    <h1 class="text-2xl font-semibold text-slate-800 mb-1">
+                        Bienvenido
+                    </h1>
+                    <p class="text-sm text-slate-500">
+                        Accede al Sistema de Equivalencias
+                    </p>
+                </div>
+                
+                <!-- Formulario -->
+                <form id="login-form" class="space-y-5">
+                    <!-- Campo email con animación -->
+                    <div class="group/field animate-slide-up" style="animation-delay: 0.1s">
+                        <label class="block text-sm font-medium text-slate-600 mb-1.5 group-focus-within/field:text-[#B20000] transition-colors duration-200">
+                            Correo institucional
+                        </label>
+                        <div class="relative">
+                            <input type="email" 
+                                   name="email" 
+                                   id="email"
+                                   required
+                                   class="ceutec-input w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#B20000]/20 focus:border-[#B20000] transition-all duration-200 peer"
+                                   placeholder="usuario@unitec.edu">
+                            
+                            <!-- Ícono de validación (solo aparece cuando es necesario) -->
+                            <div class="validation-icon absolute right-3 top-1/2 -translate-y-1/2 hidden">
+                                <i class="fas fa-check-circle text-green-500 animate-scale-in"></i>
+                            </div>
+                        </div>
+                        
+                        <!-- Mensaje de ayuda flotante -->
+                        <div class="text-xs text-slate-400 mt-1 opacity-0 group-focus-within/field:opacity-100 transition-opacity duration-200">
+                            Usa tu correo institucional
+                        </div>
+                    </div>
+                    
+                    <!-- Campo contraseña con animación -->
+                    <div class="group/field animate-slide-up" style="animation-delay: 0.2s">
+                        <label class="block text-sm font-medium text-slate-600 mb-1.5 group-focus-within/field:text-[#B20000] transition-colors duration-200">
+                            Contraseña
+                        </label>
+                        <div class="relative">
+                            <input type="password" 
+                                   name="password" 
+                                   id="password"
+                                   required
+                                   class="ceutec-input w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#B20000]/20 focus:border-[#B20000] transition-all duration-200 pr-12 peer"
+                                   placeholder="Ingresa tu contraseña">
+                            
+                            <button type="button" 
+                                    class="toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#B20000] transition-all duration-200 hover:scale-110">
+                                <i class="far fa-eye"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Indicador de fuerza de contraseña (oculto por defecto) -->
+                        <div class="password-strength mt-2 hidden">
+                            <div class="flex space-x-1">
+                                <div class="strength-bar h-1 flex-1 rounded-full bg-slate-200 transition-all duration-300"></div>
+                                <div class="strength-bar h-1 flex-1 rounded-full bg-slate-200 transition-all duration-300"></div>
+                                <div class="strength-bar h-1 flex-1 rounded-full bg-slate-200 transition-all duration-300"></div>
+                                <div class="strength-bar h-1 flex-1 rounded-full bg-slate-200 transition-all duration-300"></div>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-1">La contraseña debe tener al menos 8 caracteres</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Mensaje de error con animación -->
+                    <div id="error-message" class="hidden animate-slide-down">
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-3 relative overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/5 to-red-500/0 translate-x-[-100%] animate-shine"></div>
+                            <p class="text-sm text-red-600 flex items-center">
+                                <i class="fas fa-exclamation-circle mr-2 text-red-400 animate-pulse"></i>
+                                <span class="error-text"></span>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Opciones con animación -->
+                    <div class="flex items-center justify-between animate-slide-up" style="animation-delay: 0.3s">
+                        <label class="flex items-center cursor-pointer group/checkbox">
+                            <input type="checkbox" 
+                                   id="remember"
+                                   class="sr-only peer">
+                            <div class="w-5 h-5 border-2 border-slate-300 rounded-md peer-checked:border-[#B20000] peer-checked:bg-[#B20000] transition-all duration-200 group-hover/checkbox:border-[#B20000]/50"></div>
+                            <i class="fas fa-check absolute text-white text-xs ml-0.5 opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></i>
+                            <span class="ml-2 text-sm text-slate-600 group-hover/checkbox:text-[#B20000] transition-colors duration-200">Recordar acceso</span>
+                        </label>
+                        
+                        <a href="#" class="text-sm text-slate-500 hover:text-[#B20000] transition-colors duration-200 hover:underline">
+                            ¿Olvidaste tu contraseña?
+                        </a>
+                    </div>
+                    
+                    <!-- Botón de inicio con efecto ripple -->
+                    <button type="submit" 
+                            class="ceutec-btn w-full bg-[#B20000] hover:bg-[#8B0000] text-white font-medium py-2.5 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-md hover:shadow-lg relative overflow-hidden group/btn animate-slide-up"
+                            style="animation-delay: 0.4s">
+                        <span class="relative z-10 flex items-center justify-center">
+                            Iniciar sesión
+                            <i class="fas fa-arrow-right ml-2 text-sm group-hover/btn:translate-x-1 transition-transform duration-200"></i>
+                        </span>
+                        <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700"></div>
+                    </button>
+                    
+                    <!-- Separador sutil -->
+                    <div class="relative my-6 animate-fade-in" style="animation-delay: 0.5s">
+                        <div class="absolute inset-0 flex items-center">
+                            <div class="w-full border-t border-slate-200"></div>
+                        </div>
+                        <div class="relative flex justify-center text-xs">
+                            <span class="px-2 bg-white/80 text-slate-400">acceso institucional</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Soporte con animación -->
+                    <div class="text-center animate-slide-up" style="animation-delay: 0.6s">
+                        <a href="#" class="text-sm text-slate-400 hover:text-slate-600 transition-colors duration-200 inline-flex items-center group/support">
+                            <i class="far fa-life-ring mr-2 group-hover/support:rotate-12 transition-transform duration-200"></i>
+                            Contactar a Soporte
+                        </a>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Footer con animación -->
+            <p class="text-center text-xs text-slate-400 mt-6 animate-fade-in" style="animation-delay: 0.7s">
+                <i class="far fa-copyright mr-1"></i>
+                2026 CEUTEC · Acceso restringido
+            </p>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="./js/ui.js"></script>
+    <script type="module" src="./js/auth.js"></script>
+</body>
+</html>
