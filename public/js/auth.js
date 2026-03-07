@@ -22,32 +22,63 @@ if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        // Ahora sí coinciden con tu HTML (id="email" e id="password")
+        // Ocultamos error previo si existe
+        if(errorMessage) errorMessage.classList.add('hidden');
+        
+        // Obtenemos valores
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
 
+        // Validación básica
+        if (!email || !password) {
+            UI.showError("Por favor, completa todos los campos.", 'warning');
+            return;
+        }
+
+        // Mostrar estado de carga usando UI.setButtonLoading
+        UI.setButtonLoading(true);
+
         try {
-            // Ocultamos error previo si existe
-            if(errorMessage) errorMessage.classList.add('hidden');
-            
             console.log("Intentando conectar con Firebase...");
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             
             console.log("¡Éxito! Logueado como:", userCredential.user.email);
             
-            // Redirección al Dashboard
-            window.location.href = '/dashboard';
+            // Redirección al Dashboard - SOLO si es exitoso
+            UI.showLoginSuccess();
+            
+            // Pequeño retraso para mostrar la animación antes de redirigir
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 500);
 
         } catch (error) {
             console.error("Error de login:", error.code);
             
-            // Mostramos el mensaje en tu cajita roja de error
-            if(errorMessage) {
-                errorMessage.classList.remove('hidden');
-                if(errorText) {
-                    errorText.textContent = "Credenciales incorrectas o usuario no registrado.";
-                }
+            // Quitamos el estado de carga
+            UI.setButtonLoading(false);
+            
+            // Mostrar mensaje de error específico según el código
+            let mensajeError = "Error al iniciar sesión. Intenta nuevamente.";
+            
+            switch(error.code) {
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                case 'auth/invalid-credential':
+                    mensajeError = "Credenciales incorrectas. Por favor, verifica tu correo y contraseña.";
+                    break;
+                case 'auth/too-many-requests':
+                    mensajeError = "Demasiados intentos fallidos. Intenta más tarde.";
+                    break;
+                case 'auth/network-request-failed':
+                    mensajeError = "Error de conexión. Verifica tu internet.";
+                    break;
+                case 'auth/invalid-email':
+                    mensajeError = "El formato del correo no es válido.";
+                    break;
             }
+            
+            UI.showError(mensajeError, 'error');
         }
     });
 }

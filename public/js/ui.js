@@ -45,7 +45,7 @@ const UI = (() => {
         const container = document.querySelector('.particles-container');
         if (!container) return;
         
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < 50; i++) {
             const particle = document.createElement('div');
             particle.className = 'particle';
             particle.style.left = Math.random() * 100 + '%';
@@ -111,7 +111,9 @@ const UI = (() => {
     // Validación de email en tiempo real
     const validateEmail = (e) => {
         const email = e.target.value;
-        const validationIcon = e.target.parentElement.querySelector('.validation-icon');
+        const validationIcon = e.target.parentElement?.querySelector('.validation-icon');
+        if (!validationIcon) return;
+        
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         
         if (email.length > 0) {
@@ -139,7 +141,7 @@ const UI = (() => {
         const strengthContainer = document.querySelector('.password-strength');
         
         if (password.length > 0) {
-            strengthContainer.classList.remove('hidden');
+            strengthContainer?.classList.remove('hidden');
             
             // Calcular fuerza
             let strength = 0;
@@ -154,14 +156,13 @@ const UI = (() => {
                 if (index < strength) {
                     bar.classList.remove('bg-gray-200', 'bg-red-500', 'bg-yellow-500', 'bg-green-500', 'bg-green-600');
                     bar.classList.add(colors[Math.min(index, colors.length - 1)]);
-                    bar.style.width = '100%';
                 } else {
                     bar.classList.remove('bg-red-500', 'bg-yellow-500', 'bg-green-500', 'bg-green-600');
                     bar.classList.add('bg-gray-200');
                 }
             });
         } else {
-            strengthContainer.classList.add('hidden');
+            strengthContainer?.classList.add('hidden');
         }
     };
 
@@ -202,33 +203,24 @@ const UI = (() => {
         });
     };
 
-    // Validación del formulario
+    // Validación del formulario (SOLO VISUAL, no maneja el submit)
     const initFormValidation = () => {
-        if (elements.loginForm) {
-            elements.loginForm.addEventListener('submit', handleLogin);
+        // Solo agregamos validación visual, NO manejamos el submit
+        if (elements.emailInput && elements.passwordInput) {
+            // Validación visual en blur
+            elements.emailInput.addEventListener('blur', () => {
+                if (!elements.emailInput.value) {
+                    elements.emailInput.classList.add('border-red-300');
+                } else {
+                    elements.emailInput.classList.remove('border-red-300');
+                }
+            });
             
-            // Validar campos en submit
-            elements.loginForm.addEventListener('submit', (e) => {
-                const email = elements.emailInput?.value;
-                const password = elements.passwordInput?.value;
-                
-                if (!email || !password) {
-                    e.preventDefault();
-                    showError('Por favor completa todos los campos', 'warning');
-                    
-                    // Animación de shake en campos vacíos
-                    if (!email) {
-                        elements.emailInput?.classList.add('animate-shake');
-                        setTimeout(() => {
-                            elements.emailInput?.classList.remove('animate-shake');
-                        }, 500);
-                    }
-                    if (!password) {
-                        elements.passwordInput?.classList.add('animate-shake');
-                        setTimeout(() => {
-                            elements.passwordInput?.classList.remove('animate-shake');
-                        }, 500);
-                    }
+            elements.passwordInput.addEventListener('blur', () => {
+                if (!elements.passwordInput.value) {
+                    elements.passwordInput.classList.add('border-red-300');
+                } else {
+                    elements.passwordInput.classList.remove('border-red-300');
                 }
             });
         }
@@ -239,16 +231,16 @@ const UI = (() => {
         const remembered = localStorage.getItem('rememberedUser');
         if (remembered && elements.emailInput) {
             elements.emailInput.value = remembered;
-            elements.rememberCheckbox.checked = true;
+            if (elements.rememberCheckbox) {
+                elements.rememberCheckbox.checked = true;
+            }
         }
     };
 
-    // Bind de eventos
+    // Bind de eventos (SIN manejar el submit del login)
     const bindEvents = () => {
-        if (elements.loginForm) {
-            elements.loginForm.addEventListener('submit', handleLogin);
-        }
-
+        // NO manejamos el submit del login aquí, eso lo hace auth.js
+        
         if (elements.uploadForm) {
             elements.uploadForm.addEventListener('submit', handleUpload);
         }
@@ -278,62 +270,17 @@ const UI = (() => {
                     localStorage.removeItem('rememberedUser');
                 }
             });
-        }
-    };
-
-    // Handlers mejorados
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        
-        if (isLoading) return;
-        
-        const email = elements.emailInput?.value;
-        const password = elements.passwordInput?.value;
-
-        if (!email || !password) {
-            showError('Por favor ingresa tu correo y contraseña', 'warning');
             
-            // Animación de atención
-            if (!email) {
-                elements.emailInput?.classList.add('animate-pulse');
-                setTimeout(() => {
-                    elements.emailInput?.classList.remove('animate-pulse');
-                }, 1000);
-            }
-            if (!password) {
-                elements.passwordInput?.classList.add('animate-pulse');
-                setTimeout(() => {
-                    elements.passwordInput?.classList.remove('animate-pulse');
-                }, 1000);
-            }
-            return;
+            // Actualizar localStorage cuando cambie el email
+            elements.emailInput.addEventListener('input', () => {
+                if (elements.rememberCheckbox.checked && elements.emailInput.value) {
+                    localStorage.setItem('rememberedUser', elements.emailInput.value);
+                }
+            });
         }
-
-        isLoading = true;
-        const submitBtn = e.target.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        
-        // Animación de carga mejorada
-        submitBtn.innerHTML = `
-            <i class="fas fa-spinner fa-spin mr-2"></i>
-            <span>Accediendo</span>
-            <span class="loading-dots">
-                <span class="dot">.</span>
-                <span class="dot">.</span>
-                <span class="dot">.</span>
-            </span>
-        `;
-        submitBtn.disabled = true;
-
-        // Simular carga (reemplazar con llamada real)
-        setTimeout(() => {
-            showLoginSuccess();
-            isLoading = false;
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
-        }, 2000);
     };
 
+    // Handler para upload (solo si existe)
     const handleUpload = async (e) => {
         e.preventDefault();
         
@@ -377,6 +324,8 @@ const UI = (() => {
     // Funciones UI mejoradas
     const togglePassword = () => {
         const passwordInput = elements.passwordInput;
+        if (!passwordInput || !elements.passwordToggle) return;
+        
         const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
         passwordInput.setAttribute('type', type);
         
@@ -395,9 +344,9 @@ const UI = (() => {
     const showFileInfo = (file) => {
         if (!elements.fileInfo) return;
         
-        elements.fileName.textContent = file.name;
+        if (elements.fileName) elements.fileName.textContent = file.name;
         const size = (file.size / 1024).toFixed(2);
-        elements.fileSize.textContent = `${size} KB`;
+        if (elements.fileSize) elements.fileSize.textContent = `${size} KB`;
         
         // Animación de entrada mejorada
         elements.fileInfo.classList.remove('hidden');
@@ -426,6 +375,7 @@ const UI = (() => {
         currentFile = null;
     };
 
+    // Función para mostrar errores (accesible desde auth.js)
     const showError = (message, type = 'error') => {
         if (!elements.errorMessage) return;
         
@@ -437,7 +387,7 @@ const UI = (() => {
         };
         
         const color = colors[type] || 'red';
-        const icon = {
+        const icons = {
             error: 'exclamation-circle',
             warning: 'exclamation-triangle',
             success: 'check-circle',
@@ -448,7 +398,7 @@ const UI = (() => {
             <div class="bg-${color}-50 border border-${color}-200 rounded-lg p-4 animate-slide-down relative overflow-hidden">
                 <div class="absolute inset-0 bg-gradient-to-r from-${color}-500/0 via-${color}-500/5 to-${color}-500/0 translate-x-[-100%] animate-shine"></div>
                 <p class="text-sm text-${color}-700 flex items-center">
-                    <i class="fas fa-${icon[type]} mr-2 text-${color}-500 animate-pulse"></i>
+                    <i class="fas fa-${icons[type]} mr-2 text-${color}-500 animate-pulse"></i>
                     <span class="error-text">${message}</span>
                 </p>
             </div>
@@ -467,6 +417,35 @@ const UI = (() => {
 
     const showSuccess = (message) => {
         showError(message, 'success');
+    };
+
+    // Función para mostrar loading en el botón (para usar desde auth.js)
+    const setButtonLoading = (isLoading) => {
+        const submitBtn = document.querySelector('.ceutec-btn[type="submit"]');
+        if (!submitBtn) return;
+        
+        if (isLoading) {
+            submitBtn.innerHTML = `
+                <span class="relative z-10 flex items-center justify-center">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>
+                    <span>Accediendo</span>
+                    <span class="loading-dots ml-1">
+                        <span class="dot">.</span>
+                        <span class="dot">.</span>
+                        <span class="dot">.</span>
+                    </span>
+                </span>
+            `;
+            submitBtn.disabled = true;
+        } else {
+            submitBtn.innerHTML = `
+                <span class="relative z-10 flex items-center justify-center">
+                    Iniciar sesión
+                    <i class="fas fa-arrow-right ml-2 text-sm group-hover/btn:translate-x-1 transition-transform duration-200"></i>
+                </span>
+            `;
+            submitBtn.disabled = false;
+        }
     };
 
     const showLoginSuccess = () => {
@@ -489,12 +468,10 @@ const UI = (() => {
         // Mostrar progreso
         elements.progressContainer?.classList.remove('hidden');
         elements.uploadResponse?.classList.add('hidden');
-        elements.progressBar.style.width = '0%';
+        if (elements.progressBar) elements.progressBar.style.width = '0%';
         
         // Simular progreso con curva de aceleración mejorada
         let progress = 0;
-        const totalSteps = 60;
-        const stepTime = 40;
         
         const progressInterval = setInterval(() => {
             // Curva de progreso más natural (ease-out cuadrático)
@@ -535,7 +512,7 @@ const UI = (() => {
                     celebrate();
                 }, 500);
             }
-        }, stepTime);
+        }, 40);
     };
 
     // Celebración mejorada
@@ -601,7 +578,8 @@ const UI = (() => {
         showLoginSuccess,
         showError,
         showSuccess,
-        clearFile
+        clearFile,
+        setButtonLoading // Nueva función para controlar el loading del botón
     };
 })();
 
@@ -656,7 +634,6 @@ style.textContent = `
     
     .loading-dots {
         display: inline-flex;
-        margin-left: 2px;
     }
     
     .dot {
