@@ -1,18 +1,3 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-auth.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAaXon3_ya4yPl53KNmJZHzvnvhJmKaV_Q",
-  authDomain: "proyecto-equivalencias-ceutec.firebaseapp.com",
-  projectId: "proyecto-equivalencias-ceutec",
-  storageBucket: "proyecto-equivalencias-ceutec.firebasestorage.app",
-  messagingSenderId: "883247254921",
-  appId: "1:883247254921:web:2195c8f4e7381a92f3a558"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
 // Bindeamos el formulario
 const loginForm = document.getElementById('login-form');
 const errorMessage = document.getElementById('error-message');
@@ -35,50 +20,43 @@ if (loginForm) {
             return;
         }
 
-        // Mostrar estado de carga usando UI.setButtonLoading
+        // Mostrar estado de carga
         UI.setButtonLoading(true);
 
         try {
-            console.log("Intentando conectar con Firebase...");
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            console.log("Intentando login...");
             
-            console.log("¡Éxito! Logueado como:", userCredential.user.email);
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Error en el inicio de sesión');
+            }
             
-            // Redirección al Dashboard - SOLO si es exitoso
+            console.log("¡Éxito! Logueado como:", data.user.nombre);
+            
+            // Guardar info del usuario si es necesario
+            localStorage.setItem('user', JSON.stringify(data.user));
+
+            // Redirección al Dashboard
             UI.showLoginSuccess();
             
-            // Pequeño retraso para mostrar la animación antes de redirigir
             setTimeout(() => {
                 window.location.href = '/dashboard';
             }, 500);
 
         } catch (error) {
-            console.error("Error de login:", error.code);
+            console.error("Error de login:", error.message);
             
-            // Quitamos el estado de carga
             UI.setButtonLoading(false);
-            
-            // Mostrar mensaje de error específico según el código
-            let mensajeError = "Error al iniciar sesión. Intenta nuevamente.";
-            
-            switch(error.code) {
-                case 'auth/user-not-found':
-                case 'auth/wrong-password':
-                case 'auth/invalid-credential':
-                    mensajeError = "Credenciales incorrectas. Por favor, verifica tu correo y contraseña.";
-                    break;
-                case 'auth/too-many-requests':
-                    mensajeError = "Demasiados intentos fallidos. Intenta más tarde.";
-                    break;
-                case 'auth/network-request-failed':
-                    mensajeError = "Error de conexión. Verifica tu internet.";
-                    break;
-                case 'auth/invalid-email':
-                    mensajeError = "El formato del correo no es válido.";
-                    break;
-            }
-            
-            UI.showError(mensajeError, 'error');
+            UI.showError(error.message, 'error');
         }
     });
 }

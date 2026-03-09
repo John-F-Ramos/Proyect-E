@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Perfil | CEUTEC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    </style>
+</head>
+<body class="flex min-h-screen">
+    <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
+        <div class="p-6">
+            <img src="/assets/images/logo-ceutec.png" alt="CEUTEC" class="h-10 mb-8">
+            <nav class="space-y-1">
+                <a href="/dashboard" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition group">
+                    <i class="fas fa-home mr-3 text-gray-400 group-hover:text-[#B20000]"></i> Panel
+                </a>
+                <a href="/equivalencias" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-exchange-alt mr-3 text-gray-400"></i> Mis Equivalencias
+                </a>
+                <a href="/plan-estudio" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-book mr-3 text-gray-400"></i> Plan de Estudio
+                </a>
+                <a href="/reportes" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-file-alt mr-3 text-gray-400"></i> Reportes
+                </a>
+                <a href="/perfil" class="flex items-center px-4 py-3 bg-slate-100 text-slate-900 font-semibold rounded-lg">
+                    <i class="fas fa-user mr-3 text-[#B20000]"></i> Mi Perfil
+                </a>
+            </nav>
+        </div>
+        <div class="mt-auto p-6 border-t border-gray-200">
+            <button onclick="localStorage.removeItem('user'); window.location.href='/';" class="flex items-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
+                <i class="fas fa-sign-out-alt mr-3"></i> Cerrar Sesión
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-8 overflow-y-auto">
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-2xl font-bold text-slate-800">Mi Perfil</h1>
+        </header>
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+            <p class="text-slate-600">Actualiza tu información personal y configuración de cuenta.</p>
+        </div>
+    </main>
+</body>
+</html>

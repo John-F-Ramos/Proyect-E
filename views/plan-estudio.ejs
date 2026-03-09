@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogos Académicos | CEUTEC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .tab-active {
+            border-bottom: 2px solid #B20000;
+            color: #B20000;
+            font-weight: 600;
+        }
+
+        .tab-inactive {
+            border-bottom: 2px solid transparent;
+            color: #64748b;
+            font-weight: 500;
+        }
+    </style>
+</head>
+
+<body class="flex min-h-screen">
+    <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
+        <div class="p-6">
+            <img src="/assets/images/logo-ceutec.png" alt="CEUTEC" class="h-10 mb-8">
+            <nav class="space-y-1">
+                <a href="/dashboard"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition group">
+                    <i class="fas fa-home mr-3 text-gray-400 group-hover:text-[#B20000]"></i> Panel
+                </a>
+                <a href="/equivalencias"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-exchange-alt mr-3 text-gray-400"></i> Mis Equivalencias
+                </a>
+                <a href="/plan-estudio"
+                    class="flex items-center px-4 py-3 bg-slate-100 text-slate-900 font-semibold rounded-lg">
+                    <i class="fas fa-book mr-3 text-[#B20000]"></i> Catálogos Académicos
+                </a>
+                <a href="/reportes"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-file-alt mr-3 text-gray-400"></i> Reportes
+                </a>
+                <a href="/perfil"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-user mr-3 text-gray-400"></i> Mi Perfil
+                </a>
+            </nav>
+        </div>
+        <div class="mt-auto p-6 border-t border-gray-200">
+            <button onclick="localStorage.removeItem('user'); window.location.href='/';" class="flex items-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
+                <i class="fas fa-sign-out-alt mr-3"></i> Cerrar Sesión
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-8 overflow-y-auto">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800">Catálogos Académicos</h1>
+                <p class="text-slate-500 text-sm mt-1">Gestión de Carreras y Materias del sistema.</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="openModal('carreraModal')"
+                    class="bg-white border border-gray-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition flex items-center">
+                    <i class="fas fa-plus mr-2"></i> Nueva Carrera
+                </button>
+                <button onclick="openModal('materiaModal')"
+                    class="bg-white border border-gray-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition flex items-center">
+                    <i class="fas fa-plus mr-2"></i> Nueva Materia
+                </button>
+                <button onclick="openModal('uploadModal')"
+                    class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center">
+                    <i class="fas fa-file-excel mr-2"></i> Importar Catálogos
+                </button>
+            </div>
+        </header>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="flex border-b border-gray-200 px-6 pt-4 space-x-6">
+                <button onclick="switchTab('carreras')" id="tab-carreras" class="pb-3 tab-active transition">
+                    Carreras Registradas
+                </button>
+                <button onclick="switchTab('materias')" id="tab-materias" class="pb-3 tab-inactive transition">
+                    Materias Registradas
+                </button>
+            </div>
+
+            <div class="p-0">
+                <!-- PANEL CARRERAS -->
+                <div id="panel-carreras" class="block">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-500">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-4 rounded-tl-lg">Código</th>
+                                    <th scope="col" class="px-6 py-4">Nombre de la Carrera</th>
+                                </tr>
+                            </thead>
+                            <tbody id="carrerasBody" class="divide-y divide-gray-100">
+                                <tr>
+                                    <td colspan="2" class="px-6 py-4 text-center">Cargando carreras...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- PANEL MATERIAS -->
+                <div id="panel-materias" class="hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-500">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-4 rounded-tl-lg">Código</th>
+                                    <th scope="col" class="px-6 py-4">Nombre de la Materia</th>
+                                    <th scope="col" class="px-6 py-4">UVs</th>
+                                </tr>
+                            </thead>
+                            <tbody id="materiasBody" class="divide-y divide-gray-100">
+                                <tr>
+                                    <td colspan="3" class="px-6 py-4 text-center">Cargando materias...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODALES -->
+
+    <!-- Modal Upload Excel -->
+    <div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 transform transition-all">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-slate-800">Importar Catálogos</h3>
+                <button onclick="closeModal('uploadModal')" class="text-slate-400 hover:text-slate-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="uploadForm" class="space-y-6">
+                <div class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-[#B20000] transition group cursor-pointer"
+                    id="dropZone">
+                    <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 group-hover:text-[#B20000] mb-4"></i>
+                    <p class="text-sm text-slate-600 mb-2">Arrastra el archivo Excel (Diccionario)</p>
+                    <p class="text-xs text-slate-400 font-medium italic">o haz clic para buscar</p>
+                    <input type="file" id="fileInput" name="archivoCatalogo" accept=".xlsx, .xls" class="hidden"
+                        required>
+                </div>
+                <div id="fileInfo" class="hidden bg-slate-50 p-3 rounded-lg flex items-center text-xs text-slate-600">
+                    <i class="fas fa-file-excel text-[#B20000] mr-2"></i>
+                    <span id="fileName" class="truncate flex-1 font-medium">archivo.xlsx</span>
+                </div>
+                <button type="submit" id="btnSubmitUpload"
+                    class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 transition">
+                    Importar y Procesar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Nueva Carrera -->
+    <div id="carreraModal"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 transform transition-all">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-slate-800">Agregar Carrera</h3>
+                <button onclick="closeModal('carreraModal')" class="text-slate-400 hover:text-slate-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="carreraForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Código de Carrera</label>
+                    <input type="text" id="codigoCarrera" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Nombre de la Carrera</label>
+                    <input type="text" id="nombreCarrera" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button type="submit"
+                    class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition mt-4">
+                    Guardar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Nueva Materia -->
+    <div id="materiaModal"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 transform transition-all">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-slate-800">Agregar Materia</h3>
+                <button onclick="closeModal('materiaModal')" class="text-slate-400 hover:text-slate-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="materiaForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Código de Materia</label>
+                    <input type="text" id="codigoMateria" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Nombre de la Materia</label>
+                    <input type="text" id="nombreMateria" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">UVs (Opcional)</label>
+                    <input type="number" id="uvsMateria" min="0" value="0"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button type="submit"
+                    class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition mt-4">
+                    Guardar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JS Logic -->
+    <script>
+        // Modal Handlers
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        // Tabs
+        function switchTab(tab) {
+            document.getElementById('tab-carreras').className = tab === 'carreras' ? 'pb-3 tab-active transition' : 'pb-3 tab-inactive transition';
+            document.getElementById('tab-materias').className = tab === 'materias' ? 'pb-3 tab-active transition' : 'pb-3 tab-inactive transition';
+
+            document.getElementById('panel-carreras').style.display = tab === 'carreras' ? 'block' : 'none';
+            document.getElementById('panel-materias').style.display = tab === 'materias' ? 'block' : 'none';
+        }
+
+        // Fetch Data
+        async function loadData() {
+            try {
+                // Fetch Carreras
+                const resC = await fetch('/api/catalogos/carreras');
+                const carreras = await resC.json();
+                const btnC = document.getElementById('carrerasBody');
+                btnC.innerHTML = '';
+                if (carreras.length === 0) btnC.innerHTML = '<tr><td colspan="2" class="px-6 py-4 text-center">No hay carreras registradas.</td></tr>';
+                carreras.forEach(c => {
+                    btnC.innerHTML += `<tr class="bg-white hover:bg-gray-50"><td class="px-6 py-4 font-medium text-gray-900">${c.CodigoCarrera}</td><td class="px-6 py-4">${c.NombreCarrera}</td></tr>`;
+                });
+
+                // Fetch Materias
+                const resM = await fetch('/api/catalogos/materias');
+                const materias = await resM.json();
+                const btnM = document.getElementById('materiasBody');
+                btnM.innerHTML = '';
+                if (materias.length === 0) btnM.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center">No hay materias registradas.</td></tr>';
+                materias.forEach(m => {
+                    btnM.innerHTML += `<tr class="bg-white hover:bg-gray-50"><td class="px-6 py-4 font-medium text-gray-900">${m.CodigoMateria}</td><td class="px-6 py-4">${m.NombreMateria}</td><td class="px-6 py-4">${m.UVS}</td></tr>`;
+                });
+            } catch (err) {
+                console.error("Error loading data", err);
+            }
+        }
+
+        // Form Submit: Carrera
+        document.getElementById('carreraForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const body = {
+                codigo: document.getElementById('codigoCarrera').value,
+                nombre: document.getElementById('nombreCarrera').value
+            };
+            try {
+                const res = await fetch('/api/catalogos/carreras', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                if (!res.ok) {
+                    const data = await res.json();
+                    alert(data.error);
+                } else {
+                    closeModal('carreraModal');
+                    e.target.reset();
+                    loadData();
+                }
+            } catch (e) { alert("Error de red"); }
+        });
+
+        // Form Submit: Materia
+        document.getElementById('materiaForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const body = {
+                codigo: document.getElementById('codigoMateria').value,
+                nombre: document.getElementById('nombreMateria').value,
+                uvs: document.getElementById('uvsMateria').value
+            };
+            try {
+                const res = await fetch('/api/catalogos/materias', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                if (!res.ok) {
+                    const data = await res.json();
+                    alert(data.error);
+                } else {
+                    closeModal('materiaModal');
+                    e.target.reset();
+                    loadData();
+                }
+            } catch (e) { alert("Error de red"); }
+        });
+
+        // Upload Excel Handling
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileNameSpan = document.getElementById('fileName');
+        const fileInfo = document.getElementById('fileInfo');
+
+        dropZone.onclick = () => fileInput.click();
+
+        fileInput.onchange = (e) => {
+            if (e.target.files.length) {
+                fileInfo.classList.remove('hidden');
+                fileNameSpan.textContent = e.target.files[0].name;
+                dropZone.classList.add('border-[#B20000]', 'bg-red-50');
+            }
+        };
+
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('border-[#B20000]', 'bg-red-50'); };
+        dropZone.ondragleave = (e) => { e.preventDefault(); dropZone.classList.remove('border-[#B20000]', 'bg-red-50'); };
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-[#B20000]', 'bg-red-50');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                fileInfo.classList.remove('hidden');
+                fileNameSpan.textContent = e.dataTransfer.files[0].name;
+                dropZone.classList.add('border-[#B20000]', 'bg-red-50');
+            }
+        };
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!fileInput.files.length) return alert('Selecciona un archivo primero');
+
+            const btn = document.getElementById('btnSubmitUpload');
+            btn.disabled = true;
+            btn.textContent = 'Procesando...';
+
+            const formData = new FormData();
+            formData.append('archivoCatalogo', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/api/catalogos/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`Éxito!\nCarreras Nuevas: ${data.carrerasNuevas}\nMaterias Nuevas: ${data.materiasNuevas}`);
+                    closeModal('uploadModal');
+                    fileInfo.classList.add('hidden');
+                    dropZone.classList.remove('border-[#B20000]', 'bg-red-50');
+                    e.target.reset();
+                    loadData();
+                } else {
+                    alert('Error: ' + (data.error || 'Server error'));
+                }
+            } catch (error) {
+                alert('Error de conexión con el servidor.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Importar y Procesar';
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', loadData);
+
+    </script>
+</body>
+
+</html>
