@@ -15,8 +15,7 @@ Plataforma que permite a estudiantes:
 ### Backend
 - **Node.js + Express** → Servidor y API REST  
 - **SQL Server** → Base de datos relacional  
-- **express-session** → Manejo de sesiones  
-- **bcryptjs** → Encriptación de contraseñas  
+- **express-session** → Manejo de sesiones    
 - **multer** → Subida de archivos  
 - **exceljs** → Procesamiento de archivos Excel  
 
