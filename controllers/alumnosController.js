@@ -384,6 +384,7 @@ exports.getAlumnoDashboard = async (req, res) => {
                 NumeroCuenta: alumnoInfo.NumeroCuenta,
                 NombreCompleto: alumnoInfo.NombreCompleto,
                 IndiceAcademico: alumnoInfo.IndiceAcademico || 0,
+                IdPlanActual: alumnoInfo.IdPlan,
                 NombrePlan: alumnoInfo.NombrePlan || 'Sin Plan',
                 AnioPlan: alumnoInfo.AnioPlan,
                 NombreCarrera: alumnoInfo.NombreCarrera || 'Sin Carrera',
@@ -581,6 +582,35 @@ exports.getResumenEstados = async (req, res) => {
 
     } catch (error) {
         console.error('Error al obtener resumen:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+};
+
+// Obtener solo la carrera del alumno
+exports.getAlumnoCarrera = async (req, res) => {
+    try {
+        const { cuenta } = req.params;
+        const pool = await poolPromise;
+
+        const result = await pool.request()
+            .input('cuenta', sql.VarChar, cuenta)
+            .query(`
+                SELECT a.NumeroCuenta, a.NombreCompleto,
+                       c.CodigoCarrera, c.NombreCarrera
+                FROM Alumnos a
+                LEFT JOIN PlanesEstudio p ON a.IdPlanActual = p.IdPlan
+                LEFT JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
+                WHERE a.NumeroCuenta = @cuenta
+            `);
+
+        if (result.recordset.length === 0) {
+            return res.status(404).json({ error: 'Alumno no encontrado' });
+        }
+
+        res.status(200).json(result.recordset[0]);
+
+    } catch (error) {
+        console.error('Error al obtener carrera del alumno:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 };

@@ -9,6 +9,9 @@ router.get('/:cuenta/pendientes', alumnosController.getMateriasPendientes);
 router.get('/:cuenta/resumen', alumnosController.getResumenEstados);
 router.get('/:cuenta/equivalencias', alumnosController.getEquivalencias);
 
+// Obtener carrera del alumno actual
+router.get('/:cuenta/carrera', alumnosController.getAlumnoCarrera);
+
 // Ruta FALTANTE para historial
 router.get('/:cuenta/historial', alumnosController.getHistorialCompleto);
 

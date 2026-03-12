@@ -40,6 +40,32 @@
             border-left: 4px solid #B20000;
         }
 
+        /* Estilo para la carrera y plan del usuario - rojo muy sutil */
+        .carrera-row.usuario-plan {
+            background-color: rgba(178, 0, 0, 0.03); /* Rojo muy tenue al 3% */
+            border-left: 2px solid rgba(178, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .carrera-row.usuario-plan::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 4px;
+            background-color: #B20000;
+            opacity: 0.2;
+        }
+
+        .carrera-row.usuario-plan:hover {
+            background-color: rgba(178, 0, 0, 0.08); /* Un poco más visible al hover */
+        }
+
+        .carrera-row.usuario-plan:hover::after {
+            opacity: 0.4;
+        }
+
         .materias-detalle {
             background-color: #f9fafb;
             animation: slideDown 0.3s ease;
@@ -73,6 +99,47 @@
             font-size: 11px;
             font-weight: 600;
         }
+
+        .badge-mi-plan {
+            background-color: rgba(178, 0, 0, 0.1);
+            color: #B20000;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        /* Modal más grande */
+        #planDetalleModal .bg-white {
+            max-width: 1200px !important;
+            width: 95% !important;
+            max-height: 85vh !important;
+        }
+
+        /* Botón de descargar */
+        .btn-descargar {
+            background-color: #B20000;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn-descargar:hover {
+            background-color: #8b0000;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(178, 0, 0, 0.2);
+        }
+
+        .btn-descargar i {
+            font-size: 1rem;
+        }
     </style>
 </head>
 
@@ -83,7 +150,7 @@
             <nav class="space-y-1">
                 <a href="/dashboard"
                     class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition group">
-                    <i class="fas fa-home mr-3 text-gray-400 group-hover:text-[#B20000]"></i> Panel
+                    <i class="fas fa-home mr-3 text-gray-400 group-hover:text-[#B20000]"></i> Dashboard
                 </a>
                 <a href="/equivalencias"
                     class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
@@ -91,7 +158,7 @@
                 </a>
                 <a href="/plan-estudio"
                     class="flex items-center px-4 py-3 bg-slate-100 text-slate-900 font-semibold rounded-lg">
-                    <i class="fas fa-book mr-3 text-[#B20000]"></i> Catálogos Académicos
+                    <i class="fas fa-book mr-3 text-[#B20000]"></i> Planes de estudio
                 </a>
                 <a href="/reportes"
                     class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
@@ -113,7 +180,7 @@
     <main class="flex-1 p-8 overflow-y-auto">
         <header class="flex justify-between items-center mb-8">
             <div>
-                <h1 class="text-2xl font-bold text-slate-800">Catálogos Académicos</h1>
+                <h1 class="text-2xl font-bold text-slate-800">Planes de Estudio</h1>
                 <p class="text-slate-500 text-sm mt-1">Gestión de Carreras, Planes de Estudio y Materias del sistema.</p>
             </div>
             <div class="flex items-center space-x-3">
@@ -284,17 +351,24 @@
         </div>
     </div>
 
-    <!-- Modal Detalle de Plan de Estudio -->
+    <!-- Modal Detalle de Plan de Estudio (AHORA MÁS GRANDE) -->
     <div id="planDetalleModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-8 transform transition-all max-h-[80vh] overflow-hidden flex flex-col">
-            <div class="flex justify-between items-center mb-6 flex-shrink-0">
-                <div>
+            <div class="flex justify-between items-start mb-6 flex-shrink-0">
+                <div class="flex-1">
                     <h3 class="text-xl font-bold text-slate-800" id="modalPlanTitulo"></h3>
                     <p class="text-sm text-slate-500 mt-1" id="modalPlanSubtitulo"></p>
                 </div>
-                <button onclick="closeModal('planDetalleModal')" class="text-slate-400 hover:text-slate-600 transition">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
+                <div class="flex items-center space-x-3">
+                    <!-- Botón de Descargar Plan de Estudio -->
+                    <a href="#" id="btnDescargarPlan" target="_blank" class="btn-descargar">
+                        <i class="fas fa-download"></i>
+                        Descargar Plan de Estudio
+                    </a>
+                    <button onclick="closeModal('planDetalleModal')" class="text-slate-400 hover:text-slate-600 transition">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
             </div>
             
             <div class="overflow-y-auto flex-1 pr-2">
@@ -325,6 +399,16 @@
         let carrerasData = [];
         let materiasData = [];
         let planesData = [];
+        let usuarioActual = null;
+        let usuarioPlan = null;
+        // Mapa de URLs de descarga de pensums (escalable)
+        const pensumUrls = {
+            // Formato: 'codigoCarrera|nombrePlan|año': 'url'
+            // Ejemplos (puedes agregar más según necesites):
+            // 'ISC|Ingeniería en Sistemas|2023': '/pensums/isc-2023.pdf',
+            // 'IIS|Ingeniería Industrial|2023': '/pensums/iis-2023.pdf',
+            // 'LGE|Licenciatura en Gerencia|2023': '/pensums/lge-2023.pdf',
+        };
 
         // Modal Handlers
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -339,9 +423,100 @@
             document.getElementById('panel-materias').style.display = tab === 'materias' ? 'block' : 'none';
         }
 
+        // Obtener usuario actual del localStorage
+        function getUsuarioActual() {
+            try {
+                const userStr = localStorage.getItem('user');
+                if (userStr) {
+                    usuarioActual = JSON.parse(userStr);
+                    console.log('Usuario actual:', usuarioActual);
+                }
+            } catch (e) {
+                console.error('Error al obtener usuario:', e);
+            }
+        }
+
+        // Obtener el plan de estudio actual del usuario USANDO EL ENDPOINT DASHBOARD
+        async function getUsuarioPlan() {
+            if (!usuarioActual || !usuarioActual.numeroCuenta) {
+                console.log('No hay número de cuenta disponible');
+                return null;
+            }
+
+            try {
+                // Usamos el endpoint del dashboard que ya contiene toda la información
+                const response = await fetch(`/api/alumnos/${usuarioActual.numeroCuenta}/dashboard`);
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Dashboard data:', data); // Para debug
+                    
+                    if (data.alumno) {
+                        usuarioPlan = {
+                            nombre: data.alumno.NombrePlan,
+                            idPlan: data.alumno.IdPlanActual, // <-- IMPORTANTE: debe venir del backend
+                            carrera: data.alumno.NombreCarrera,
+                            codigoCarrera: data.alumno.CodigoCarrera,
+                            anioPlan: data.alumno.AnioPlan
+                        };
+                        console.log('Plan del usuario:', usuarioPlan);
+                        return usuarioPlan;
+                    }
+                } else {
+                    console.error('Error al obtener dashboard:', response.status);
+                }
+            } catch (error) {
+                console.error('Error al obtener plan del usuario:', error);
+            }
+            return null;
+        }
+
+        // Verificar si un plan es el plan actual del usuario
+        function esPlanDelUsuario(idPlan) {
+            if (!usuarioPlan || !idPlan) {
+                console.log('No hay usuarioPlan o idPlan:', { usuarioPlan, idPlan });
+                return false;
+            }
+            
+            // Convertir ambos a número para comparación segura
+            const idPlanNum = parseInt(idPlan);
+            const usuarioPlanIdNum = parseInt(usuarioPlan.idPlan);
+            
+            const esMiPlan = idPlanNum === usuarioPlanIdNum;
+            console.log(`Comparando plan ${idPlanNum} con usuario ${usuarioPlanIdNum}: ${esMiPlan}`);
+            
+            return esMiPlan;
+        }
+
+        // Obtener URL de descarga para un plan
+        function getUrlDescargaPlan(codigoCarrera, nombrePlan, anio) {
+            // Limpiar nombre del plan para usarlo como key
+            const planKey = nombrePlan.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            
+            // Intentar diferentes formatos de key
+            const keys = [
+                `${codigoCarrera}|${nombrePlan}|${anio}`,
+                `${codigoCarrera}|${planKey}|${anio}`,
+                `${codigoCarrera}-${anio}`,
+                `${planKey}-${anio}`
+            ];
+            
+            for (const key of keys) {
+                if (pensumUrls[key]) {
+                    return pensumUrls[key];
+                }
+            }
+            
+            // URL por defecto basada en código y año (escalable)
+            return `/pensums/${codigoCarrera}-${anio}.pdf`;
+        }
+
         // Cargar datos
         async function loadData() {
             try {
+                // Obtener usuario y su plan
+                getUsuarioActual();
+                await getUsuarioPlan();
+
                 // Fetch Carreras y Planes
                 const resC = await fetch('/api/catalogos/carreras-con-planes');
                 const data = await resC.json();
@@ -370,6 +545,9 @@
                 return;
             }
 
+            console.log('Planes data:', planesData); // Debug
+            console.log('Usuario plan:', usuarioPlan); // Debug
+
             // Agrupar planes por carrera
             carrerasData.forEach(carrera => {
                 const planesCarrera = planesData.filter(p => p.CodigoCarrera === carrera.CodigoCarrera);
@@ -379,7 +557,10 @@
                     tbody.innerHTML += `
                         <tr class="bg-white hover:bg-gray-50 carrera-row" data-codigo="${carrera.CodigoCarrera}">
                             <td class="px-6 py-4 font-medium text-gray-900">${carrera.CodigoCarrera}</td>
-                            <td class="px-6 py-4" colspan="4">${carrera.NombreCarrera} - Sin planes registrados</td>
+                            <td class="px-6 py-4" colspan="4">
+                                ${carrera.NombreCarrera}
+                                - Sin planes registrados
+                            </td>
                             <td class="px-6 py-4 text-center">-</td>
                         </tr>
                     `;
@@ -389,8 +570,11 @@
                     
                     planesCarrera.forEach((plan, index) => {
                         const esPrimero = index === 0;
+                        const esMiPlan = esPlanDelUsuario(plan.IdPlan);
+                        const claseAdicional = esMiPlan ? 'usuario-plan' : '';
+                        
                         tbody.innerHTML += `
-                            <tr class="bg-white hover:bg-gray-50 carrera-row ${esPrimero ? 'font-semibold' : ''}" 
+                            <tr class="bg-white hover:bg-gray-50 carrera-row ${claseAdicional}" 
                                 data-idplan="${plan.IdPlan}" 
                                 data-carrera="${carrera.NombreCarrera}"
                                 data-codigo="${carrera.CodigoCarrera}"
@@ -399,7 +583,10 @@
                                 data-materias="${plan.TotalMaterias || 0}"
                                 data-uvs="${plan.TotalUVS || 0}">
                                 <td class="px-6 py-4 font-medium text-gray-900">${carrera.CodigoCarrera}</td>
-                                <td class="px-6 py-4">${carrera.NombreCarrera}</td>
+                                <td class="px-6 py-4">
+                                    ${carrera.NombreCarrera}
+                                    ${esMiPlan ? '<span class="badge-mi-plan"><i class="fas fa-graduation-cap mr-1"></i>Mi Plan</span>' : ''}
+                                </td>
                                 <td class="px-6 py-4">
                                     ${plan.NombrePlan}
                                     ${esPrimero ? '<span class="ml-2 text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full">Actual</span>' : ''}
@@ -422,14 +609,20 @@
                 row.addEventListener('dblclick', (e) => {
                     const idPlan = row.dataset.idplan;
                     if (idPlan) {
-                        verDetallePlan(idPlan, row.dataset.carrera, row.dataset.plan, row.dataset.anio);
+                        verDetallePlan(
+                            idPlan, 
+                            row.dataset.carrera, 
+                            row.dataset.plan, 
+                            row.dataset.anio,
+                            row.dataset.codigo
+                        );
                     }
                 });
             });
         }
 
         // Ver detalle del plan
-        async function verDetallePlan(idPlan, nombreCarrera, nombrePlan, anio) {
+        async function verDetallePlan(idPlan, nombreCarrera, nombrePlan, anio, codigoCarrera) {
             try {
                 const response = await fetch(`/api/catalogos/planes/${idPlan}/materias`);
                 const materias = await response.json();
@@ -442,6 +635,11 @@
                 
                 document.getElementById('modalTotalMaterias').innerHTML = `${totalMaterias} materias`;
                 document.getElementById('modalTotalUVs').innerHTML = `${totalUVs} UVs`;
+                
+                // Configurar el botón de descarga
+                const btnDescargar = document.getElementById('btnDescargarPlan');
+                const urlDescarga = getUrlDescargaPlan(codigoCarrera, nombrePlan, anio);
+                btnDescargar.href = urlDescarga;
                 
                 const tbody = document.getElementById('modalPlanBody');
                 if (materias.length === 0) {

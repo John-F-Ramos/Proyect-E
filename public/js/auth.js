@@ -41,6 +41,7 @@ if (loginForm) {
             }
             
             console.log("¡Éxito! Logueado como:", data.user.nombre);
+            console.log("Número de cuenta:", data.user.numeroCuenta); // Debug
             
             // Guardar info del usuario si es necesario
             localStorage.setItem('user', JSON.stringify(data.user));
