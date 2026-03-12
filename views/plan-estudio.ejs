@@ -25,6 +25,54 @@
             color: #64748b;
             font-weight: 500;
         }
+
+        .carrera-row {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .carrera-row:hover {
+            background-color: #fef2f2;
+        }
+
+        .carrera-row.expanded {
+            background-color: #fee2e2;
+            border-left: 4px solid #B20000;
+        }
+
+        .materias-detalle {
+            background-color: #f9fafb;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .badge-uv {
+            background-color: #e6f7e6;
+            color: #2e7d32;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-materias {
+            background-color: #e6f0ff;
+            color: #1e4b8a;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
     </style>
 </head>
 
@@ -66,7 +114,7 @@
         <header class="flex justify-between items-center mb-8">
             <div>
                 <h1 class="text-2xl font-bold text-slate-800">Catálogos Académicos</h1>
-                <p class="text-slate-500 text-sm mt-1">Gestión de Carreras y Materias del sistema.</p>
+                <p class="text-slate-500 text-sm mt-1">Gestión de Carreras, Planes de Estudio y Materias del sistema.</p>
             </div>
             <div class="flex items-center space-x-3">
                 <button onclick="openModal('carreraModal')"
@@ -87,7 +135,7 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="flex border-b border-gray-200 px-6 pt-4 space-x-6">
                 <button onclick="switchTab('carreras')" id="tab-carreras" class="pb-3 tab-active transition">
-                    Carreras Registradas
+                    Carreras y Planes de Estudio
                 </button>
                 <button onclick="switchTab('materias')" id="tab-materias" class="pb-3 tab-inactive transition">
                     Materias Registradas
@@ -102,12 +150,16 @@
                             <thead class="text-xs text-gray-700 uppercase bg-gray-50">
                                 <tr>
                                     <th scope="col" class="px-6 py-4 rounded-tl-lg">Código</th>
-                                    <th scope="col" class="px-6 py-4">Nombre de la Carrera</th>
+                                    <th scope="col" class="px-6 py-4">Carrera</th>
+                                    <th scope="col" class="px-6 py-4">Plan de Estudio</th>
+                                    <th scope="col" class="px-6 py-4 text-center">Total Materias</th>
+                                    <th scope="col" class="px-6 py-4 text-center">Total UVs</th>
+                                    <th scope="col" class="px-6 py-4 text-center">Año</th>
                                 </tr>
                             </thead>
                             <tbody id="carrerasBody" class="divide-y divide-gray-100">
                                 <tr>
-                                    <td colspan="2" class="px-6 py-4 text-center">Cargando carreras...</td>
+                                    <td colspan="6" class="px-6 py-4 text-center">Cargando carreras...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -232,8 +284,48 @@
         </div>
     </div>
 
+    <!-- Modal Detalle de Plan de Estudio -->
+    <div id="planDetalleModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-8 transform transition-all max-h-[80vh] overflow-hidden flex flex-col">
+            <div class="flex justify-between items-center mb-6 flex-shrink-0">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800" id="modalPlanTitulo"></h3>
+                    <p class="text-sm text-slate-500 mt-1" id="modalPlanSubtitulo"></p>
+                </div>
+                <button onclick="closeModal('planDetalleModal')" class="text-slate-400 hover:text-slate-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="overflow-y-auto flex-1 pr-2">
+                <div class="mb-4 flex space-x-4 text-sm">
+                    <span class="badge-materias" id="modalTotalMaterias">0 materias</span>
+                    <span class="badge-uv" id="modalTotalUVs">0 UVs</span>
+                </div>
+                
+                <table class="w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-4 py-3">Código</th>
+                            <th class="px-4 py-3">Materia</th>
+                            <th class="px-4 py-3 text-center">UVs</th>
+                            <th class="px-4 py-3 text-center">Semestre</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalPlanBody" class="divide-y divide-gray-100">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- JS Logic -->
     <script>
+        // Estado global
+        let carrerasData = [];
+        let materiasData = [];
+        let planesData = [];
+
         // Modal Handlers
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
@@ -247,31 +339,153 @@
             document.getElementById('panel-materias').style.display = tab === 'materias' ? 'block' : 'none';
         }
 
-        // Fetch Data
+        // Cargar datos
         async function loadData() {
             try {
-                // Fetch Carreras
-                const resC = await fetch('/api/catalogos/carreras');
-                const carreras = await resC.json();
-                const btnC = document.getElementById('carrerasBody');
-                btnC.innerHTML = '';
-                if (carreras.length === 0) btnC.innerHTML = '<tr><td colspan="2" class="px-6 py-4 text-center">No hay carreras registradas.</td></tr>';
-                carreras.forEach(c => {
-                    btnC.innerHTML += `<tr class="bg-white hover:bg-gray-50"><td class="px-6 py-4 font-medium text-gray-900">${c.CodigoCarrera}</td><td class="px-6 py-4">${c.NombreCarrera}</td></tr>`;
-                });
+                // Fetch Carreras y Planes
+                const resC = await fetch('/api/catalogos/carreras-con-planes');
+                const data = await resC.json();
+                carrerasData = data.carreras || [];
+                planesData = data.planes || [];
+                
+                renderCarreras();
 
                 // Fetch Materias
                 const resM = await fetch('/api/catalogos/materias');
-                const materias = await resM.json();
-                const btnM = document.getElementById('materiasBody');
-                btnM.innerHTML = '';
-                if (materias.length === 0) btnM.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center">No hay materias registradas.</td></tr>';
-                materias.forEach(m => {
-                    btnM.innerHTML += `<tr class="bg-white hover:bg-gray-50"><td class="px-6 py-4 font-medium text-gray-900">${m.CodigoMateria}</td><td class="px-6 py-4">${m.NombreMateria}</td><td class="px-6 py-4">${m.UVS}</td></tr>`;
-                });
+                materiasData = await resM.json();
+                renderMaterias();
+
             } catch (err) {
                 console.error("Error loading data", err);
             }
+        }
+
+        // Renderizar tabla de carreras con planes
+        function renderCarreras() {
+            const tbody = document.getElementById('carrerasBody');
+            tbody.innerHTML = '';
+
+            if (!carrerasData || carrerasData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center">No hay carreras registradas.</td></tr>';
+                return;
+            }
+
+            // Agrupar planes por carrera
+            carrerasData.forEach(carrera => {
+                const planesCarrera = planesData.filter(p => p.CodigoCarrera === carrera.CodigoCarrera);
+                
+                if (planesCarrera.length === 0) {
+                    // Carrera sin planes
+                    tbody.innerHTML += `
+                        <tr class="bg-white hover:bg-gray-50 carrera-row" data-codigo="${carrera.CodigoCarrera}">
+                            <td class="px-6 py-4 font-medium text-gray-900">${carrera.CodigoCarrera}</td>
+                            <td class="px-6 py-4" colspan="4">${carrera.NombreCarrera} - Sin planes registrados</td>
+                            <td class="px-6 py-4 text-center">-</td>
+                        </tr>
+                    `;
+                } else {
+                    // Mostrar cada plan como una fila
+                    planesCarrera.sort((a, b) => b.AnioPlan - a.AnioPlan); // Más reciente primero
+                    
+                    planesCarrera.forEach((plan, index) => {
+                        const esPrimero = index === 0;
+                        tbody.innerHTML += `
+                            <tr class="bg-white hover:bg-gray-50 carrera-row ${esPrimero ? 'font-semibold' : ''}" 
+                                data-idplan="${plan.IdPlan}" 
+                                data-carrera="${carrera.NombreCarrera}"
+                                data-codigo="${carrera.CodigoCarrera}"
+                                data-plan="${plan.NombrePlan}"
+                                data-anio="${plan.AnioPlan}"
+                                data-materias="${plan.TotalMaterias || 0}"
+                                data-uvs="${plan.TotalUVS || 0}">
+                                <td class="px-6 py-4 font-medium text-gray-900">${carrera.CodigoCarrera}</td>
+                                <td class="px-6 py-4">${carrera.NombreCarrera}</td>
+                                <td class="px-6 py-4">
+                                    ${plan.NombrePlan}
+                                    ${esPrimero ? '<span class="ml-2 text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full">Actual</span>' : ''}
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="badge-materias">${plan.TotalMaterias || 0}</span>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="badge-uv">${plan.TotalUVS || 0} UVs</span>
+                                </td>
+                                <td class="px-6 py-4 text-center">${plan.AnioPlan}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            });
+
+            // Agregar event listeners para doble click
+            document.querySelectorAll('.carrera-row').forEach(row => {
+                row.addEventListener('dblclick', (e) => {
+                    const idPlan = row.dataset.idplan;
+                    if (idPlan) {
+                        verDetallePlan(idPlan, row.dataset.carrera, row.dataset.plan, row.dataset.anio);
+                    }
+                });
+            });
+        }
+
+        // Ver detalle del plan
+        async function verDetallePlan(idPlan, nombreCarrera, nombrePlan, anio) {
+            try {
+                const response = await fetch(`/api/catalogos/planes/${idPlan}/materias`);
+                const materias = await response.json();
+                
+                document.getElementById('modalPlanTitulo').innerHTML = `${nombreCarrera} - ${nombrePlan} (${anio})`;
+                document.getElementById('modalPlanSubtitulo').innerHTML = `Plan de Estudio`;
+                
+                const totalMaterias = materias.length;
+                const totalUVs = materias.reduce((sum, m) => sum + (m.UVS || 0), 0);
+                
+                document.getElementById('modalTotalMaterias').innerHTML = `${totalMaterias} materias`;
+                document.getElementById('modalTotalUVs').innerHTML = `${totalUVs} UVs`;
+                
+                const tbody = document.getElementById('modalPlanBody');
+                if (materias.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">Este plan no tiene materias asignadas.</td></tr>';
+                } else {
+                    tbody.innerHTML = materias.map(m => `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 font-medium">${m.CodigoMateria}</td>
+                            <td class="px-4 py-3">${m.NombreMateria}</td>
+                            <td class="px-4 py-3 text-center">${m.UVS || 0}</td>
+                            <td class="px-4 py-3 text-center">${m.Semestre || '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+                
+                openModal('planDetalleModal');
+                
+            } catch (error) {
+                console.error('Error al cargar materias del plan:', error);
+                alert('Error al cargar el detalle del plan');
+            }
+        }
+
+        // Renderizar tabla de materias
+        function renderMaterias() {
+            const tbody = document.getElementById('materiasBody');
+            tbody.innerHTML = '';
+
+            if (!materiasData || materiasData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center">No hay materias registradas.</td></tr>';
+                return;
+            }
+
+            materiasData.forEach(m => {
+                tbody.innerHTML += `
+                    <tr class="bg-white hover:bg-gray-50">
+                        <td class="px-6 py-4 font-medium text-gray-900">${m.CodigoMateria}</td>
+                        <td class="px-6 py-4">${m.NombreMateria}</td>
+                        <td class="px-6 py-4">
+                            <span class="badge-uv">${m.UVS} UVs</span>
+                        </td>
+                    </tr>
+                `;
+            });
         }
 
         // Form Submit: Carrera
