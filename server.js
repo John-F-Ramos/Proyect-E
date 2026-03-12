@@ -49,6 +49,11 @@ const ingestRoutes = require('./routes/ingest.routes');
 const authRoutes = require('./routes/auth.routes');
 const alumnosRoutes = require('./routes/alumnos.routes');
 const catologosRoutes = require('./routes/catalogo.routes');
+// Agrega esta línea con las demás importaciones
+const simulacionRoutes = require('./routes/simulacion.routes');
+
+// Y agrega esta línea con las demás rutas
+app.use('/api/simulacion', simulacionRoutes);
 
 // Definir rutas base
 app.use('/api/ingest', ingestRoutes);

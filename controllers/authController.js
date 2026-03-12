@@ -1,5 +1,5 @@
 const { poolPromise, sql } = require('../config/db');
-const bcrypt = require('bcryptjs'); // Usamos bcryptjs para mayor compatibilidad en Windows
+const bcrypt = require('bcryptjs');
 
 async function login(req, res) {
     const { email, password } = req.body;
@@ -20,7 +20,6 @@ async function login(req, res) {
 
         console.log(`[Login] Usuario encontrado. Validando contraseña...`);
         
-        // Verificamos si es un hash de bcrypt (empiezan con $2)
         const isHash = user.PasswordHash && user.PasswordHash.startsWith('$2');
         let isMatch = false;
 
@@ -28,7 +27,6 @@ async function login(req, res) {
             isMatch = await bcrypt.compare(password, user.PasswordHash);
             console.log(`[Login] Comparación BCrypt: ${isMatch}`);
         } else {
-            // Si no es hash, comparamos como texto plano
             isMatch = (user.PasswordHash === password);
             console.log(`[Login] Comparación Texto Plano: ${isMatch}`);
         }
@@ -40,7 +38,8 @@ async function login(req, res) {
                 user: { 
                     id: user.IdUsuario, 
                     nombre: user.NombreCompleto, 
-                    rol: user.IdRol 
+                    rol: user.IdRol,
+                    numeroCuenta: user.NumeroCuenta // AGREGAMOS ESTO
                 }
             });
         } else {

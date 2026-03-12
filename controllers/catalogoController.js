@@ -196,3 +196,95 @@ exports.uploadCatalogosExcel = async (req, res) => {
         res.status(500).json({ error: 'Ocurrió un error al procesar el archivo Excel.' });
     }
 };
+
+// Obtener carreras con sus planes de estudio (incluyendo totales)
+exports.getCarrerasConPlanes = async (req, res) => {
+    try {
+        const pool = await poolPromise;
+        
+        // Consulta para obtener todas las carreras
+        const carrerasResult = await pool.request().query(`
+            SELECT CodigoCarrera, NombreCarrera 
+            FROM Carreras 
+            ORDER BY NombreCarrera
+        `);
+        
+        // Consulta para obtener todos los planes con sus totales
+        const planesResult = await pool.request().query(`
+            SELECT 
+                p.IdPlan,
+                p.NombrePlan,
+                p.AnioPlan,
+                p.CodigoCarrera,
+                COUNT(pm.CodigoMateria) AS TotalMaterias,
+                ISNULL(SUM(m.UVS), 0) AS TotalUVS
+            FROM PlanesEstudio p
+            LEFT JOIN Pensum_Materias pm ON p.IdPlan = pm.IdPlan
+            LEFT JOIN Materias m ON pm.CodigoMateria = m.CodigoMateria
+            GROUP BY p.IdPlan, p.NombrePlan, p.AnioPlan, p.CodigoCarrera
+            ORDER BY p.CodigoCarrera, p.AnioPlan DESC
+        `);
+
+        res.status(200).json({
+            carreras: carrerasResult.recordset,
+            planes: planesResult.recordset
+        });
+
+    } catch (err) {
+        console.error('Error getting carreras con planes:', err);
+        res.status(500).json({ error: 'Error del servidor al obtener carreras y planes' });
+    }
+};
+
+// Obtener materias de un plan específico
+exports.getMateriasByPlan = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const pool = await poolPromise;
+
+        const result = await pool.request()
+            .input('idPlan', sql.Int, id)
+            .query(`
+                SELECT 
+                    pm.CodigoMateria,
+                    m.NombreMateria,
+                    m.UVS,
+                    pm.Semestre
+                FROM Pensum_Materias pm
+                INNER JOIN Materias m ON pm.CodigoMateria = m.CodigoMateria
+                WHERE pm.IdPlan = @idPlan
+                ORDER BY ISNULL(pm.Semestre, 999), pm.CodigoMateria
+            `);
+
+        res.status(200).json(result.recordset);
+
+    } catch (err) {
+        console.error('Error getting materias del plan:', err);
+        res.status(500).json({ error: 'Error del servidor al obtener materias del plan' });
+    }
+};
+
+// Obtener todos los planes de estudio (opcional, por si lo necesitas)
+exports.getAllPlanes = async (req, res) => {
+    try {
+        const pool = await poolPromise;
+        
+        const result = await pool.request().query(`
+            SELECT 
+                p.IdPlan,
+                p.NombrePlan,
+                p.AnioPlan,
+                p.CodigoCarrera,
+                c.NombreCarrera
+            FROM PlanesEstudio p
+            INNER JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
+            ORDER BY c.NombreCarrera, p.AnioPlan DESC
+        `);
+
+        res.status(200).json(result.recordset);
+
+    } catch (err) {
+        console.error('Error getting planes:', err);
+        res.status(500).json({ error: 'Error del servidor al obtener planes' });
+    }
+};

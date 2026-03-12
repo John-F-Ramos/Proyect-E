@@ -1,179 +1,1004 @@
-CREATE DATABASE AppEquivalenciasDB;
+USE [master]
 GO
-USE AppEquivalenciasDB;
+/****** Object:  Database [AppEquivalenciasDB]    Script Date: 3/12/2026 7:22:28 AM ******/
+CREATE DATABASE [AppEquivalenciasDB]
+ CONTAINMENT = NONE
+ ON  PRIMARY 
+( NAME = N'AppEquivalenciasDB', FILENAME = N'C:\Program Files\Microsoft SQL Server\MSSQL16.MSSQLSERVER\MSSQL\DATA\AppEquivalenciasDB.mdf' , SIZE = 8192KB , MAXSIZE = UNLIMITED, FILEGROWTH = 65536KB )
+ LOG ON 
+( NAME = N'AppEquivalenciasDB_log', FILENAME = N'C:\Program Files\Microsoft SQL Server\MSSQL16.MSSQLSERVER\MSSQL\DATA\AppEquivalenciasDB_log.ldf' , SIZE = 8192KB , MAXSIZE = 2048GB , FILEGROWTH = 65536KB )
+ WITH CATALOG_COLLATION = DATABASE_DEFAULT, LEDGER = OFF
 GO
-
--- 
--- 1. CATÁLOGOS MAESTROS (Configurados por Jefes Académicos)
--- 
-
-CREATE TABLE Carreras (
-    CodigoCarrera VARCHAR(20) PRIMARY KEY,
-    NombreCarrera VARCHAR(150) NOT NULL
-);
-
-CREATE TABLE PlanesEstudio (
-    IdPlan INT IDENTITY(1,1) PRIMARY KEY,
-    CodigoCarrera VARCHAR(20) FOREIGN KEY REFERENCES Carreras(CodigoCarrera),
-    AnioPlan INT NOT NULL, -- Ej. 2014, 2022
-    NombrePlan VARCHAR(100)
-);
-
-CREATE TABLE Materias (
-    CodigoMateria VARCHAR(20) PRIMARY KEY,
-    NombreMateria VARCHAR(150) NOT NULL,
-    UVS INT DEFAULT 0
-);
-
--- El pensum oficial de cada plan
-CREATE TABLE Pensum_Materias (
-    IdPlan INT FOREIGN KEY REFERENCES PlanesEstudio(IdPlan),
-    CodigoMateria VARCHAR(20) FOREIGN KEY REFERENCES Materias(CodigoMateria),
-    Semestre INT,
-    PRIMARY KEY (IdPlan, CodigoMateria)
-);
-
--- 
--- 2. MOTOR DE REGLAS DE EQUIVALENCIA
--- 
-
-CREATE TABLE ReglasEquivalencia (
-    IdRegla INT IDENTITY(1,1) PRIMARY KEY,
-    Tipo VARCHAR(20) CHECK (Tipo IN ('INTERNA', 'EXTERNA')),
-    InstitucionOrigen VARCHAR(150), -- Nulo si es Interna (Cambio de plan)
-    Observaciones VARCHAR(255)
-);
-
-CREATE TABLE Regla_MateriaOrigen (
-    IdDetalleOrigen INT IDENTITY(1,1) PRIMARY KEY,
-    IdRegla INT FOREIGN KEY REFERENCES ReglasEquivalencia(IdRegla),
-    CodigoCursada VARCHAR(50) NOT NULL,
-    NombreCursada VARCHAR(150) NOT NULL
-);
-
-CREATE TABLE Regla_MateriaDestino (
-    IdDetalleDestino INT IDENTITY(1,1) PRIMARY KEY,
-    IdRegla INT FOREIGN KEY REFERENCES ReglasEquivalencia(IdRegla),
-    CodigoOtorgada VARCHAR(20) FOREIGN KEY REFERENCES Materias(CodigoMateria)
-);
-
--- 
--- 3. DATOS IMPORTADOS (La "Fotografía" del Excel)
--- 
-
-CREATE TABLE Alumnos (
-    NumeroCuenta VARCHAR(50) PRIMARY KEY,
-    NombreCompleto VARCHAR(200) NOT NULL,
-    IdPlanActual INT FOREIGN KEY REFERENCES PlanesEstudio(IdPlan), 
-    IndiceAcademico DECIMAL(5,2) DEFAULT 0.00,
-    UltimaSincronizacion DATETIME DEFAULT GETDATE() -- Vital para saber qué tan viejo es el dato
-);
-
--- Aquí caen las filas del Excel tal cual. Es un repositorio de lectura.
-CREATE TABLE Historial_Importado (
-    IdRegistro INT IDENTITY(1,1) PRIMARY KEY,
-    NumeroCuenta VARCHAR(50) FOREIGN KEY REFERENCES Alumnos(NumeroCuenta),
-    CodigoMateria VARCHAR(20), -- No lo amarramos a "Materias" porque a veces traen códigos raros/viejos
-    NombreMateria VARCHAR(150),
-    Nota DECIMAL(5,2),
-    Estado VARCHAR(20) -- Ej. 'APB', 'REP', 'EQV'
-);
-
--- 
--- 4. GESTIÓN DE LA APLICACIÓN Y MÉTRICAS (Aqui es donde la parte del backend hara las peticiones para los dashboards)
--- 
-
--- Tabla que funciona como "Log" o Bitácora de uso para tus Dashboards
-CREATE TABLE RegistroConsultas (
-    IdConsulta INT IDENTITY(1,1) PRIMARY KEY,
-    NumeroCuenta VARCHAR(50) FOREIGN KEY REFERENCES Alumnos(NumeroCuenta),
-    TipoConsulta VARCHAR(50), -- Ej: 'MAPEO_ACTUAL', 'SIMULACION_NUEVO_PLAN'
-    IdPlanDestino INT FOREIGN KEY REFERENCES PlanesEstudio(IdPlan), -- Hacia qué plan hizo la proyección
-    FechaConsulta DATETIME DEFAULT GETDATE()
-);
-
--- Lo que la calculadora en Node.js determinó y plasmó en el PDF
-CREATE TABLE DetalleConsulta_Equivalencias (
-    IdDetalle INT IDENTITY(1,1) PRIMARY KEY,
-    IdConsulta INT FOREIGN KEY REFERENCES RegistroConsultas(IdConsulta),
-    IdReglaAplicada INT FOREIGN KEY REFERENCES ReglasEquivalencia(IdRegla),
-    CodigoMateriaOtorgada VARCHAR(20) FOREIGN KEY REFERENCES Materias(CodigoMateria),
-    Motivo VARCHAR(255) -- Ej: "Se otorgó por equivalencia de MAT101 y MAT102"
-);
-
--- 
--- 5. Sugerencia de ruta de clases a cursar
--- 
-
--- Define qué clase es requisito de otra en un plan específico
-CREATE TABLE Requisitos_Pensum (
-    IdPlan INT FOREIGN KEY REFERENCES PlanesEstudio(IdPlan),
-    CodigoMateria VARCHAR(20) FOREIGN KEY REFERENCES Materias(CodigoMateria),
-    CodigoRequisito VARCHAR(20) FOREIGN KEY REFERENCES Materias(CodigoMateria),
-    
-    -- La llave primaria compuesta evita que se duplique el mismo requisito por error
-    PRIMARY KEY (IdPlan, CodigoMateria, CodigoRequisito) 
-);
-
--- 
--- 6. SEGURIDAD Y ACCESOS (Autenticación Local)
--- 
-
--- 1. Catálogo de Roles (Se mantiene igual)
-CREATE TABLE Roles (
-    IdRol INT PRIMARY KEY,
-    NombreRol VARCHAR(50) NOT NULL,
-    Descripcion VARCHAR(150)
-);
-
--- 2. Tabla de Usuarios con PasswordHash
-CREATE TABLE Usuarios (
-    IdUsuario INT IDENTITY(1,1) PRIMARY KEY,
-    CorreoInstitucional VARCHAR(150) UNIQUE NOT NULL,
-    PasswordHash VARCHAR(255) NOT NULL, -- AQUÍ GUARDAMOS LA CONTRASEÑA ENCRIPTADA
-    NombreCompleto VARCHAR(200) NOT NULL,
-    IdRol INT FOREIGN KEY REFERENCES Roles(IdRol),
-    
-    -- Puente con la tabla Alumnos (NULL si es admin o jefe)
-    NumeroCuenta VARCHAR(50) NULL FOREIGN KEY REFERENCES Alumnos(NumeroCuenta), 
-    
-    Activo BIT DEFAULT 1,
-    FechaCreacion DATETIME DEFAULT GETDATE()
-);
-
--- 
--- 7.INSERCIÓN DE DATOS DE PRUEBA
--- 
-
-INSERT INTO Roles (IdRol, NombreRol, Descripcion) VALUES 
-(1, 'ADMINISTRADOR', 'Acceso total: Configuración técnica y gestión.'),
-(2, 'COORDINADOR', 'Gestión académica: Subida de Excel y Dashboards.'),
-(3, 'ALUMNO', 'Solo lectura y simulación de su propio récord.');
-
-
-
--- Usuario 1: El Administrador
-INSERT INTO Usuarios (CorreoInstitucional, PasswordHash, NombreCompleto, IdRol, Activo) 
-VALUES ('admin.it@unitec.edu', '$2a$12$R9h/cIPz0gi.URNNX3cam2OsrvZ1.dCGe.GvQ82w.m0uVqYvT8s5O', 'Administrador del Sistema', 1, 1);
-
--- Usuario 2: El Coordinador
-INSERT INTO Usuarios (CorreoInstitucional, PasswordHash, NombreCompleto, IdRol, Activo) 
-VALUES ('jefe.logistica@unitec.edu', '$2a$12$R9h/cIPz0gi.URNNX3cam2OsrvZ1.dCGe.GvQ82w.m0uVqYvT8s5O', 'Coordinador de Logística', 2, 1);
-
---- Usuario3: Almuno
-
--- 1. Primero creamos una Carrera de prueba
-INSERT INTO Carreras (CodigoCarrera, NombreCarrera) 
-VALUES ('I-09', 'Ingeniería en Gestión Logística');
-
--- 2. Luego creamos un Plan de Estudio para esa carrera 
--- (Al ser el primer registro, tomará automáticamente el IdPlan = 1)
-INSERT INTO PlanesEstudio (CodigoCarrera, AnioPlan, NombrePlan) 
-VALUES ('I-09', 2018, 'Ingeniería en Gestión Logística Plan 2018');
-
--- 3. Ahora creamos al Alumno vinculándolo al Plan 1
-INSERT INTO Alumnos (NumeroCuenta, NombreCompleto, IdPlanActual, IndiceAcademico) 
-VALUES ('20911091', 'JOSÉ BLAS GARCÍA GUERRA', 1, 76.18);
-
-INSERT INTO Usuarios (CorreoInstitucional, PasswordHash, NombreCompleto, IdRol, NumeroCuenta, Activo) 
-VALUES ('jose.garcia@unitec.edu', '$2a$12$R9h/cIPz0gi.URNNX3cam2OsrvZ1.dCGe.GvQ82w.m0uVqYvT8s5O', 'JOSÉ BLAS GARCÍA GUERRA', 3, '20911091', 1);
+ALTER DATABASE [AppEquivalenciasDB] SET COMPATIBILITY_LEVEL = 160
+GO
+IF (1 = FULLTEXTSERVICEPROPERTY('IsFullTextInstalled'))
+begin
+EXEC [AppEquivalenciasDB].[dbo].[sp_fulltext_database] @action = 'enable'
+end
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET ANSI_NULL_DEFAULT OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET ANSI_NULLS OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET ANSI_PADDING OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET ANSI_WARNINGS OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET ARITHABORT OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET AUTO_CLOSE OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET AUTO_SHRINK OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET AUTO_UPDATE_STATISTICS ON 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET CURSOR_CLOSE_ON_COMMIT OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET CURSOR_DEFAULT  GLOBAL 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET CONCAT_NULL_YIELDS_NULL OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET NUMERIC_ROUNDABORT OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET QUOTED_IDENTIFIER OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET RECURSIVE_TRIGGERS OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET  ENABLE_BROKER 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET AUTO_UPDATE_STATISTICS_ASYNC OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET DATE_CORRELATION_OPTIMIZATION OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET TRUSTWORTHY OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET ALLOW_SNAPSHOT_ISOLATION OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET PARAMETERIZATION SIMPLE 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET READ_COMMITTED_SNAPSHOT OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET HONOR_BROKER_PRIORITY OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET RECOVERY FULL 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET  MULTI_USER 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET PAGE_VERIFY CHECKSUM  
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET DB_CHAINING OFF 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET FILESTREAM( NON_TRANSACTED_ACCESS = OFF ) 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET TARGET_RECOVERY_TIME = 60 SECONDS 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET DELAYED_DURABILITY = DISABLED 
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET ACCELERATED_DATABASE_RECOVERY = OFF  
+GO
+EXEC sys.sp_db_vardecimal_storage_format N'AppEquivalenciasDB', N'ON'
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET QUERY_STORE = ON
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET QUERY_STORE (OPERATION_MODE = READ_WRITE, CLEANUP_POLICY = (STALE_QUERY_THRESHOLD_DAYS = 30), DATA_FLUSH_INTERVAL_SECONDS = 900, INTERVAL_LENGTH_MINUTES = 60, MAX_STORAGE_SIZE_MB = 1000, QUERY_CAPTURE_MODE = AUTO, SIZE_BASED_CLEANUP_MODE = AUTO, MAX_PLANS_PER_QUERY = 200, WAIT_STATS_CAPTURE_MODE = ON)
+GO
+USE [AppEquivalenciasDB]
+GO
+/****** Object:  Table [dbo].[Alumnos]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[Alumnos](
+	[NumeroCuenta] [varchar](50) NOT NULL,
+	[NombreCompleto] [varchar](200) NOT NULL,
+	[IdPlanActual] [int] NULL,
+	[IndiceAcademico] [decimal](5, 2) NULL,
+	[UltimaSincronizacion] [datetime] NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[NumeroCuenta] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[Carreras]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[Carreras](
+	[CodigoCarrera] [varchar](20) NOT NULL,
+	[NombreCarrera] [varchar](150) NOT NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[CodigoCarrera] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[DetalleConsulta_Equivalencias]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[DetalleConsulta_Equivalencias](
+	[IdDetalle] [int] IDENTITY(1,1) NOT NULL,
+	[IdConsulta] [int] NULL,
+	[IdReglaAplicada] [int] NULL,
+	[CodigoMateriaOtorgada] [varchar](20) NULL,
+	[Motivo] [varchar](255) NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[IdDetalle] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[Equivalencias_Internas]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[Equivalencias_Internas](
+	[IdEquivalencia] [int] IDENTITY(1,1) NOT NULL,
+	[NumeroCuenta] [varchar](50) NOT NULL,
+	[CodigoMateriaPlan] [varchar](20) NOT NULL,
+	[CodigoMateriaCursada] [varchar](20) NOT NULL,
+	[TipoEquivalencia] [varchar](50) NULL,
+	[FechaRegistro] [datetime] NULL,
+ CONSTRAINT [PK_Equivalencias_Internas] PRIMARY KEY CLUSTERED 
+(
+	[IdEquivalencia] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[Historial_Importado]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[Historial_Importado](
+	[IdRegistro] [int] IDENTITY(1,1) NOT NULL,
+	[NumeroCuenta] [varchar](50) NULL,
+	[CodigoMateria] [varchar](20) NULL,
+	[NombreMateria] [varchar](150) NULL,
+	[Nota] [decimal](5, 2) NULL,
+	[Estado] [varchar](20) NULL,
+	[FechaCreacion] [datetime] NULL,
+	[FechaActualizacion] [datetime] NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[IdRegistro] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[Materias]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[Materias](
+	[CodigoMateria] [varchar](20) NOT NULL,
+	[NombreMateria] [varchar](150) NOT NULL,
+	[UVS] [int] NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[CodigoMateria] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[Pensum_Materias]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[Pensum_Materias](
+	[IdPlan] [int] NOT NULL,
+	[CodigoMateria] [varchar](20) NOT NULL,
+	[Semestre] [int] NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[IdPlan] ASC,
+	[CodigoMateria] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[PlanesEstudio]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[PlanesEstudio](
+	[IdPlan] [int] IDENTITY(1,1) NOT NULL,
+	[CodigoCarrera] [varchar](20) NULL,
+	[AnioPlan] [int] NOT NULL,
+	[NombrePlan] [varchar](100) NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[IdPlan] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[RegistroConsultas]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[RegistroConsultas](
+	[IdConsulta] [int] IDENTITY(1,1) NOT NULL,
+	[NumeroCuenta] [varchar](50) NULL,
+	[TipoConsulta] [varchar](50) NULL,
+	[IdPlanDestino] [int] NULL,
+	[FechaConsulta] [datetime] NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[IdConsulta] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[Regla_MateriaDestino]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[Regla_MateriaDestino](
+	[IdDetalleDestino] [int] IDENTITY(1,1) NOT NULL,
+	[IdRegla] [int] NULL,
+	[CodigoOtorgada] [varchar](20) NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[IdDetalleDestino] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[Regla_MateriaOrigen]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[Regla_MateriaOrigen](
+	[IdDetalleOrigen] [int] IDENTITY(1,1) NOT NULL,
+	[IdRegla] [int] NULL,
+	[CodigoCursada] [varchar](50) NOT NULL,
+	[NombreCursada] [varchar](150) NOT NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[IdDetalleOrigen] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[ReglasEquivalencia]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[ReglasEquivalencia](
+	[IdRegla] [int] IDENTITY(1,1) NOT NULL,
+	[Tipo] [varchar](20) NULL,
+	[InstitucionOrigen] [varchar](150) NULL,
+	[Observaciones] [varchar](255) NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[IdRegla] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[Requisitos_Pensum]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[Requisitos_Pensum](
+	[IdPlan] [int] NOT NULL,
+	[CodigoMateria] [varchar](20) NOT NULL,
+	[CodigoRequisito] [varchar](20) NOT NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[IdPlan] ASC,
+	[CodigoMateria] ASC,
+	[CodigoRequisito] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[Roles]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[Roles](
+	[IdRol] [int] NOT NULL,
+	[NombreRol] [varchar](50) NOT NULL,
+	[Descripcion] [varchar](150) NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[IdRol] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[Usuarios]    Script Date: 3/12/2026 7:22:28 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[Usuarios](
+	[IdUsuario] [int] IDENTITY(1,1) NOT NULL,
+	[CorreoInstitucional] [varchar](150) NOT NULL,
+	[PasswordHash] [varchar](255) NOT NULL,
+	[NombreCompleto] [varchar](200) NOT NULL,
+	[IdRol] [int] NULL,
+	[NumeroCuenta] [varchar](50) NULL,
+	[Activo] [bit] NULL,
+	[FechaCreacion] [datetime] NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[IdUsuario] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+INSERT [dbo].[Alumnos] ([NumeroCuenta], [NombreCompleto], [IdPlanActual], [IndiceAcademico], [UltimaSincronizacion]) VALUES (N'20911091', N'JOSÉ BLAS GARCÍA GUERRA', 1, CAST(76.18 AS Decimal(5, 2)), CAST(N'2026-03-07T01:32:57.113' AS DateTime))
+GO
+INSERT [dbo].[Alumnos] ([NumeroCuenta], [NombreCompleto], [IdPlanActual], [IndiceAcademico], [UltimaSincronizacion]) VALUES (N'62241019', N'DANIEL EDGARDO MORALES LOPEZ', 5, CAST(88.16 AS Decimal(5, 2)), CAST(N'2026-03-10T00:00:00.000' AS DateTime))
+GO
+INSERT [dbo].[Carreras] ([CodigoCarrera], [NombreCarrera]) VALUES (N'I-06', N'Ingeniería en Informática')
+GO
+INSERT [dbo].[Carreras] ([CodigoCarrera], [NombreCarrera]) VALUES (N'I-07', N'Ingeniería en Electrónica')
+GO
+INSERT [dbo].[Carreras] ([CodigoCarrera], [NombreCarrera]) VALUES (N'I-09', N'Ingeniería en Gestión Logística')
+GO
+SET IDENTITY_INSERT [dbo].[Equivalencias_Internas] ON 
+GO
+INSERT [dbo].[Equivalencias_Internas] ([IdEquivalencia], [NumeroCuenta], [CodigoMateriaPlan], [CodigoMateriaCursada], [TipoEquivalencia], [FechaRegistro]) VALUES (1, N'62241019', N'ART/DEP', N'DEP107', N'Interna', CAST(N'2026-03-11T21:12:53.727' AS DateTime))
+GO
+INSERT [dbo].[Equivalencias_Internas] ([IdEquivalencia], [NumeroCuenta], [CodigoMateriaPlan], [CodigoMateriaCursada], [TipoEquivalencia], [FechaRegistro]) VALUES (2, N'62241019', N'BIO', N'BIO201', N'Interna', CAST(N'2026-03-11T21:12:53.773' AS DateTime))
+GO
+INSERT [dbo].[Equivalencias_Internas] ([IdEquivalencia], [NumeroCuenta], [CodigoMateriaPlan], [CodigoMateriaCursada], [TipoEquivalencia], [FechaRegistro]) VALUES (3, N'62241019', N'EIE1', N'ING113', N'Interna', CAST(N'2026-03-11T21:12:53.780' AS DateTime))
+GO
+INSERT [dbo].[Equivalencias_Internas] ([IdEquivalencia], [NumeroCuenta], [CodigoMateriaPlan], [CodigoMateriaCursada], [TipoEquivalencia], [FechaRegistro]) VALUES (4, N'62241019', N'EIE2', N'ING114', N'Interna', CAST(N'2026-03-11T22:17:15.560' AS DateTime))
+GO
+SET IDENTITY_INSERT [dbo].[Equivalencias_Internas] OFF
+GO
+SET IDENTITY_INSERT [dbo].[Historial_Importado] ON 
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (131, N'62241019', N'ADM102', N'ADMINISTRACIÓN I', CAST(93.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.593' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (132, N'62241019', N'CCC106', N'INTRODUCCIÓN COMPUTACIÓN', CAST(100.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.623' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (133, N'62241019', N'ESP103', N'COMUNICACIÓN ORAL Y ESCRITA', CAST(92.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.653' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (134, N'62241019', N'MAT101', N'INTRODUCCIÓN AL ÁLGEBRA', CAST(80.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.660' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (135, N'62241019', N'ADM103', N'ADMINISTRACIÓN II', CAST(87.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.690' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (136, N'62241019', N'CCC104', N'PROGRAMACIÓN I', CAST(97.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.717' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (137, N'62241019', N'FIL101', N'FILOSOFÍA', CAST(98.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.720' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (138, N'62241019', N'LCC104', N'OFIMÁTICA AVANZADA', CAST(93.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.747' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (139, N'62241019', N'MAT102', N'ÁLGEBRA', CAST(75.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.750' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (140, N'62241019', N'CCC105', N'PROGRAMACIÓN II', CAST(86.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.773' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (141, N'62241019', N'HIS101', N'HISTORIA DE HONDURAS', CAST(99.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.780' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (142, N'62241019', N'MAT103', N'GEOMETRÍA TRIGONOMETRÍA', CAST(71.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.783' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (143, N'62241019', N'REH301', N'GERENCIA DE RECURSOS HUMANOS I', CAST(84.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.810' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (144, N'62241019', N'SOC101', N'SOCIOLOGÍA', CAST(96.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.837' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (145, N'62241019', N'DEP107', N'AJEDREZ', CAST(94.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.840' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (146, N'62241019', N'INF201', N'COMERCIO ELECTRÓNICO', CAST(90.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.847' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (147, N'62241019', N'MAT105', N'ÁLGEBRA LINEAL', CAST(94.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.873' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (148, N'62241019', N'MAT109', N'CÁLCULO I', CAST(77.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.877' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (149, N'62241019', N'BIO201', N'BIOLOGÍA', CAST(93.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.903' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (150, N'62241019', N'CCC208', N'PROGRAMACIÓN III', CAST(72.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.910' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (151, N'62241019', N'ING113', N'PREP. PARA EL TOEFL (ING. AV)', CAST(87.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.937' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (152, N'62241019', N'MAT210', N'CÁLCULO II', CAST(85.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.940' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (153, N'62241019', N'CCC217', N'PROGRAMACIÓN WEB', CAST(91.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.963' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (154, N'62241019', N'FIS201', N'FÍSICA I', CAST(90.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.967' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (155, N'62241019', N'MAT203', N'ECUACIONES DIFERENC.', CAST(85.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.970' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (156, N'62241019', N'CCC218', N'PROGRAMACIÓN MÓVIL', CAST(90.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:20.993' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (157, N'62241019', N'MAT301', N'ESTADÍST. MATEMÁTICA I', CAST(70.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.000' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (158, N'62241019', N'CCC301', N'ESTRUCTURA DE DATOS', CAST(94.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.027' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (159, N'62241019', N'FIS202', N'FISICA II', CAST(88.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.030' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (160, N'62241019', N'TLL314', N'METODOLOGÍA DE INVESTIGACIÓN', CAST(81.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.060' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (161, N'62241019', N'CCC401', N'SISTEMAS OPERATIVOS I', CAST(71.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.063' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (162, N'62241019', N'INF308', N'ADMINISTRACIÓN BASE DE DATOS I', CAST(89.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.090' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (163, N'62241019', N'CCC109', N'ÉTICA INFORMÁTICA', CAST(98.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.090' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (164, N'62241019', N'INF309', N'ADMINISTRACIÓN BASE DATOS II', CAST(93.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.093' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (165, N'62241019', N'MAT303', N'MATEMATICAS DISCRETAS', CAST(96.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.120' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (166, N'62241019', N'CCC308', N'INGENIERÍA DE SOFTWARE I', CAST(94.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.123' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (167, N'62241019', N'CCC310', N'CIENCIA DE DATOS I', CAST(83.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.147' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (168, N'62241019', N'CON319', N'CONTABILIDAD GERENCIAL', CAST(81.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.150' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (169, N'62241019', N'CCC311', N'CIENCIA DE DATOS II', CAST(85.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.153' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (170, N'62241019', N'CCC412', N'INGENIERÍA DE SOFTWARE II', CAST(92.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.160' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (171, N'62241019', N'IND404', N'ADMINIST. DE PROYECTOS', CAST(93.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.180' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (172, N'62241019', N'TEL201', N'REDES', CAST(93.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.187' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (173, N'62241019', N'IND432', N'SIST GESTIÓN INNOVACIÓN Y TECN', CAST(98.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.210' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (174, N'62241019', N'INF501', N'AUDITORÍA INFORMÁTICA', CAST(96.00 AS Decimal(5, 2)), N'APB', CAST(N'2026-03-11T15:38:21.213' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (175, N'62241019', N'CCC413', N'DESARROLLO APLICAC. VANGUARDIA', CAST(25.00 AS Decimal(5, 2)), N'EN CURSO', CAST(N'2026-03-11T15:38:21.220' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (176, N'62241019', N'EMP401', N'GENERACIÓN DE EMPRESAS I', CAST(21.00 AS Decimal(5, 2)), N'EN CURSO', CAST(N'2026-03-11T15:38:21.243' AS DateTime), NULL)
+GO
+INSERT [dbo].[Historial_Importado] ([IdRegistro], [NumeroCuenta], [CodigoMateria], [NombreMateria], [Nota], [Estado], [FechaCreacion], [FechaActualizacion]) VALUES (177, N'62241019', N'ING114', N'REDACCION ACADEMICA (ING. AV)', CAST(42.00 AS Decimal(5, 2)), N'EN CURSO', CAST(N'2026-03-11T15:38:21.253' AS DateTime), NULL)
+GO
+SET IDENTITY_INSERT [dbo].[Historial_Importado] OFF
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'93.00', N'APB', 256)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'94.00', N'APB', 0)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'ADM102', N'ADMINISTRACIÓN I', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'ADM103', N'ADMINISTRACIÓN II', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'ART/DEP', N'ELECTIVA DE ARTE O DEPORTE', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'BIO', N'ELECTIVA EN CIENCIAS NATURALES', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'BIO201', N'BIOLOGÍA', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC104', N'PROGRAMACIÓN I', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC105', N'PROGRAMACIÓN II', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC106', N'INTRODUCCIÓN A LA COMPUTACIÓN', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC108', N'PROGRAMACIÓN ESTRUCTURADA', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC109', N'ÉTICA INFORMÁTICA', 2)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC208', N'PROGRAMACIÓN III', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC212', N'PROGRAMACIÓN DE SISTEMAS', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC217', N'PROGRAMACIÓN WEB', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC218', N'PROGRAMACIÓN MÓVIL', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC301', N'ESTRUCTURA DE DATOS', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC308', N'INGENIERÍA DE SOFTWARE I', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC310', N'CIENCIA DE DATOS I', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC311', N'CIENCIA DE DATOS II', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC401', N'SISTEMAS OPERATIVOS I', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC412', N'INGENIERÍA DE SOFTWARE II', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC413', N'DESARROLLO DE APLICACIONES DE VANGUARDIA', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC504', N'TECNOLOGÍAS EMERGENTES', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CCC505', N'SEGURIDAD COMPUTACIONAL', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CIV103', N'DIBUJO PARA INGENIERÍA', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'CON319', N'CONTABILIDAD GERENCIAL', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'DEP107', N'AJEDREZ', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'EIE1', N'ELECTIVA DE IDIOMA EXTRANJERO I', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'EIE2', N'ELECTIVA DE IDIOMA EXTRANJERO II', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'EIE3', N'ELECTIVA DE IDIOMA EXTRANJERO III', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'EIE4', N'ELECTIVA DE IDIOMA EXTRANJERO IV', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'EIE5', N'ELECTIVA DE IDIOMA EXTRANJERO V', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'EIE6', N'ELECTIVA DE IDIOMA EXTRANJERO VI', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'EIE7', N'ELECTIVA DE IDIOMA EXTRANJERO VII', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'EIE8', N'ELECTIVA DE IDIOMA EXTRANJERO VIII', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'EMP401', N'GENERACIÓN DE EMPRESAS I', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'EMP402', N'GENERACIÓN DE EMPRESAS II', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'ENE402', N'MÁQUINAS ELÉCTRICAS', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'ESP103', N'COMUNICACIÓN ORAL Y ESCRITA', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'FIL101', N'FILOSOFÍA', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'FIS201', N'FÍSICA I', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'FIS202', N'FÍSICA II', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'FIS203', N'FÍSICA III', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'HIS101', N'HISTORIA DE HONDURAS', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'IND404', N'ADMINISTRACIÓN DE PROYECTOS', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'IND432', N'SISTEMAS DE GESTIÓN DE LA INNOVACIÓN Y TECNOLOGÍA', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'INF201', N'COMERCIO ELECTRÓNICO', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'INF308', N'ADMINISTRACIÓN DE BASE DE DATOS I', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'INF309', N'ADMINISTRACIÓN DE BASE DE DATOS II', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'INF417', N'PROYECTO DE INVESTIGACIÓN I / PRÁCTICA I', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'INF419', N'PROYECTO DE INVESTIGACIÓN II / PRÁCTICA II', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'INF501', N'AUDITORÍA INFORMÁTICA', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'ING113', N'PREP. PARA EL TOEFL (ING. AV)', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'ING114', N'REDACCION ACADEMICA (ING. AV)', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'LCC104', N'OFIMÁTICA AVANZADA', 2)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'MAT101', N'INTRODUCCIÓN AL ÁLGEBRA', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'MAT102', N'ÁLGEBRA', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'MAT103', N'GEOMETRÍA Y TRIGONOMETRÍA', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'MAT105', N'ÁLGEBRA LINEAL', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'MAT109', N'CÁLCULO I', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'MAT203', N'ECUACIONES DIFERENCIALES', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'MAT209', N'VARIABLE COMPLEJA', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'MAT210', N'CÁLCULO II', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'MAT301', N'ESTADÍSTICA MATEMÁTICA I', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'MAT303', N'MATEMÁTICAS DISCRETAS', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'MEC306', N'SENSORES Y ACTUADORES', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'QUI101', N'QUÍMICA GENERAL', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'REH301', N'GERENCIA DE RECURSOS HUMANOS I', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL102', N'INTRODUCCIÓN A LA INGENIERÍA EN ELECTRÓNICA', 2)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL303', N'INSTALACIONES ELÉCTRICAS', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL308', N'INGENIERÍA DE CONTROL', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL311', N'ANÁLISIS DE CIRCUITOS ELÉCTRICOS EN D.C.', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL312', N'ANÁLISIS DE CIRCUITOS ELÉCTRICOS EN A.C.', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL313', N'ANÁLISIS DE CIRCUITOS ELECTRÓNICOS', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL315', N'AMPLIFICADORES ELECTRÓNICOS', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL316', N'DISEÑO DE SISTEMAS DIGITALES', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL317', N'MICROPROCESADORES Y MICROCONTROLADORES', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL405', N'TEORÍA DEL CONTROL DIGITAL', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL407', N'ELECTRÓNICA DE POTENCIA', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL417', N'AUTOMATIZACIÓN INDUSTRIAL CON PLC', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL418', N'DISEÑO DE SISTEMAS EMBEBIDOS', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL419', N'TECNOLOGÍAS EMERGENTES EN ELECTRÓNICA', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL420', N'INFRAESTRUCTURA DE REDES INDUSTRIALES', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL421', N'INVESTIGACIÓN APLICADA A LA ELECTRÓNICA', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SEL422', N'PRÁCTICA PROFESIONAL / PROYECTO', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'SOC101', N'SOCIOLOGÍA', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'TEL102', N'FUNDAMENTOS DE REDES', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'TEL201', N'REDES', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'TEL312', N'PROTOCOLOS DE REDES', 4)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'TFESE L1', N'TÓPICO DE FORMACIÓN ESPECÍFICA I', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'TFESE L2', N'TÓPICO DE FORMACIÓN ESPECÍFICA II', 3)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'TLL310', N'ÉTICA Y CIUDADANÍA', 2)
+GO
+INSERT [dbo].[Materias] ([CodigoMateria], [NombreMateria], [UVS]) VALUES (N'TLL314', N'METODOLOGÍA DE INVESTIGACIÓN', 1)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'ADM102', 1)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'ADM103', 2)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'ART/DEP', 7)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'BIO', 8)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC104', 2)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC105', 3)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC106', 1)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC109', 3)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC208', 4)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC217', 5)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC218', 6)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC301', 7)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC308', 11)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC310', 11)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC311', 12)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC401', 8)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC412', 12)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC413', 13)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC504', 14)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CCC505', 14)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'CON319', 9)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'EIE1', 9)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'EIE2', 10)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'EIE3', 11)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'EIE4', 12)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'EMP401', 12)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'EMP402', 13)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'ESP103', 1)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'FIL101', 4)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'FIS201', 6)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'FIS202', 7)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'HIS101', 5)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'IND404', 10)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'IND432', 11)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'INF201', 5)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'INF308', 9)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'INF309', 10)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'INF417', 15)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'INF419', 16)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'INF501', 13)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'LCC104', 2)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'MAT101', 1)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'MAT102', 2)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'MAT103', 3)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'MAT105', 4)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'MAT109', 4)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'MAT203', 6)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'MAT210', 5)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'MAT301', 7)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'MAT303', 8)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'REH301', 3)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'SOC101', 6)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'TEL201', 9)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'TEL312', 10)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (5, N'TLL314', 8)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'ART/DEP', 7)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'BIO', 11)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'CCC108', 4)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'CCC212', 5)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'CIV103', 8)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'CON319', 12)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'EIE1', 2)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'EIE2', 3)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'EIE3', 4)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'EIE4', 5)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'EIE5', 6)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'EIE6', 7)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'EIE7', 8)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'EIE8', 9)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'EMP401', 14)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'EMP402', 15)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'ENE402', 10)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'ESP103', 1)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'FIL101', 3)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'FIS201', 5)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'FIS202', 6)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'FIS203', 7)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'HIS101', 1)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'IND404', 13)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'LCC104', 2)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'MAT101', 1)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'MAT102', 2)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'MAT103', 3)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'MAT105', 4)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'MAT109', 4)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'MAT203', 6)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'MAT209', 7)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'MAT210', 5)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'MAT301', 6)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'MEC306', 12)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'QUI101', 3)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL102', 1)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL303', 9)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL308', 10)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL311', 8)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL312', 9)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL313', 10)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL315', 11)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL316', 11)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL317', 12)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL405', 11)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL407', 13)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL417', 13)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL418', 14)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL419', 14)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL420', 14)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL421', 15)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SEL422', 16)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'SOC101', 2)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'TEL102', 8)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'TFESE L1', 12)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'TFESE L2', 13)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'TLL310', 9)
+GO
+INSERT [dbo].[Pensum_Materias] ([IdPlan], [CodigoMateria], [Semestre]) VALUES (7, N'TLL314', 10)
+GO
+SET IDENTITY_INSERT [dbo].[PlanesEstudio] ON 
+GO
+INSERT [dbo].[PlanesEstudio] ([IdPlan], [CodigoCarrera], [AnioPlan], [NombrePlan]) VALUES (1, N'I-09', 2018, N'Ingeniería en Gestión Logística')
+GO
+INSERT [dbo].[PlanesEstudio] ([IdPlan], [CodigoCarrera], [AnioPlan], [NombrePlan]) VALUES (4, N'I-06', 2014, N'Ingeniería en Informática')
+GO
+INSERT [dbo].[PlanesEstudio] ([IdPlan], [CodigoCarrera], [AnioPlan], [NombrePlan]) VALUES (5, N'I-06', 2023, N'Ingeniería en Informatica')
+GO
+INSERT [dbo].[PlanesEstudio] ([IdPlan], [CodigoCarrera], [AnioPlan], [NombrePlan]) VALUES (6, N'I-07', 2016, N'Ingeniería en Electrónica')
+GO
+INSERT [dbo].[PlanesEstudio] ([IdPlan], [CodigoCarrera], [AnioPlan], [NombrePlan]) VALUES (7, N'I-07', 2023, N'Ingeniería en Electrónica')
+GO
+SET IDENTITY_INSERT [dbo].[PlanesEstudio] OFF
+GO
+INSERT [dbo].[Roles] ([IdRol], [NombreRol], [Descripcion]) VALUES (1, N'ADMINISTRADOR', N'Acceso total: Configuración técnica y gestión.')
+GO
+INSERT [dbo].[Roles] ([IdRol], [NombreRol], [Descripcion]) VALUES (2, N'COORDINADOR', N'Gestión académica: Subida de Excel y Dashboards.')
+GO
+INSERT [dbo].[Roles] ([IdRol], [NombreRol], [Descripcion]) VALUES (3, N'ALUMNO', N'Solo lectura y simulación de su propio récord.')
+GO
+SET IDENTITY_INSERT [dbo].[Usuarios] ON 
+GO
+INSERT [dbo].[Usuarios] ([IdUsuario], [CorreoInstitucional], [PasswordHash], [NombreCompleto], [IdRol], [NumeroCuenta], [Activo], [FechaCreacion]) VALUES (1, N'admin.it@unitec.edu', N'$2a$12$R9h/cIPz0gi.URNNX3cam2OsrvZ1.dCGe.GvQ82w.m0uVqYvT8s5O', N'Administrador del Sistema', 1, NULL, 1, CAST(N'2026-03-07T01:32:57.110' AS DateTime))
+GO
+INSERT [dbo].[Usuarios] ([IdUsuario], [CorreoInstitucional], [PasswordHash], [NombreCompleto], [IdRol], [NumeroCuenta], [Activo], [FechaCreacion]) VALUES (2, N'jefe.logistica@unitec.edu', N'$2a$12$R9h/cIPz0gi.URNNX3cam2OsrvZ1.dCGe.GvQ82w.m0uVqYvT8s5O', N'Coordinador de Logística', 2, NULL, 1, CAST(N'2026-03-07T01:32:57.110' AS DateTime))
+GO
+INSERT [dbo].[Usuarios] ([IdUsuario], [CorreoInstitucional], [PasswordHash], [NombreCompleto], [IdRol], [NumeroCuenta], [Activo], [FechaCreacion]) VALUES (3, N'jose.garcia@unitec.edu', N'$2a$12$R9h/cIPz0gi.URNNX3cam2OsrvZ1.dCGe.GvQ82w.m0uVqYvT8s5O', N'JOSÉ BLAS GARCÍA GUERRA', 3, N'20911091', 1, CAST(N'2026-03-07T01:32:57.117' AS DateTime))
+GO
+INSERT [dbo].[Usuarios] ([IdUsuario], [CorreoInstitucional], [PasswordHash], [NombreCompleto], [IdRol], [NumeroCuenta], [Activo], [FechaCreacion]) VALUES (4, N'danielmorales0924@unitec.edu', N'Temporal2026', N'DANIEL EDGARDO MORALES LOPEZ', 3, N'62241019', 1, CAST(N'2026-03-10T00:00:00.000' AS DateTime))
+GO
+SET IDENTITY_INSERT [dbo].[Usuarios] OFF
+GO
+SET ANSI_PADDING ON
+GO
+/****** Object:  Index [UQ__Usuarios__24A32E0639120983]    Script Date: 3/12/2026 7:22:28 AM ******/
+ALTER TABLE [dbo].[Usuarios] ADD UNIQUE NONCLUSTERED 
+(
+	[CorreoInstitucional] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
+ALTER TABLE [dbo].[Alumnos] ADD  DEFAULT ((0.00)) FOR [IndiceAcademico]
+GO
+ALTER TABLE [dbo].[Alumnos] ADD  DEFAULT (getdate()) FOR [UltimaSincronizacion]
+GO
+ALTER TABLE [dbo].[Equivalencias_Internas] ADD  DEFAULT ('Interna') FOR [TipoEquivalencia]
+GO
+ALTER TABLE [dbo].[Equivalencias_Internas] ADD  DEFAULT (getdate()) FOR [FechaRegistro]
+GO
+ALTER TABLE [dbo].[Historial_Importado] ADD  DEFAULT (getdate()) FOR [FechaCreacion]
+GO
+ALTER TABLE [dbo].[Materias] ADD  DEFAULT ((0)) FOR [UVS]
+GO
+ALTER TABLE [dbo].[RegistroConsultas] ADD  DEFAULT (getdate()) FOR [FechaConsulta]
+GO
+ALTER TABLE [dbo].[Usuarios] ADD  DEFAULT ((1)) FOR [Activo]
+GO
+ALTER TABLE [dbo].[Usuarios] ADD  DEFAULT (getdate()) FOR [FechaCreacion]
+GO
+ALTER TABLE [dbo].[Alumnos]  WITH CHECK ADD FOREIGN KEY([IdPlanActual])
+REFERENCES [dbo].[PlanesEstudio] ([IdPlan])
+GO
+ALTER TABLE [dbo].[DetalleConsulta_Equivalencias]  WITH CHECK ADD FOREIGN KEY([CodigoMateriaOtorgada])
+REFERENCES [dbo].[Materias] ([CodigoMateria])
+GO
+ALTER TABLE [dbo].[DetalleConsulta_Equivalencias]  WITH CHECK ADD FOREIGN KEY([IdConsulta])
+REFERENCES [dbo].[RegistroConsultas] ([IdConsulta])
+GO
+ALTER TABLE [dbo].[DetalleConsulta_Equivalencias]  WITH CHECK ADD FOREIGN KEY([IdReglaAplicada])
+REFERENCES [dbo].[ReglasEquivalencia] ([IdRegla])
+GO
+ALTER TABLE [dbo].[Equivalencias_Internas]  WITH CHECK ADD  CONSTRAINT [FK_Equivalencias_Alumnos] FOREIGN KEY([NumeroCuenta])
+REFERENCES [dbo].[Alumnos] ([NumeroCuenta])
+GO
+ALTER TABLE [dbo].[Equivalencias_Internas] CHECK CONSTRAINT [FK_Equivalencias_Alumnos]
+GO
+ALTER TABLE [dbo].[Equivalencias_Internas]  WITH CHECK ADD  CONSTRAINT [FK_Equivalencias_MateriaCursada] FOREIGN KEY([CodigoMateriaCursada])
+REFERENCES [dbo].[Materias] ([CodigoMateria])
+GO
+ALTER TABLE [dbo].[Equivalencias_Internas] CHECK CONSTRAINT [FK_Equivalencias_MateriaCursada]
+GO
+ALTER TABLE [dbo].[Equivalencias_Internas]  WITH CHECK ADD  CONSTRAINT [FK_Equivalencias_MateriaPlan] FOREIGN KEY([CodigoMateriaPlan])
+REFERENCES [dbo].[Materias] ([CodigoMateria])
+GO
+ALTER TABLE [dbo].[Equivalencias_Internas] CHECK CONSTRAINT [FK_Equivalencias_MateriaPlan]
+GO
+ALTER TABLE [dbo].[Historial_Importado]  WITH CHECK ADD FOREIGN KEY([NumeroCuenta])
+REFERENCES [dbo].[Alumnos] ([NumeroCuenta])
+GO
+ALTER TABLE [dbo].[Pensum_Materias]  WITH CHECK ADD FOREIGN KEY([CodigoMateria])
+REFERENCES [dbo].[Materias] ([CodigoMateria])
+GO
+ALTER TABLE [dbo].[Pensum_Materias]  WITH CHECK ADD FOREIGN KEY([IdPlan])
+REFERENCES [dbo].[PlanesEstudio] ([IdPlan])
+GO
+ALTER TABLE [dbo].[PlanesEstudio]  WITH CHECK ADD FOREIGN KEY([CodigoCarrera])
+REFERENCES [dbo].[Carreras] ([CodigoCarrera])
+GO
+ALTER TABLE [dbo].[RegistroConsultas]  WITH CHECK ADD FOREIGN KEY([IdPlanDestino])
+REFERENCES [dbo].[PlanesEstudio] ([IdPlan])
+GO
+ALTER TABLE [dbo].[RegistroConsultas]  WITH CHECK ADD FOREIGN KEY([NumeroCuenta])
+REFERENCES [dbo].[Alumnos] ([NumeroCuenta])
+GO
+ALTER TABLE [dbo].[Regla_MateriaDestino]  WITH CHECK ADD FOREIGN KEY([CodigoOtorgada])
+REFERENCES [dbo].[Materias] ([CodigoMateria])
+GO
+ALTER TABLE [dbo].[Regla_MateriaDestino]  WITH CHECK ADD FOREIGN KEY([IdRegla])
+REFERENCES [dbo].[ReglasEquivalencia] ([IdRegla])
+GO
+ALTER TABLE [dbo].[Regla_MateriaOrigen]  WITH CHECK ADD FOREIGN KEY([IdRegla])
+REFERENCES [dbo].[ReglasEquivalencia] ([IdRegla])
+GO
+ALTER TABLE [dbo].[Requisitos_Pensum]  WITH CHECK ADD FOREIGN KEY([CodigoMateria])
+REFERENCES [dbo].[Materias] ([CodigoMateria])
+GO
+ALTER TABLE [dbo].[Requisitos_Pensum]  WITH CHECK ADD FOREIGN KEY([CodigoRequisito])
+REFERENCES [dbo].[Materias] ([CodigoMateria])
+GO
+ALTER TABLE [dbo].[Requisitos_Pensum]  WITH CHECK ADD FOREIGN KEY([IdPlan])
+REFERENCES [dbo].[PlanesEstudio] ([IdPlan])
+GO
+ALTER TABLE [dbo].[Usuarios]  WITH CHECK ADD FOREIGN KEY([IdRol])
+REFERENCES [dbo].[Roles] ([IdRol])
+GO
+ALTER TABLE [dbo].[Usuarios]  WITH CHECK ADD FOREIGN KEY([NumeroCuenta])
+REFERENCES [dbo].[Alumnos] ([NumeroCuenta])
+GO
+ALTER TABLE [dbo].[ReglasEquivalencia]  WITH CHECK ADD CHECK  (([Tipo]='EXTERNA' OR [Tipo]='INTERNA'))
+GO
+USE [master]
+GO
+ALTER DATABASE [AppEquivalenciasDB] SET  READ_WRITE 
+GO
