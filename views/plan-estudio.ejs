@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogos Académicos | CEUTEC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .tab-active {
+            border-bottom: 2px solid #B20000;
+            color: #B20000;
+            font-weight: 600;
+        }
+
+        .tab-inactive {
+            border-bottom: 2px solid transparent;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .carrera-row {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .carrera-row:hover {
+            background-color: #fef2f2;
+        }
+
+        .carrera-row.expanded {
+            background-color: #fee2e2;
+            border-left: 4px solid #B20000;
+        }
+
+        /* Estilo para la carrera y plan del usuario - rojo muy sutil */
+        .carrera-row.usuario-plan {
+            background-color: rgba(178, 0, 0, 0.03); /* Rojo muy tenue al 3% */
+            border-left: 2px solid rgba(178, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .carrera-row.usuario-plan::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 4px;
+            background-color: #B20000;
+            opacity: 0.2;
+        }
+
+        .carrera-row.usuario-plan:hover {
+            background-color: rgba(178, 0, 0, 0.08); /* Un poco más visible al hover */
+        }
+
+        .carrera-row.usuario-plan:hover::after {
+            opacity: 0.4;
+        }
+
+        .materias-detalle {
+            background-color: #f9fafb;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .badge-uv {
+            background-color: #e6f7e6;
+            color: #2e7d32;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-materias {
+            background-color: #e6f0ff;
+            color: #1e4b8a;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-mi-plan {
+            background-color: rgba(178, 0, 0, 0.1);
+            color: #B20000;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        /* Modal más grande */
+        #planDetalleModal .bg-white {
+            max-width: 1200px !important;
+            width: 95% !important;
+            max-height: 85vh !important;
+        }
+
+        /* Botón de descargar */
+        .btn-descargar {
+            background-color: #B20000;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn-descargar:hover {
+            background-color: #8b0000;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(178, 0, 0, 0.2);
+        }
+
+        .btn-descargar i {
+            font-size: 1rem;
+        }
+    </style>
+</head>
+
+<body class="flex min-h-screen">
+    <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
+        <div class="p-6">
+            <img src="/assets/images/logo-ceutec.png" alt="CEUTEC" class="h-10 mb-8">
+            <nav class="space-y-1">
+                <a href="/dashboard"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition group">
+                    <i class="fas fa-home mr-3 text-gray-400 group-hover:text-[#B20000]"></i> Dashboard
+                </a>
+                <a href="/equivalencias"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-exchange-alt mr-3 text-gray-400"></i> Mis Equivalencias
+                </a>
+                <a href="/plan-estudio"
+                    class="flex items-center px-4 py-3 bg-slate-100 text-slate-900 font-semibold rounded-lg">
+                    <i class="fas fa-book mr-3 text-[#B20000]"></i> Planes de estudio
+                </a>
+                <a href="/reportes"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-file-alt mr-3 text-gray-400"></i> Reportes
+                </a>
+                <a href="/perfil"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-user mr-3 text-gray-400"></i> Mi Perfil
+                </a>
+            </nav>
+        </div>
+        <div class="mt-auto p-6 border-t border-gray-200">
+            <button onclick="localStorage.removeItem('user'); window.location.href='/';" class="flex items-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
+                <i class="fas fa-sign-out-alt mr-3"></i> Cerrar Sesión
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-8 overflow-y-auto">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800">Planes de Estudio</h1>
+                <p class="text-slate-500 text-sm mt-1">Gestión de Carreras, Planes de Estudio y Materias del sistema.</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="openModal('carreraModal')"
+                    class="bg-white border border-gray-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition flex items-center">
+                    <i class="fas fa-plus mr-2"></i> Nueva Carrera
+                </button>
+                <button onclick="openModal('materiaModal')"
+                    class="bg-white border border-gray-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition flex items-center">
+                    <i class="fas fa-plus mr-2"></i> Nueva Materia
+                </button>
+                <button onclick="openModal('uploadModal')"
+                    class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center">
+                    <i class="fas fa-file-excel mr-2"></i> Importar Catálogos
+                </button>
+            </div>
+        </header>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="flex border-b border-gray-200 px-6 pt-4 space-x-6">
+                <button onclick="switchTab('carreras')" id="tab-carreras" class="pb-3 tab-active transition">
+                    Carreras y Planes de Estudio
+                </button>
+                <button onclick="switchTab('materias')" id="tab-materias" class="pb-3 tab-inactive transition">
+                    Materias Registradas
+                </button>
+            </div>
+
+            <div class="p-0">
+                <!-- PANEL CARRERAS -->
+                <div id="panel-carreras" class="block">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-500">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-4 rounded-tl-lg">Código</th>
+                                    <th scope="col" class="px-6 py-4">Carrera</th>
+                                    <th scope="col" class="px-6 py-4">Plan de Estudio</th>
+                                    <th scope="col" class="px-6 py-4 text-center">Total Materias</th>
+                                    <th scope="col" class="px-6 py-4 text-center">Total UVs</th>
+                                    <th scope="col" class="px-6 py-4 text-center">Año</th>
+                                </tr>
+                            </thead>
+                            <tbody id="carrerasBody" class="divide-y divide-gray-100">
+                                <tr>
+                                    <td colspan="6" class="px-6 py-4 text-center">Cargando carreras...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- PANEL MATERIAS -->
+                <div id="panel-materias" class="hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-500">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-4 rounded-tl-lg">Código</th>
+                                    <th scope="col" class="px-6 py-4">Nombre de la Materia</th>
+                                    <th scope="col" class="px-6 py-4">UVs</th>
+                                </tr>
+                            </thead>
+                            <tbody id="materiasBody" class="divide-y divide-gray-100">
+                                <tr>
+                                    <td colspan="3" class="px-6 py-4 text-center">Cargando materias...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODALES -->
+
+    <!-- Modal Upload Excel -->
+    <div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 transform transition-all">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-slate-800">Importar Catálogos</h3>
+                <button onclick="closeModal('uploadModal')" class="text-slate-400 hover:text-slate-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="uploadForm" class="space-y-6">
+                <div class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-[#B20000] transition group cursor-pointer"
+                    id="dropZone">
+                    <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 group-hover:text-[#B20000] mb-4"></i>
+                    <p class="text-sm text-slate-600 mb-2">Arrastra el archivo Excel (Diccionario)</p>
+                    <p class="text-xs text-slate-400 font-medium italic">o haz clic para buscar</p>
+                    <input type="file" id="fileInput" name="archivoCatalogo" accept=".xlsx, .xls" class="hidden"
+                        required>
+                </div>
+                <div id="fileInfo" class="hidden bg-slate-50 p-3 rounded-lg flex items-center text-xs text-slate-600">
+                    <i class="fas fa-file-excel text-[#B20000] mr-2"></i>
+                    <span id="fileName" class="truncate flex-1 font-medium">archivo.xlsx</span>
+                </div>
+                <button type="submit" id="btnSubmitUpload"
+                    class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 transition">
+                    Importar y Procesar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Nueva Carrera -->
+    <div id="carreraModal"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 transform transition-all">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-slate-800">Agregar Carrera</h3>
+                <button onclick="closeModal('carreraModal')" class="text-slate-400 hover:text-slate-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="carreraForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Código de Carrera</label>
+                    <input type="text" id="codigoCarrera" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Nombre de la Carrera</label>
+                    <input type="text" id="nombreCarrera" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button type="submit"
+                    class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition mt-4">
+                    Guardar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Nueva Materia -->
+    <div id="materiaModal"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 transform transition-all">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-slate-800">Agregar Materia</h3>
+                <button onclick="closeModal('materiaModal')" class="text-slate-400 hover:text-slate-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="materiaForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Código de Materia</label>
+                    <input type="text" id="codigoMateria" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Nombre de la Materia</label>
+                    <input type="text" id="nombreMateria" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">UVs (Opcional)</label>
+                    <input type="number" id="uvsMateria" min="0" value="0"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button type="submit"
+                    class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition mt-4">
+                    Guardar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Detalle de Plan de Estudio (AHORA MÁS GRANDE) -->
+    <div id="planDetalleModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-8 transform transition-all max-h-[80vh] overflow-hidden flex flex-col">
+            <div class="flex justify-between items-start mb-6 flex-shrink-0">
+                <div class="flex-1">
+                    <h3 class="text-xl font-bold text-slate-800" id="modalPlanTitulo"></h3>
+                    <p class="text-sm text-slate-500 mt-1" id="modalPlanSubtitulo"></p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <!-- Botón de Descargar Plan de Estudio -->
+                    <a href="#" id="btnDescargarPlan" target="_blank" class="btn-descargar">
+                        <i class="fas fa-download"></i>
+                        Descargar Plan de Estudio
+                    </a>
+                    <button onclick="closeModal('planDetalleModal')" class="text-slate-400 hover:text-slate-600 transition">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="overflow-y-auto flex-1 pr-2">
+                <div class="mb-4 flex space-x-4 text-sm">
+                    <span class="badge-materias" id="modalTotalMaterias">0 materias</span>
+                    <span class="badge-uv" id="modalTotalUVs">0 UVs</span>
+                </div>
+                
+                <table class="w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-4 py-3">Código</th>
+                            <th class="px-4 py-3">Materia</th>
+                            <th class="px-4 py-3 text-center">UVs</th>
+                            <th class="px-4 py-3 text-center">Semestre</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalPlanBody" class="divide-y divide-gray-100">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS Logic -->
+    <script>
+        // Estado global
+        let carrerasData = [];
+        let materiasData = [];
+        let planesData = [];
+        let usuarioActual = null;
+        let usuarioPlan = null;
+        // Mapa de URLs de descarga de pensums (escalable)
+        const pensumUrls = {
+            // Formato: 'codigoCarrera|nombrePlan|año': 'url'
+            // Ejemplos (puedes agregar más según necesites):
+            // 'ISC|Ingeniería en Sistemas|2023': '/pensums/isc-2023.pdf',
+            // 'IIS|Ingeniería Industrial|2023': '/pensums/iis-2023.pdf',
+            // 'LGE|Licenciatura en Gerencia|2023': '/pensums/lge-2023.pdf',
+        };
+
+        // Modal Handlers
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        // Tabs
+        function switchTab(tab) {
+            document.getElementById('tab-carreras').className = tab === 'carreras' ? 'pb-3 tab-active transition' : 'pb-3 tab-inactive transition';
+            document.getElementById('tab-materias').className = tab === 'materias' ? 'pb-3 tab-active transition' : 'pb-3 tab-inactive transition';
+
+            document.getElementById('panel-carreras').style.display = tab === 'carreras' ? 'block' : 'none';
+            document.getElementById('panel-materias').style.display = tab === 'materias' ? 'block' : 'none';
+        }
+
+        // Obtener usuario actual del localStorage
+        function getUsuarioActual() {
+            try {
+                const userStr = localStorage.getItem('user');
+                if (userStr) {
+                    usuarioActual = JSON.parse(userStr);
+                    console.log('Usuario actual:', usuarioActual);
+                }
+            } catch (e) {
+                console.error('Error al obtener usuario:', e);
+            }
+        }
+
+        // Obtener el plan de estudio actual del usuario USANDO EL ENDPOINT DASHBOARD
+        async function getUsuarioPlan() {
+            if (!usuarioActual || !usuarioActual.numeroCuenta) {
+                console.log('No hay número de cuenta disponible');
+                return null;
+            }
+
+            try {
+                // Usamos el endpoint del dashboard que ya contiene toda la información
+                const response = await fetch(`/api/alumnos/${usuarioActual.numeroCuenta}/dashboard`);
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Dashboard data:', data); // Para debug
+                    
+                    if (data.alumno) {
+                        usuarioPlan = {
+                            nombre: data.alumno.NombrePlan,
+                            idPlan: data.alumno.IdPlanActual, // <-- IMPORTANTE: debe venir del backend
+                            carrera: data.alumno.NombreCarrera,
+                            codigoCarrera: data.alumno.CodigoCarrera,
+                            anioPlan: data.alumno.AnioPlan
+                        };
+                        console.log('Plan del usuario:', usuarioPlan);
+                        return usuarioPlan;
+                    }
+                } else {
+                    console.error('Error al obtener dashboard:', response.status);
+                }
+            } catch (error) {
+                console.error('Error al obtener plan del usuario:', error);
+            }
+            return null;
+        }
+
+        // Verificar si un plan es el plan actual del usuario
+        function esPlanDelUsuario(idPlan) {
+            if (!usuarioPlan || !idPlan) {
+                console.log('No hay usuarioPlan o idPlan:', { usuarioPlan, idPlan });
+                return false;
+            }
+            
+            // Convertir ambos a número para comparación segura
+            const idPlanNum = parseInt(idPlan);
+            const usuarioPlanIdNum = parseInt(usuarioPlan.idPlan);
+            
+            const esMiPlan = idPlanNum === usuarioPlanIdNum;
+            console.log(`Comparando plan ${idPlanNum} con usuario ${usuarioPlanIdNum}: ${esMiPlan}`);
+            
+            return esMiPlan;
+        }
+
+        // Obtener URL de descarga para un plan
+        function getUrlDescargaPlan(codigoCarrera, nombrePlan, anio) {
+            // Limpiar nombre del plan para usarlo como key
+            const planKey = nombrePlan.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            
+            // Intentar diferentes formatos de key
+            const keys = [
+                `${codigoCarrera}|${nombrePlan}|${anio}`,
+                `${codigoCarrera}|${planKey}|${anio}`,
+                `${codigoCarrera}-${anio}`,
+                `${planKey}-${anio}`
+            ];
+            
+            for (const key of keys) {
+                if (pensumUrls[key]) {
+                    return pensumUrls[key];
+                }
+            }
+            
+            // URL por defecto basada en código y año (escalable)
+            return `/pensums/${codigoCarrera}-${anio}.pdf`;
+        }
+
+        // Cargar datos
+        async function loadData() {
+            try {
+                // Obtener usuario y su plan
+                getUsuarioActual();
+                await getUsuarioPlan();
+
+                // Fetch Carreras y Planes
+                const resC = await fetch('/api/catalogos/carreras-con-planes');
+                const data = await resC.json();
+                carrerasData = data.carreras || [];
+                planesData = data.planes || [];
+                
+                renderCarreras();
+
+                // Fetch Materias
+                const resM = await fetch('/api/catalogos/materias');
+                materiasData = await resM.json();
+                renderMaterias();
+
+            } catch (err) {
+                console.error("Error loading data", err);
+            }
+        }
+
+        // Renderizar tabla de carreras con planes
+        function renderCarreras() {
+            const tbody = document.getElementById('carrerasBody');
+            tbody.innerHTML = '';
+
+            if (!carrerasData || carrerasData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center">No hay carreras registradas.</td></tr>';
+                return;
+            }
+
+            console.log('Planes data:', planesData); // Debug
+            console.log('Usuario plan:', usuarioPlan); // Debug
+
+            // Agrupar planes por carrera
+            carrerasData.forEach(carrera => {
+                const planesCarrera = planesData.filter(p => p.CodigoCarrera === carrera.CodigoCarrera);
+                
+                if (planesCarrera.length === 0) {
+                    // Carrera sin planes
+                    tbody.innerHTML += `
+                        <tr class="bg-white hover:bg-gray-50 carrera-row" data-codigo="${carrera.CodigoCarrera}">
+                            <td class="px-6 py-4 font-medium text-gray-900">${carrera.CodigoCarrera}</td>
+                            <td class="px-6 py-4" colspan="4">
+                                ${carrera.NombreCarrera}
+                                - Sin planes registrados
+                            </td>
+                            <td class="px-6 py-4 text-center">-</td>
+                        </tr>
+                    `;
+                } else {
+                    // Mostrar cada plan como una fila
+                    planesCarrera.sort((a, b) => b.AnioPlan - a.AnioPlan); // Más reciente primero
+                    
+                    planesCarrera.forEach((plan, index) => {
+                        const esPrimero = index === 0;
+                        const esMiPlan = esPlanDelUsuario(plan.IdPlan);
+                        const claseAdicional = esMiPlan ? 'usuario-plan' : '';
+                        
+                        tbody.innerHTML += `
+                            <tr class="bg-white hover:bg-gray-50 carrera-row ${claseAdicional}" 
+                                data-idplan="${plan.IdPlan}" 
+                                data-carrera="${carrera.NombreCarrera}"
+                                data-codigo="${carrera.CodigoCarrera}"
+                                data-plan="${plan.NombrePlan}"
+                                data-anio="${plan.AnioPlan}"
+                                data-materias="${plan.TotalMaterias || 0}"
+                                data-uvs="${plan.TotalUVS || 0}">
+                                <td class="px-6 py-4 font-medium text-gray-900">${carrera.CodigoCarrera}</td>
+                                <td class="px-6 py-4">
+                                    ${carrera.NombreCarrera}
+                                    ${esMiPlan ? '<span class="badge-mi-plan"><i class="fas fa-graduation-cap mr-1"></i>Mi Plan</span>' : ''}
+                                </td>
+                                <td class="px-6 py-4">
+                                    ${plan.NombrePlan}
+                                    ${esPrimero ? '<span class="ml-2 text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full">Actual</span>' : ''}
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="badge-materias">${plan.TotalMaterias || 0}</span>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="badge-uv">${plan.TotalUVS || 0} UVs</span>
+                                </td>
+                                <td class="px-6 py-4 text-center">${plan.AnioPlan}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            });
+
+            // Agregar event listeners para doble click
+            document.querySelectorAll('.carrera-row').forEach(row => {
+                row.addEventListener('dblclick', (e) => {
+                    const idPlan = row.dataset.idplan;
+                    if (idPlan) {
+                        verDetallePlan(
+                            idPlan, 
+                            row.dataset.carrera, 
+                            row.dataset.plan, 
+                            row.dataset.anio,
+                            row.dataset.codigo
+                        );
+                    }
+                });
+            });
+        }
+
+        // Ver detalle del plan
+        async function verDetallePlan(idPlan, nombreCarrera, nombrePlan, anio, codigoCarrera) {
+            try {
+                const response = await fetch(`/api/catalogos/planes/${idPlan}/materias`);
+                const materias = await response.json();
+                
+                document.getElementById('modalPlanTitulo').innerHTML = `${nombreCarrera} - ${nombrePlan} (${anio})`;
+                document.getElementById('modalPlanSubtitulo').innerHTML = `Plan de Estudio`;
+                
+                const totalMaterias = materias.length;
+                const totalUVs = materias.reduce((sum, m) => sum + (m.UVS || 0), 0);
+                
+                document.getElementById('modalTotalMaterias').innerHTML = `${totalMaterias} materias`;
+                document.getElementById('modalTotalUVs').innerHTML = `${totalUVs} UVs`;
+                
+                // Configurar el botón de descarga
+                const btnDescargar = document.getElementById('btnDescargarPlan');
+                const urlDescarga = getUrlDescargaPlan(codigoCarrera, nombrePlan, anio);
+                btnDescargar.href = urlDescarga;
+                
+                const tbody = document.getElementById('modalPlanBody');
+                if (materias.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">Este plan no tiene materias asignadas.</td></tr>';
+                } else {
+                    tbody.innerHTML = materias.map(m => `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 font-medium">${m.CodigoMateria}</td>
+                            <td class="px-4 py-3">${m.NombreMateria}</td>
+                            <td class="px-4 py-3 text-center">${m.UVS || 0}</td>
+                            <td class="px-4 py-3 text-center">${m.Semestre || '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+                
+                openModal('planDetalleModal');
+                
+            } catch (error) {
+                console.error('Error al cargar materias del plan:', error);
+                alert('Error al cargar el detalle del plan');
+            }
+        }
+
+        // Renderizar tabla de materias
+        function renderMaterias() {
+            const tbody = document.getElementById('materiasBody');
+            tbody.innerHTML = '';
+
+            if (!materiasData || materiasData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center">No hay materias registradas.</td></tr>';
+                return;
+            }
+
+            materiasData.forEach(m => {
+                tbody.innerHTML += `
+                    <tr class="bg-white hover:bg-gray-50">
+                        <td class="px-6 py-4 font-medium text-gray-900">${m.CodigoMateria}</td>
+                        <td class="px-6 py-4">${m.NombreMateria}</td>
+                        <td class="px-6 py-4">
+                            <span class="badge-uv">${m.UVS} UVs</span>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Form Submit: Carrera
+        document.getElementById('carreraForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const body = {
+                codigo: document.getElementById('codigoCarrera').value,
+                nombre: document.getElementById('nombreCarrera').value
+            };
+            try {
+                const res = await fetch('/api/catalogos/carreras', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                if (!res.ok) {
+                    const data = await res.json();
+                    alert(data.error);
+                } else {
+                    closeModal('carreraModal');
+                    e.target.reset();
+                    loadData();
+                }
+            } catch (e) { alert("Error de red"); }
+        });
+
+        // Form Submit: Materia
+        document.getElementById('materiaForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const body = {
+                codigo: document.getElementById('codigoMateria').value,
+                nombre: document.getElementById('nombreMateria').value,
+                uvs: document.getElementById('uvsMateria').value
+            };
+            try {
+                const res = await fetch('/api/catalogos/materias', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                if (!res.ok) {
+                    const data = await res.json();
+                    alert(data.error);
+                } else {
+                    closeModal('materiaModal');
+                    e.target.reset();
+                    loadData();
+                }
+            } catch (e) { alert("Error de red"); }
+        });
+
+        // Upload Excel Handling
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileNameSpan = document.getElementById('fileName');
+        const fileInfo = document.getElementById('fileInfo');
+
+        dropZone.onclick = () => fileInput.click();
+
+        fileInput.onchange = (e) => {
+            if (e.target.files.length) {
+                fileInfo.classList.remove('hidden');
+                fileNameSpan.textContent = e.target.files[0].name;
+                dropZone.classList.add('border-[#B20000]', 'bg-red-50');
+            }
+        };
+
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('border-[#B20000]', 'bg-red-50'); };
+        dropZone.ondragleave = (e) => { e.preventDefault(); dropZone.classList.remove('border-[#B20000]', 'bg-red-50'); };
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-[#B20000]', 'bg-red-50');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                fileInfo.classList.remove('hidden');
+                fileNameSpan.textContent = e.dataTransfer.files[0].name;
+                dropZone.classList.add('border-[#B20000]', 'bg-red-50');
+            }
+        };
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!fileInput.files.length) return alert('Selecciona un archivo primero');
+
+            const btn = document.getElementById('btnSubmitUpload');
+            btn.disabled = true;
+            btn.textContent = 'Procesando...';
+
+            const formData = new FormData();
+            formData.append('archivoCatalogo', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/api/catalogos/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`Éxito!\nCarreras Nuevas: ${data.carrerasNuevas}\nMaterias Nuevas: ${data.materiasNuevas}`);
+                    closeModal('uploadModal');
+                    fileInfo.classList.add('hidden');
+                    dropZone.classList.remove('border-[#B20000]', 'bg-red-50');
+                    e.target.reset();
+                    loadData();
+                } else {
+                    alert('Error: ' + (data.error || 'Server error'));
+                }
+            } catch (error) {
+                alert('Error de conexión con el servidor.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Importar y Procesar';
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', loadData);
+
+    </script>
+</body>
+
+</html>

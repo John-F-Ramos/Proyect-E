@@ -1,94 +1,63 @@
-// Utilizamos la versión modular de Firebase 11 a través de ESM
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-auth.js";
-
-// TODO: DEUDA TÉCNICA - [Credenciales Publicas] Las variables de Firebase config deben venir del enviroment y en builds CI/CD inyectarse.
-const firebaseConfig = {
-    // Aquí la configuración proporcionada por el Firebase MCP. Se rellena idealmente tras setup.
-    apiKey: "API_KEY_AQUI",
-    authDomain: "PROJECT_ID.firebaseapp.com",
-    projectId: "PROJECT_ID",
-    storageBucket: "PROJECT_ID.appspot.com",
-    messagingSenderId: "MESSAGING_ID",
-    appId: "APP_ID"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-// DOM Elements
-const loginContainer = document.getElementById('login-container');
-const dashboardContainer = document.getElementById('dashboard-container');
+// Bindeamos el formulario
 const loginForm = document.getElementById('login-form');
 const errorMessage = document.getElementById('error-message');
-const uploadForm = document.getElementById('upload-form');
+const errorText = document.querySelector('.error-text');
 
-// Auth State Monitor
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        // Session Active
-        loginContainer.classList.add('hidden');
-        dashboardContainer.classList.remove('hidden');
-    } else {
-        // Logged Out
-        loginContainer.classList.remove('hidden');
-        dashboardContainer.classList.add('hidden');
-    }
-});
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Ocultamos error previo si existe
+        if(errorMessage) errorMessage.classList.add('hidden');
+        
+        // Obtenemos valores
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
 
-// Implement Login
-loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email-address').value;
-    const password = document.getElementById('password').value;
-
-    try {
-        errorMessage.classList.add('hidden');
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        console.log("Logged in:", userCredential.user.email);
-    } catch (error) {
-        console.error("Login failed:", error.message);
-        errorMessage.classList.remove('hidden');
-        errorMessage.textContent = error.message;
-    }
-});
-
-// Implement file upload logic (MVP integration client-side to /api/ingest)
-uploadForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fileInput = document.getElementById('excel-file');
-    const responseDiv = document.getElementById('upload-response');
-
-    if (!fileInput.files || fileInput.files.length === 0) {
-        responseDiv.textContent = 'Por favor selecciona un archivo';
-        responseDiv.className = 'mt-4 text-sm font-medium text-ceutec-red';
-        return;
-    }
-
-    const file = fileInput.files[0];
-    const formData = new FormData();
-    formData.append('archivo', file);
-
-    try {
-        responseDiv.textContent = 'Procesando...';
-        responseDiv.className = 'mt-4 text-sm font-medium text-gray-600';
-
-        const response = await fetch('/api/ingest/upload', {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            responseDiv.textContent = `Éxito: ${data.message} (${data.recordsProcessed} registros)`;
-            responseDiv.className = 'mt-4 text-sm font-medium text-green-600';
-        } else {
-            throw new Error(data.error || 'Error del servidor');
+        // Validación básica
+        if (!email || !password) {
+            UI.showError("Por favor, completa todos los campos.", 'warning');
+            return;
         }
-    } catch (error) {
-        console.error("Upload error:", error);
-        responseDiv.textContent = `Error: ${error.message}`;
-        responseDiv.className = 'mt-4 text-sm font-medium text-ceutec-red';
-    }
-});
+
+        // Mostrar estado de carga
+        UI.setButtonLoading(true);
+
+        try {
+            console.log("Intentando login...");
+            
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Error en el inicio de sesión');
+            }
+            
+            console.log("¡Éxito! Logueado como:", data.user.nombre);
+            console.log("Número de cuenta:", data.user.numeroCuenta); // Debug
+            
+            // Guardar info del usuario si es necesario
+            localStorage.setItem('user', JSON.stringify(data.user));
+
+            // Redirección al Dashboard
+            UI.showLoginSuccess();
+            
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 500);
+
+        } catch (error) {
+            console.error("Error de login:", error.message);
+            
+            UI.setButtonLoading(false);
+            UI.showError(error.message, 'error');
+        }
+    });
+}

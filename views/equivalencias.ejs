@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Equivalencias | CEUTEC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f8fafc; 
+            overflow-x: hidden; /* Evita scroll horizontal */
+        }
+        .equivalencia-card {
+            transition: all 0.3s ease;
+        }
+        .equivalencia-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .comparison-bar {
+            transition: width 0.5s ease;
+        }
+        /* Contenedor del gráfico con tamaño fijo */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 250px;
+            height: 200px;
+            margin: 0 auto;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto !important;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen overflow-x-hidden">
+    <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col flex-shrink-0">
+        <div class="p-6">
+            <img src="/assets/images/logo-ceutec.png" alt="CEUTEC" class="h-10 mb-8">
+            <nav class="space-y-1">
+                <a href="/dashboard" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition group">
+                    <i class="fas fa-home mr-3 text-gray-400 group-hover:text-[#B20000]"></i> Dashboard
+                </a>
+                <a href="/equivalencias" class="flex items-center px-4 py-3 bg-slate-100 text-slate-900 font-semibold rounded-lg">
+                    <i class="fas fa-exchange-alt mr-3 text-[#B20000]"></i> Mis Equivalencias
+                </a>
+                <a href="/plan-estudio" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-book mr-3 text-gray-400"></i> Planes de Estudio
+                </a>
+                <a href="/reportes" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-file-alt mr-3 text-gray-400"></i> Reportes
+                </a>
+                <a href="/perfil" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-user mr-3 text-gray-400"></i> Mi Perfil
+                </a>
+            </nav>
+        </div>
+        <div class="mt-auto p-6 border-t border-gray-200">
+            <button onclick="localStorage.removeItem('user'); window.location.href='/';" class="flex items-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
+                <i class="fas fa-sign-out-alt mr-3"></i> Cerrar Sesión
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-4 md:p-8 overflow-y-auto w-full max-w-full">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800">Mis Equivalencias</h1>
+                <p id="welcomeSubtitle" class="text-sm text-slate-500 mt-1">Cargando información...</p>
+            </div>
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                <button id="btnSimularCambio" class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center justify-center">
+                    <i class="fas fa-random mr-2"></i> Simular Cambio de Carrera
+                </button>
+                <button id="btnSolicitarEquivalencia" class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center justify-center">
+                    <i class="fas fa-plus-circle mr-2"></i> Solicitar Equivalencia
+                </button>
+                <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000] flex-shrink-0">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+            <div class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 equivalencia-card">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-10 h-10 md:w-12 md:h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-check-circle text-green-600 text-lg md:text-xl"></i>
+                    </div>
+                    <span class="text-2xl md:text-3xl font-bold text-slate-800" id="totalAprobadas">0</span>
+                </div>
+                <h3 class="text-xs md:text-sm font-semibold text-slate-500">Equivalencias Aprobadas</h3>
+                <p class="text-[10px] md:text-xs text-slate-400 mt-1">Que ya aplican a tu plan</p>
+            </div>
+
+            <div class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 equivalencia-card">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-10 h-10 md:w-12 md:h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-clock text-yellow-600 text-lg md:text-xl"></i>
+                    </div>
+                    <span class="text-2xl md:text-3xl font-bold text-slate-800" id="totalPendientes">0</span>
+                </div>
+                <h3 class="text-xs md:text-sm font-semibold text-slate-500">En Proceso</h3>
+                <p class="text-[10px] md:text-xs text-slate-400 mt-1">Esperando revisión</p>
+            </div>
+
+            <div class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 equivalencia-card">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-graduation-cap text-blue-600 text-lg md:text-xl"></i>
+                    </div>
+                    <span class="text-2xl md:text-3xl font-bold text-slate-800" id="totalUVSEquivalencias">0</span>
+                </div>
+                <h3 class="text-xs md:text-sm font-semibold text-slate-500">UVs Equivalentes</h3>
+                <p class="text-[10px] md:text-xs text-slate-400 mt-1">Reconocidas en tu plan</p>
+            </div>
+
+            <div class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 equivalencia-card">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-10 h-10 md:w-12 md:h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-university text-purple-600 text-lg md:text-xl"></i>
+                    </div>
+                    <span class="text-2xl md:text-3xl font-bold text-slate-800" id="totalMaterias">0</span>
+                </div>
+                <h3 class="text-xs md:text-sm font-semibold text-slate-500">Materias Equivalentes</h3>
+                <p class="text-[10px] md:text-xs text-slate-400 mt-1">De tu historial académico</p>
+            </div>
+        </div>
+
+        <!-- Panel de Simulación -->
+        <div id="panelSimulacion" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 mb-8 hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-bold text-slate-800 flex items-center">
+                    <i class="fas fa-random text-[#B20000] mr-2"></i>
+                    Simulador de Cambio de Carrera
+                </h2>
+                <button id="btnCerrarSimulacion" class="text-slate-400 hover:text-slate-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Carrera Actual</label>
+                    <input type="text" id="carreraActual" class="w-full border border-gray-300 rounded-lg p-2 md:p-3 text-sm bg-slate-50" readonly>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Carrera Destino</label>
+                    <select id="carreraDestino" class="w-full border border-gray-300 rounded-lg p-2 md:p-3 text-sm focus:ring-[#B20000] focus:border-[#B20000]">
+                        <option value="">Selecciona una carrera</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button id="btnCalcularSimulacion" class="w-full bg-[#B20000] text-white px-4 md:px-6 py-2 md:py-3 rounded-lg text-sm font-semibold hover:bg-red-700 transition">
+                        <i class="fas fa-calculator mr-2"></i> Calcular
+                    </button>
+                </div>
+            </div>
+
+            <!-- Resultados de simulación -->
+            <div id="resultadosSimulacion" class="hidden">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+                    <div class="bg-slate-50 p-3 md:p-4 rounded-xl">
+                        <p class="text-[10px] md:text-xs text-slate-500 mb-1">Materias Equivalentes</p>
+                        <p class="text-lg md:text-2xl font-bold text-[#B20000]" id="simMateriasEquiv">0</p>
+                    </div>
+                    <div class="bg-slate-50 p-3 md:p-4 rounded-xl">
+                        <p class="text-[10px] md:text-xs text-slate-500 mb-1">UVs Equivalentes</p>
+                        <p class="text-lg md:text-2xl font-bold text-green-600" id="simUVSEquiv">0</p>
+                    </div>
+                    <div class="bg-slate-50 p-3 md:p-4 rounded-xl">
+                        <p class="text-[10px] md:text-xs text-slate-500 mb-1">Materias Faltantes</p>
+                        <p class="text-lg md:text-2xl font-bold text-orange-600" id="simMateriasFalt">0</p>
+                    </div>
+                    <div class="bg-slate-50 p-3 md:p-4 rounded-xl">
+                        <p class="text-[10px] md:text-xs text-slate-500 mb-1">UVs Faltantes</p>
+                        <p class="text-lg md:text-2xl font-bold text-red-600" id="simUVSFalt">0</p>
+                    </div>
+                </div>
+
+                <!-- Barra de progreso -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-slate-700 mb-3">Progreso en nueva carrera</h4>
+                    <div class="relative pt-1">
+                        <div class="flex mb-2 items-center justify-between">
+                            <div>
+                                <span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-[#B20000] bg-red-100">
+                                    Completado
+                                </span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs font-semibold inline-block text-[#B20000]" id="simPorcentaje">0%</span>
+                            </div>
+                        </div>
+                        <div class="overflow-hidden h-3 md:h-4 mb-4 text-xs flex rounded bg-red-100">
+                            <div id="simProgressBar" style="width:0%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-[#B20000] comparison-bar"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de equivalencias -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-700 mb-3">Materias Equivalentes</h4>
+                    <div class="overflow-x-auto max-h-48 md:max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-slate-50 sticky top-0">
+                                <tr>
+                                    <th class="px-3 md:px-4 py-2 text-left text-xs font-medium text-slate-500">Materia Cursada</th>
+                                    <th class="px-3 md:px-4 py-2 text-left text-xs font-medium text-slate-500">Equivalente</th>
+                                    <th class="px-3 md:px-4 py-2 text-left text-xs font-medium text-slate-500">UVs</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaEquivalenciasSim" class="bg-white divide-y divide-gray-200 text-xs md:text-sm">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="flex justify-end mt-6 space-x-3">
+                    <button id="btnCancelarSimulacion" class="px-4 md:px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition">
+                        Cancelar
+                    </button>
+                    <button id="btnConfirmarCambio" class="px-4 md:px-6 py-2 bg-[#B20000] text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center">
+                        <i class="fas fa-check mr-2"></i> Confirmar Cambio
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráficos y Resumen -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
+            <div class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 class="text-sm font-semibold text-slate-500 mb-4 flex items-center">
+                    <i class="fas fa-chart-pie mr-2 text-[#B20000]"></i>
+                    Distribución de Equivalencias
+                </h3>
+                <div class="chart-container">
+                    <canvas id="equivalenciasChart"></canvas>
+                </div>
+                <div class="mt-4 space-y-2 text-xs">
+                    <div class="flex justify-between items-center">
+                        <span><span class="w-3 h-3 bg-green-500 inline-block rounded-full mr-2"></span>Internas</span>
+                        <span class="font-semibold" id="internasCount">0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span><span class="w-3 h-3 bg-blue-500 inline-block rounded-full mr-2"></span>Externas</span>
+                        <span class="font-semibold" id="externasCount">0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span><span class="w-3 h-3 bg-yellow-500 inline-block rounded-full mr-2"></span>Por Revisar</span>
+                        <span class="font-semibold" id="revisarCount">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2">
+                <h3 class="text-sm font-semibold text-slate-500 mb-4 flex items-center">
+                    <i class="fas fa-tags mr-2 text-[#B20000]"></i>
+                    Resumen por Tipo de Equivalencia
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                    <div class="p-3 md:p-4 bg-slate-50 rounded-xl">
+                        <p class="text-[10px] md:text-xs text-slate-500 mb-1">Arte/Deporte</p>
+                        <p class="text-xl md:text-2xl font-bold text-slate-800" id="tipoArte">0</p>
+                        <p class="text-[10px] md:text-xs text-green-600 mt-1" id="arteCompletado">0% completado</p>
+                    </div>
+                    <div class="p-3 md:p-4 bg-slate-50 rounded-xl">
+                        <p class="text-[10px] md:text-xs text-slate-500 mb-1">Ciencias Naturales</p>
+                        <p class="text-xl md:text-2xl font-bold text-slate-800" id="tipoBio">0</p>
+                        <p class="text-[10px] md:text-xs text-green-600 mt-1" id="bioCompletado">0% completado</p>
+                    </div>
+                    <div class="p-3 md:p-4 bg-slate-50 rounded-xl">
+                        <p class="text-[10px] md:text-xs text-slate-500 mb-1">Inglés</p>
+                        <p class="text-xl md:text-2xl font-bold text-slate-800" id="tipoIngles">0</p>
+                        <p class="text-[10px] md:text-xs text-green-600 mt-1" id="inglesCompletado">0% completado</p>
+                    </div>
+                    <div class="p-3 md:p-4 bg-slate-50 rounded-xl">
+                        <p class="text-[10px] md:text-xs text-slate-500 mb-1">Otras</p>
+                        <p class="text-xl md:text-2xl font-bold text-slate-800" id="tipoOtras">0</p>
+                        <p class="text-[10px] md:text-xs text-slate-400 mt-1" id="otrasCompletado">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs de Equivalencias -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+            <div class="border-b border-gray-200 overflow-x-auto">
+                <nav class="flex whitespace-nowrap">
+                    <button id="tabAprobadas" class="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-[#B20000] border-b-2 border-[#B20000]">
+                        <i class="fas fa-check-circle mr-2"></i>Aprobadas
+                    </button>
+                    <button id="tabPendientes" class="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent">
+                        <i class="fas fa-clock mr-2"></i>Pendientes
+                    </button>
+                    <button id="tabHistorial" class="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent">
+                        <i class="fas fa-history mr-2"></i>Historial
+                    </button>
+                </nav>
+            </div>
+
+            <div id="tablaAprobadas" class="p-4 md:p-6">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left">
+                        <thead class="bg-slate-50 text-slate-400 text-[10px] md:text-xs uppercase font-semibold">
+                            <tr>
+                                <th class="px-2 md:px-4 py-2 md:py-3">Materia del Plan</th>
+                                <th class="px-2 md:px-4 py-2 md:py-3">Materia Cursada</th>
+                                <th class="px-2 md:px-4 py-2 md:py-3">UVs</th>
+                                <th class="px-2 md:px-4 py-2 md:py-3">Tipo</th>
+                                <th class="px-2 md:px-4 py-2 md:py-3">Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaAprobadasBody" class="divide-y divide-gray-100 text-xs md:text-sm">
+                            <tr>
+                                <td colspan="5" class="px-2 md:px-4 py-6 md:py-8 text-center text-slate-400 italic">
+                                    Cargando equivalencias aprobadas...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tablaPendientes" class="p-4 md:p-6 hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left">
+                        <thead class="bg-slate-50 text-slate-400 text-[10px] md:text-xs uppercase font-semibold">
+                            <tr>
+                                <th class="px-2 md:px-4 py-2 md:py-3">Materia del Plan</th>
+                                <th class="px-2 md:px-4 py-2 md:py-3">Materia Propuesta</th>
+                                <th class="px-2 md:px-4 py-2 md:py-3">UVs</th>
+                                <th class="px-2 md:px-4 py-2 md:py-3">Estado</th>
+                                <th class="px-2 md:px-4 py-2 md:py-3">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaPendientesBody" class="divide-y divide-gray-100 text-xs md:text-sm">
+                            <tr>
+                                <td colspan="5" class="px-2 md:px-4 py-6 md:py-8 text-center text-slate-400 italic">
+                                    No tienes solicitudes de equivalencia pendientes.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tablaHistorial" class="p-4 md:p-6 hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left">
+                        <thead class="bg-slate-50 text-slate-400 text-[10px] md:text-xs uppercase font-semibold">
+                            <tr>
+                                <th class="px-2 md:px-4 py-2 md:py-3">Materia del Plan</th>
+                                <th class="px-2 md:px-4 py-2 md:py-3">Materia Cursada</th>
+                                <th class="px-2 md:px-4 py-2 md:py-3">UVs</th>
+                                <th class="px-2 md:px-4 py-2 md:py-3">Estado Final</th>
+                                <th class="px-2 md:px-4 py-2 md:py-3">Fecha Resolución</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaHistorialBody" class="divide-y divide-gray-100 text-xs md:text-sm">
+                            <tr>
+                                <td colspan="5" class="px-2 md:px-4 py-6 md:py-8 text-center text-slate-400 italic">
+                                    No hay historial de equivalencias.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para Solicitar Equivalencia -->
+        <div id="modalSolicitud" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 md:p-8 max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg md:text-xl font-bold text-slate-800">Solicitar Equivalencia</h3>
+                    <button id="btnCerrarModal" class="text-slate-400 hover:text-slate-600">
+                        <i class="fas fa-times text-lg md:text-xl"></i>
+                    </button>
+                </div>
+
+                <form id="formSolicitud" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Materia a solicitar</label>
+                        <select id="materiaPlan" class="w-full border border-gray-300 rounded-lg p-2 md:p-3 text-sm focus:ring-[#B20000] focus:border-[#B20000]">
+                            <option value="">Selecciona una materia</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Materia cursada equivalente</label>
+                        <select id="materiaCursada" class="w-full border border-gray-300 rounded-lg p-2 md:p-3 text-sm focus:ring-[#B20000] focus:border-[#B20000]">
+                            <option value="">Selecciona una materia de tu historial</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Justificación (opcional)</label>
+                        <textarea id="justificacion" rows="3" class="w-full border border-gray-300 rounded-lg p-2 md:p-3 text-sm focus:ring-[#B20000] focus:border-[#B20000]" placeholder="Explica por qué consideras que esta materia es equivalente..."></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full bg-[#B20000] text-white py-2 md:py-3 rounded-xl font-bold hover:bg-red-700 transition">
+                        Enviar Solicitud
+                    </button>
+                </form>
+
+                <div id="statusMessage" class="mt-4 text-center text-sm hidden"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Obtener usuario del localStorage
+        const userFromStorage = JSON.parse(localStorage.getItem('user') || '{}');
+        const userAccount = userFromStorage.numeroCuenta || '';
+        const userNombre = userFromStorage.nombre || '';
+
+        // Elementos del DOM
+        const tabAprobadas = document.getElementById('tabAprobadas');
+        const tabPendientes = document.getElementById('tabPendientes');
+        const tabHistorial = document.getElementById('tabHistorial');
+        const tablaAprobadas = document.getElementById('tablaAprobadas');
+        const tablaPendientes = document.getElementById('tablaPendientes');
+        const tablaHistorial = document.getElementById('tablaHistorial');
+        const btnSolicitar = document.getElementById('btnSolicitarEquivalencia');
+        const modalSolicitud = document.getElementById('modalSolicitud');
+        const btnCerrarModal = document.getElementById('btnCerrarModal');
+        const formSolicitud = document.getElementById('formSolicitud');
+        const statusMsg = document.getElementById('statusMessage');
+
+        // Elementos del simulador
+        const btnSimular = document.getElementById('btnSimularCambio');
+        const panelSimulacion = document.getElementById('panelSimulacion');
+        const btnCerrarSimulacion = document.getElementById('btnCerrarSimulacion');
+        const btnCancelarSimulacion = document.getElementById('btnCancelarSimulacion');
+        const carreraActual = document.getElementById('carreraActual');
+        const carreraDestino = document.getElementById('carreraDestino');
+        const btnCalcular = document.getElementById('btnCalcularSimulacion');
+        const resultadosSimulacion = document.getElementById('resultadosSimulacion');
+        const btnConfirmarCambio = document.getElementById('btnConfirmarCambio');
+
+        let equivalenciasData = [];
+        let chart = null;
+        let carrerasData = [];
+        let historialMaterias = [];
+
+        // Mostrar subtítulo
+        document.getElementById('welcomeSubtitle').innerHTML = `Hola, <span class="font-semibold">${userNombre}</span> • Revisa el estado de tus equivalencias`;
+
+        // Cargar datos iniciales
+        async function cargarDatosIniciales() {
+            try {
+                // Cargar equivalencias
+                const resEquiv = await fetch(`/api/alumnos/${userAccount}/equivalencias`);
+                if (!resEquiv.ok) throw new Error('Error al cargar equivalencias');
+                equivalenciasData = await resEquiv.json();
+                
+                // Cargar carreras para el simulador
+                const resCarreras = await fetch('/api/catalogos/carreras');
+                carrerasData = await resCarreras.json();
+                
+                // Cargar historial del alumno
+                const resHistorial = await fetch(`/api/alumnos/${userAccount}/historial`);
+                historialMaterias = await resHistorial.json();
+                
+                // Cargar información actual del alumno
+                const resAlumno = await fetch(`/api/alumnos/${userAccount}/dashboard`);
+                const alumnoData = await resAlumno.json();
+                
+                carreraActual.value = alumnoData.alumno.NombreCarrera;
+                
+                // Llenar selector de carreras destino
+                carrerasData.forEach(c => {
+                    if (c.CodigoCarrera !== alumnoData.alumno.CodigoCarrera) {
+                        const option = document.createElement('option');
+                        option.value = c.CodigoCarrera;
+                        option.textContent = c.NombreCarrera;
+                        carreraDestino.appendChild(option);
+                    }
+                });
+
+                actualizarEstadisticas(equivalenciasData);
+                actualizarTablas(equivalenciasData);
+                actualizarGrafico(equivalenciasData);
+                
+            } catch (error) {
+                console.error('Error al cargar datos:', error);
+                showStatus('Error al cargar los datos', 'text-red-600');
+            }
+        }
+
+        // Calcular simulación
+        btnCalcular.addEventListener('click', async () => {
+            const destino = carreraDestino.value;
+            if (!destino) {
+                alert('Selecciona una carrera destino');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/simulacion/calcular', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        cuenta: userAccount,
+                        carreraDestino: destino
+                    })
+                });
+
+                const data = await response.json();
+                
+                document.getElementById('simMateriasEquiv').textContent = data.materiasEquivalentes;
+                document.getElementById('simUVSEquiv').textContent = data.uvsEquivalentes;
+                document.getElementById('simMateriasFalt').textContent = data.materiasFaltantes;
+                document.getElementById('simUVSFalt').textContent = data.uvsFaltantes;
+                
+                // Nueva lógica para leer correctamente la estructura de tu API
+                const uvsObtenidas = data.uvsEquivalentes || 0;
+                const uvsTotales = data.planDestino ? data.planDestino.totalUvs : 0;
+                
+                const porcentaje = uvsTotales > 0 ? Math.round((uvsObtenidas / uvsTotales) * 100) : 0;
+                
+                document.getElementById('simPorcentaje').textContent = porcentaje + '%';
+                document.getElementById('simProgressBar').style.width = porcentaje + '%';
+                
+                const tbody = document.getElementById('tablaEquivalenciasSim');
+                tbody.innerHTML = data.equivalencias.map(e => `
+                    <tr>
+                        <td class="px-3 md:px-4 py-2">${e.materiaCursada}</td>
+                        <td class="px-3 md:px-4 py-2">${e.materiaEquivalente}</td>
+                        <td class="px-3 md:px-4 py-2">${e.uvs}</td>
+                    </tr>
+                `).join('');
+                
+                resultadosSimulacion.classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Error en simulación:', error);
+                alert('Error al calcular la simulación');
+            }
+        });
+
+        // Confirmar cambio de carrera
+        btnConfirmarCambio.addEventListener('click', async () => {
+            if (!confirm('¿Estás seguro de cambiar de carrera? Esta acción no se puede deshacer.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/alumnos/cambiar-carrera', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        cuenta: userAccount,
+                        nuevaCarrera: carreraDestino.value
+                    })
+                });
+
+                if (response.ok) {
+                    alert('¡Carrera cambiada exitosamente!');
+                    location.reload();
+                } else {
+                    throw new Error('Error al cambiar de carrera');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al cambiar de carrera');
+            }
+        });
+
+        // Mostrar/ocultar panel de simulación
+        btnSimular.addEventListener('click', () => {
+            panelSimulacion.classList.remove('hidden');
+        });
+
+        btnCerrarSimulacion.addEventListener('click', () => {
+            panelSimulacion.classList.add('hidden');
+            resultadosSimulacion.classList.add('hidden');
+        });
+
+        btnCancelarSimulacion.addEventListener('click', () => {
+            resultadosSimulacion.classList.add('hidden');
+        });
+
+        function actualizarEstadisticas(data) {
+            const aprobadas = data.filter(e => e.TipoEquivalencia === 'Interna' || e.Estado === 'Aprobada');
+            const pendientes = data.filter(e => e.Estado === 'Pendiente' || e.Estado === 'En Revisión');
+            const totalUVS = data.reduce((sum, e) => sum + (e.UVSPlan || 0), 0);
+            
+            const internas = data.filter(e => e.TipoEquivalencia === 'Interna').length;
+            const externas = data.filter(e => e.TipoEquivalencia === 'Externa').length;
+            const revisar = pendientes.length;
+
+            // Contar por tipo de materia
+            const arteCount = data.filter(e => e.CodigoMateriaPlan?.startsWith('ART') || e.CodigoMateriaPlan === 'ART/DEP').length;
+            const bioCount = data.filter(e => e.CodigoMateriaPlan?.startsWith('BIO')).length;
+            const inglesCount = data.filter(e => e.CodigoMateriaPlan?.startsWith('EIE')).length;
+            const otrasCount = data.length - (arteCount + bioCount + inglesCount);
+
+            // Verificar si el alumno es bilingüe (tiene materias ING)
+            const esBilingue = historialMaterias.some(m => m.CodigoMateria?.startsWith('ING'));
+            
+            // Calcular porcentajes
+            const porcentajeArte = arteCount > 0 ? 100 : 0;
+            const porcentajeBio = bioCount > 0 ? 100 : 0;
+            
+            // Para inglés: si es bilingüe, es 100% (porque todas las electivas están cubiertas automáticamente)
+            // Si no es bilingüe, calcular basado en cuántas EIE tiene
+            let porcentajeIngles = 0;
+            if (esBilingue) {
+                porcentajeIngles = 100;
+            } else {
+                // Asumiendo que hay 8 electivas de inglés en el plan (EIE1 a EIE8)
+                const totalInglesEnPlan = 8;
+                porcentajeIngles = totalInglesEnPlan > 0 ? Math.round((inglesCount / totalInglesEnPlan) * 100) : 0;
+            }
+
+            document.getElementById('totalAprobadas').textContent = aprobadas.length;
+            document.getElementById('totalPendientes').textContent = pendientes.length;
+            document.getElementById('totalUVSEquivalencias').textContent = totalUVS;
+            document.getElementById('totalMaterias').textContent = data.length;
+
+            document.getElementById('internasCount').textContent = internas;
+            document.getElementById('externasCount').textContent = externas;
+            document.getElementById('revisarCount').textContent = revisar;
+
+            document.getElementById('tipoArte').textContent = arteCount;
+            document.getElementById('tipoBio').textContent = bioCount;
+            document.getElementById('tipoIngles').textContent = inglesCount;
+            document.getElementById('tipoOtras').textContent = otrasCount;
+
+            document.getElementById('arteCompletado').textContent = `${porcentajeArte}% completado`;
+            document.getElementById('bioCompletado').textContent = `${porcentajeBio}% completado`;
+            document.getElementById('inglesCompletado').textContent = `${porcentajeIngles}% completado`;
+            
+            console.log('Estadísticas:', { esBilingue, inglesCount, porcentajeIngles });
+        }
+
+        function actualizarGrafico(data) {
+            const ctx = document.getElementById('equivalenciasChart').getContext('2d');
+            
+            const internas = data.filter(e => e.TipoEquivalencia === 'Interna').length;
+            const externas = data.filter(e => e.TipoEquivalencia === 'Externa').length;
+            const pendientes = data.filter(e => e.Estado === 'Pendiente').length;
+
+            if (chart) chart.destroy();
+
+            chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Equivalencias Internas', 'Equivalencias Externas', 'Pendientes'],
+                    datasets: [{
+                        data: [internas, externas, pendientes],
+                        backgroundColor: ['#10b981', '#3b82f6', '#eab308'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    cutout: '70%',
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: { enabled: true }
+                    },
+                    layout: {
+                        padding: {
+                            top: 10,
+                            bottom: 10,
+                            left: 10,
+                            right: 10
+                        }
+                    }
+                }
+            });
+        }
+
+        function actualizarTablas(data) {
+            const aprobadasBody = document.getElementById('tablaAprobadasBody');
+            const aprobadas = data.filter(e => e.TipoEquivalencia === 'Interna');
+            
+            if (aprobadas.length === 0) {
+                aprobadasBody.innerHTML = '<tr><td colspan="5" class="px-2 md:px-4 py-6 md:py-8 text-center text-slate-400 italic">No tienes equivalencias aprobadas.</td></tr>';
+            } else {
+                aprobadasBody.innerHTML = aprobadas.map(e => `
+                    <tr>
+                        <td class="px-2 md:px-4 py-2 md:py-3">
+                            <span class="font-medium">${e.CodigoMateriaPlan}</span>
+                            <p class="text-[10px] md:text-xs text-slate-500">${e.NombreMateriaPlan || ''}</p>
+                        </td>
+                        <td class="px-2 md:px-4 py-2 md:py-3">
+                            <span>${e.CodigoMateriaCursada}</span>
+                            <p class="text-[10px] md:text-xs text-slate-500">${e.NombreMateriaCursada || ''}</p>
+                        </td>
+                        <td class="px-2 md:px-4 py-2 md:py-3">${e.UVSPlan || 0}</td>
+                        <td class="px-2 md:px-4 py-2 md:py-3">
+                            <span class="bg-green-100 text-green-600 px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-semibold">Interna</span>
+                        </td>
+                        <td class="px-2 md:px-4 py-2 md:py-3">${new Date(e.FechaRegistro).toLocaleDateString()}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        // Tabs
+        tabAprobadas.addEventListener('click', () => {
+            tabAprobadas.classList.add('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+            tabPendientes.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+            tabHistorial.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+            tabPendientes.classList.add('text-gray-500');
+            tabHistorial.classList.add('text-gray-500');
+            
+            tablaAprobadas.classList.remove('hidden');
+            tablaPendientes.classList.add('hidden');
+            tablaHistorial.classList.add('hidden');
+        });
+
+        tabPendientes.addEventListener('click', () => {
+            tabPendientes.classList.add('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+            tabAprobadas.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+            tabHistorial.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+            tabAprobadas.classList.add('text-gray-500');
+            tabHistorial.classList.add('text-gray-500');
+            
+            tablaPendientes.classList.remove('hidden');
+            tablaAprobadas.classList.add('hidden');
+            tablaHistorial.classList.add('hidden');
+        });
+
+        tabHistorial.addEventListener('click', () => {
+            tabHistorial.classList.add('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+            tabAprobadas.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+            tabPendientes.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+            tabAprobadas.classList.add('text-gray-500');
+            tabPendientes.classList.add('text-gray-500');
+            
+            tablaHistorial.classList.remove('hidden');
+            tablaAprobadas.classList.add('hidden');
+            tablaPendientes.classList.add('hidden');
+        });
+
+        // Modal
+        btnSolicitar.addEventListener('click', () => modalSolicitud.classList.remove('hidden'));
+        btnCerrarModal.addEventListener('click', cerrarModal);
+        modalSolicitud.addEventListener('click', (e) => {
+            if (e.target === modalSolicitud) cerrarModal();
+        });
+
+        function cerrarModal() {
+            modalSolicitud.classList.add('hidden');
+            statusMsg.classList.add('hidden');
+        }
+
+        formSolicitud.onsubmit = async (e) => {
+            e.preventDefault();
+            showStatus('Enviando solicitud...', 'text-blue-600');
+            setTimeout(() => {
+                showStatus('Solicitud enviada correctamente', 'text-green-600');
+                setTimeout(cerrarModal, 2000);
+            }, 1500);
+        };
+
+        function showStatus(text, colorClass) {
+            statusMsg.textContent = text;
+            statusMsg.className = `mt-4 text-center text-sm font-semibold ${colorClass}`;
+            statusMsg.classList.remove('hidden');
+        }
+
+        // Inicialización
+        if (userAccount) {
+            cargarDatosIniciales();
+        } else {
+            document.getElementById('welcomeSubtitle').innerHTML = 'Por favor, inicia sesión';
+        }
+    </script>
+</body>
+</html>

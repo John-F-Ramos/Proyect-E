@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | CEUTEC Equivalencias</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+    </style>
+</head>
+
+<body class="flex min-h-screen">
+
+    <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
+        <div class="p-6">
+            <img src="/assets/images/logo-ceutec.png" alt="CEUTEC" class="h-10 mb-8">
+            <nav class="space-y-1">
+                <a href="/dashboard"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition group">
+                    <i class="fas fa-home mr-3 text-gray-400 group-hover:text-[#B20000]"></i> Dashboard
+                </a>
+                <a href="/equivalencias"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-exchange-alt mr-3 text-gray-400"></i> Mis Equivalencias
+                </a>
+                <a href="/plan-estudio"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-book mr-3 text-gray-400"></i> Planes de Estudio
+                </a>
+                <a href="/reportes"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-file-alt mr-3 text-gray-400"></i> Reportes
+                </a>
+                <a href="/perfil"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-user mr-3 text-gray-400"></i> Mi Perfil
+                </a>
+            </nav>
+        </div>
+        <div class="mt-auto p-6 border-t border-gray-200">
+            <button onclick="localStorage.removeItem('user'); window.location.href='/';" class="flex items-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
+                <i class="fas fa-sign-out-alt mr-3"></i> Cerrar Sesión
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-8 overflow-y-auto">
+        <header class="flex justify-between items-center mb-8">
+            <h1 id="welcomeTitle" class="text-2xl font-bold text-slate-800">Estudiante: Cargando...</h1>
+            <div class="flex items-center space-x-4">
+                <!-- Buscador de Alumno (opcional, para ver otros alumnos) -->
+                <div class="relative">
+                    <input type="text" list="alumnosList" id="alumnoInput" placeholder="Buscar otro alumno..."
+                        class="bg-white border text-sm rounded-lg border-gray-300 focus:ring-[#B20000] focus:border-[#B20000] block p-2.5 text-slate-600 shadow-sm min-w-[250px] placeholder-gray-400">
+                    <datalist id="alumnosList"></datalist>
+                    <i class="fas fa-search absolute right-3 top-3 text-gray-400 pointer-events-none"></i>
+                </div>
+
+                <button id="btnOpenModal"
+                    class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center">
+                    <i class="fas fa-file-excel mr-2"></i> Importar Historial
+                </button>
+                <i class="far fa-calendar text-slate-400"></i>
+                <i class="far fa-bell text-slate-400"></i>
+                <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000]">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- MODAL DE IMPORTACIÓN -->
+        <div id="uploadModal"
+            class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-8 transform transition-all max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-slate-800">Importar Historial</h3>
+                    <button id="btnCloseModal" class="text-slate-400 hover:text-slate-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Tabs -->
+                <div class="flex border-b border-gray-200 mb-6">
+                    <button id="tabFile" class="px-4 py-2 text-sm font-medium text-[#B20000] border-b-2 border-[#B20000]">Subir Archivo</button>
+                    <button id="tabPaste" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-[#B20000] hover:border-b-2 hover:border-[#B20000]">Pegar Texto</button>
+                </div>
+
+                <!-- Sección Archivo -->
+                <div id="fileSection">
+                    <form id="uploadForm" class="space-y-6">
+                        <div class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-[#B20000] transition group cursor-pointer"
+                            id="dropZone">
+                            <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 group-hover:text-[#B20000] mb-4"></i>
+                            <p class="text-sm text-slate-600 mb-2">Arrastra tu archivo Excel aquí</p>
+                            <p class="text-xs text-slate-400 font-medium italic">o haz clic para buscar</p>
+                            <input type="file" id="excelFile" name="archivo" class="hidden" accept=".xlsx, .xls">
+                        </div>
+
+                        <div id="fileInfo"
+                            class="hidden bg-slate-50 p-3 rounded-lg flex items-center text-xs text-slate-600">
+                            <i class="fas fa-file-excel text-[#B20000] mr-2"></i>
+                            <span id="fileName" class="truncate flex-1 font-medium">archivo.xlsx</span>
+                        </div>
+
+                        <button type="submit" id="btnSubmit"
+                            class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 transition transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+                            Comenzar Procesamiento
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Sección Texto - AHORA CON COLORES COHERENTES -->
+                <div id="textSection" class="hidden">
+                    <div class="space-y-4">
+                        <div class="bg-red-50 border-l-4 border-[#B20000] p-4 mb-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-info-circle text-[#B20000]"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm text-[#B20000]">
+                                        <strong>Información:</strong> Los registros se importarán con tu número de cuenta: <span id="userAccountDisplay" class="font-mono font-bold"></span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <textarea id="pasteArea" rows="8" 
+                            class="w-full border border-gray-300 rounded-lg p-3 font-mono text-sm focus:ring-[#B20000] focus:border-[#B20000]"
+                            placeholder="Pega aquí el contenido copiado de la universidad..."></textarea>
+                        
+                        <button id="btnPreviewText"
+                            class="w-full bg-[#B20000] text-white py-3 rounded-xl font-bold hover:bg-red-700 transition transform hover:scale-[1.02] active:scale-[0.98]">
+                            <i class="fas fa-eye mr-2"></i> Vista Previa
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Área de Vista Previa -->
+                <div id="previewSection" class="mt-6 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h4 class="text-lg font-semibold text-slate-800">
+                            <i class="fas fa-table mr-2 text-[#B20000]"></i>
+                            Vista Previa de Datos
+                            <span id="previewCount" class="text-sm font-normal text-slate-500 ml-2"></span>
+                        </h4>
+                        <div class="space-x-2">
+                            <button id="btnCancelPreview" class="px-4 py-2 bg-gray-500 text-white rounded-lg text-sm font-semibold hover:bg-gray-600 transition">
+                                Cancelar
+                            </button>
+                            <button id="btnAcceptPreview" class="px-4 py-2 bg-[#B20000] text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition">
+                                Aceptar e Importar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg max-h-80">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Código</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Materia</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Nota</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Estado</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">UV</th>
+                                </tr>
+                            </thead>
+                            <tbody id="previewTableBody" class="bg-white divide-y divide-gray-200 text-sm">
+                                <!-- Datos de preview -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="statusMessage" class="mt-4 text-center text-sm hidden"></div>
+            </div>
+        </div>
+
+        <!-- Cards del Dashboard -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Card 1: Progreso Curricular -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
+                <h3 class="text-sm font-semibold text-slate-500 mb-4 flex justify-between items-center">
+                    Progreso Curricular <i class="far fa-clock"></i>
+                </h3>
+                <div class="relative inline-flex items-center justify-center mb-4">
+                    <svg class="w-32 h-32">
+                        <circle class="text-gray-100" stroke-width="8" stroke="currentColor" fill="transparent" r="50"
+                            cx="64" cy="64" />
+                        <circle id="progressCircle" class="text-[#B20000] transition-all duration-1000 ease-out"
+                            stroke-width="8" stroke-dasharray="314" stroke-dashoffset="314" stroke-linecap="round"
+                            stroke="currentColor" fill="transparent" r="50" cx="64" cy="64" />
+                    </svg>
+                    <span id="progressPercentageText" class="absolute text-2xl font-bold">0%</span>
+                </div>
+                <p id="planDetailsText" class="text-xs text-slate-400">Cargando información...</p>
+                <div class="flex justify-around mt-4 pt-4 border-t">
+                    <div>
+                        <p id="totalUvsText" class="text-lg font-bold">0</p>
+                        <p class="text-[10px] text-slate-400">Total UVs Plan</p>
+                    </div>
+                    <div>
+                        <p id="aprobadasUvsText" class="text-lg font-bold text-[#B20000]">0</p>
+                        <p class="text-[10px] text-slate-400">UVs Aprobadas</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: Rendimiento Académico -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 class="text-sm font-semibold text-slate-500 mb-4 flex justify-between items-center">
+                    Rendimiento Académico <i class="fas fa-chart-line"></i>
+                </h3>
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-xs text-slate-400 mb-1">Índice Académico</p>
+                        <p id="indiceAcademico" class="text-3xl font-bold text-[#B20000]">0.00</p>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-green-50 p-2 rounded">
+                            <p id="statAprobadas" class="font-bold text-lg text-green-600">0</p>
+                            <p class="text-[10px] text-green-700">Aprobadas</p>
+                        </div>
+                        <div class="bg-red-50 p-2 rounded">
+                            <p id="statReprobadas" class="font-bold text-lg text-red-600">0</p>
+                            <p class="text-[10px] text-red-700">Reprobadas</p>
+                        </div>
+                        <div class="bg-blue-50 p-2 rounded">
+                            <p id="statEnCurso" class="font-bold text-lg text-blue-600">0</p>
+                            <p class="text-[10px] text-blue-700">En Curso</p>
+                        </div>
+                    </div>
+                    <div class="pt-2 border-t border-gray-100">
+                        <p class="text-xs text-slate-400">Promedio General</p>
+                        <p id="promedioGeneral" class="text-xl font-semibold">0.00</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3: Materias en Curso -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 class="text-sm font-semibold text-slate-500 mb-4 flex justify-between items-center">
+                    Materias en Curso <i class="fas fa-book-open text-blue-400"></i>
+                </h3>
+                <div id="materiasEnCursoContainer" class="space-y-3 max-h-40 overflow-y-auto">
+                    <p class="text-xs text-slate-400 text-center py-2">Cargando...</p>
+                </div>
+                <div class="mt-3 pt-3 border-t border-gray-100">
+                    <p class="text-xs text-slate-400">Total UVs en curso</p>
+                    <p id="totalUvsEnCurso" class="text-lg font-bold">0</p>
+                </div>
+            </div>
+
+            <!-- Card 4: Próximas Materias Sugeridas -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 class="text-sm font-semibold text-slate-500 mb-4 flex justify-between items-center">
+                    Próximas Materias Sugeridas <i class="fas fa-arrow-right text-green-400"></i>
+                </h3>
+                <div id="proximasMateriasContainer" class="space-y-3 max-h-40 overflow-y-auto">
+                    <p class="text-xs text-slate-400 text-center py-2">Cargando...</p>
+                </div>
+                <a href="/plan-estudio" class="block w-full mt-3 bg-slate-800 text-white py-2 rounded-lg text-xs font-semibold hover:bg-slate-700 text-center">
+                    Ver Plan de Estudio
+                </a>
+            </div>
+        </div>
+
+        <!-- Tabla de Historial Académico -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="font-bold text-slate-800">Historial Académico Reciente</h3>
+                <a href="/equivalencias" class="text-xs text-[#B20000] hover:underline">Ver historial completo →</a>
+            </div>
+            <table class="w-full text-left">
+                <thead class="bg-slate-50 text-slate-400 text-[10px] uppercase font-semibold">
+                    <tr>
+                        <th class="px-6 py-4">Código</th>
+                        <th class="px-6 py-4">Asignatura</th>
+                        <th class="px-6 py-4">Nota</th>
+                        <th class="px-6 py-4">Estado</th>
+                        <th class="px-6 py-4">UV</th>
+                    </tr>
+                </thead>
+                <tbody id="historialTableBody" class="divide-y divide-gray-100 text-sm">
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-slate-400 italic">
+                            Cargando historial...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        // Obtener usuario del localStorage
+        const userFromStorage = JSON.parse(localStorage.getItem('user') || '{}');
+        const userAccount = userFromStorage.numeroCuenta || '';
+        const userNombre = userFromStorage.nombre || '';
+
+        console.log('Usuario logueado:', { userAccount, userNombre });
+
+        // Elementos del DOM
+        const modal = document.getElementById('uploadModal');
+        const btnOpen = document.getElementById('btnOpenModal');
+        const btnClose = document.getElementById('btnCloseModal');
+        const form = document.getElementById('uploadForm');
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('excelFile');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const statusMsg = document.getElementById('statusMessage');
+        const btnSubmit = document.getElementById('btnSubmit');
+        const userAccountDisplay = document.getElementById('userAccountDisplay');
+
+        // Elementos para texto plano
+        const tabFile = document.getElementById('tabFile');
+        const tabPaste = document.getElementById('tabPaste');
+        const fileSection = document.getElementById('fileSection');
+        const textSection = document.getElementById('textSection');
+        const pasteArea = document.getElementById('pasteArea');
+        const btnPreviewText = document.getElementById('btnPreviewText');
+        const previewSection = document.getElementById('previewSection');
+        const previewTableBody = document.getElementById('previewTableBody');
+        const previewCount = document.getElementById('previewCount');
+        const btnCancelPreview = document.getElementById('btnCancelPreview');
+        const btnAcceptPreview = document.getElementById('btnAcceptPreview');
+
+        // Elementos del dashboard
+        const ALUMNO_INPUT = document.getElementById('alumnoInput');
+        const ALUMNOS_LIST = document.getElementById('alumnosList');
+        const WELCOME_TITLE = document.getElementById('welcomeTitle');
+        const CIRCLE = document.getElementById('progressCircle');
+        const PERC_TEXT = document.getElementById('progressPercentageText');
+        const TOTAL_UVS = document.getElementById('totalUvsText');
+        const APRO_UVS = document.getElementById('aprobadasUvsText');
+        const PLAN_DETAILS = document.getElementById('planDetailsText');
+        const TABLE_BODY = document.getElementById('historialTableBody');
+
+        let currentPreviewData = null;
+
+        // Mostrar número de cuenta del usuario en el modal
+        if (userAccountDisplay) {
+            userAccountDisplay.textContent = userAccount || 'No disponible';
+        }
+
+        // Cargar datos del alumno actual automáticamente
+        async function cargarDashboardAlumnoActual() {
+            if (!userAccount) {
+                console.error('No hay número de cuenta de usuario');
+                WELCOME_TITLE.textContent = 'Estudiante: No autenticado';
+                return;
+            }
+
+            try {
+                WELCOME_TITLE.textContent = 'Estudiante: Cargando...';
+                
+                const res = await fetch('/api/alumnos/' + userAccount + '/dashboard');
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.error);
+
+                actualizarDashboard(data);
+                
+            } catch (err) {
+                console.error('Error al cargar dashboard:', err);
+                WELCOME_TITLE.textContent = 'Estudiante: Error al cargar datos';
+                TABLE_BODY.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-red-400 italic">Error al cargar el historial</td></tr>';
+            }
+        }
+
+        // Función para actualizar toda la UI del dashboard
+        function actualizarDashboard(data) {
+            // Textos principales
+            WELCOME_TITLE.textContent = `Estudiante: ${data.alumno.NombreCompleto}`;
+            PLAN_DETAILS.innerHTML = `<b>${data.alumno.NombreCarrera}</b><br/>${data.alumno.NombrePlan} (${data.alumno.AnioPlan || ''})`;
+
+            // Progreso circular
+            const uvsAprobadas = data.progreso.uvsAprobadas || 0;
+            const uvsPlan = data.progreso.totalUvsPlan || 1;
+            const porcentaje = data.progreso.porcentaje || 0;
+
+            const perimetro = 314;
+            const offset = perimetro - (porcentaje / 100) * perimetro;
+
+            CIRCLE.style.strokeDashoffset = offset;
+            PERC_TEXT.textContent = `${porcentaje}%`;
+            TOTAL_UVS.textContent = uvsPlan;
+            APRO_UVS.textContent = uvsAprobadas;
+
+            // Rendimiento académico
+            document.getElementById('indiceAcademico').textContent = data.alumno.IndiceAcademico || '0.00';
+            document.getElementById('statAprobadas').textContent = data.rendimiento.aprobadas || 0;
+            document.getElementById('statReprobadas').textContent = data.rendimiento.reprobadas || 0;
+            document.getElementById('statEnCurso').textContent = data.rendimiento.enCurso || 0;
+            document.getElementById('promedioGeneral').textContent = data.rendimiento.promedioGeneral || '0.00';
+
+            // Materias en curso
+            const materiasContainer = document.getElementById('materiasEnCursoContainer');
+            let totalUvsCurso = 0;
+            
+            if (data.materiasEnCurso && data.materiasEnCurso.length > 0) {
+                let html = '';
+                data.materiasEnCurso.forEach(materia => {
+                    totalUvsCurso += materia.UVS || 0;
+                    html += `
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="font-medium truncate max-w-[150px]">${materia.CodigoMateria} - ${materia.NombreMateria}</span>
+                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-[10px] font-semibold">${materia.UVS || 0} UV</span>
+                        </div>
+                    `;
+                });
+                materiasContainer.innerHTML = html;
+            } else {
+                materiasContainer.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">No hay materias en curso</p>';
+            }
+            document.getElementById('totalUvsEnCurso').textContent = totalUvsCurso;
+
+            // Próximas materias sugeridas
+            const proximasContainer = document.getElementById('proximasMateriasContainer');
+            if (data.proximasMaterias && data.proximasMaterias.length > 0) {
+                let html = '';
+                data.proximasMaterias.forEach(materia => {
+                    html += `
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="font-medium truncate max-w-[150px]">${materia.CodigoMateria}</span>
+                            <span class="text-slate-500">${materia.UVS || 0} UV</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 -mt-2 mb-2">${materia.NombreMateria}</p>
+                    `;
+                });
+                proximasContainer.innerHTML = html;
+            } else {
+                proximasContainer.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">¡Has completado todas las materias!</p>';
+            }
+
+            // Historial completo
+            TABLE_BODY.innerHTML = '';
+            if (data.historialCompleto.length === 0) {
+                TABLE_BODY.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center">No hay historial disponible.</td></tr>';
+            } else {
+                data.historialCompleto.forEach(reg => {
+                    let badgeClass = 'bg-gray-100 text-gray-600';
+                    if (reg.Estado === 'APB' || reg.Estado === 'APR' || reg.Estado === 'APROBADO') {
+                        badgeClass = 'bg-green-100 text-green-600';
+                    } else if (reg.Estado === 'EN CURSO') {
+                        badgeClass = 'bg-blue-100 text-blue-600';
+                    } else if (reg.Estado === 'REP') {
+                        badgeClass = 'bg-red-100 text-red-600';
+                    }
+
+                    TABLE_BODY.innerHTML += `
+                        <tr>
+                            <td class="px-6 py-4 text-slate-500">${reg.CodigoMateria}</td>
+                            <td class="px-6 py-4 font-medium">${reg.NombreMateria}</td>
+                            <td class="px-6 py-4 font-bold text-slate-800">${reg.Nota || '-'}</td>
+                            <td class="px-6 py-4"><span class="${badgeClass} px-3 py-1 rounded-full text-[10px] font-bold uppercase">${reg.Estado}</span></td>
+                            <td class="px-6 py-4 text-slate-500">${reg.UVS || '-'}</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        // Cargar Lista de Alumnos para el buscador
+        async function fetchAlumnos() {
+            try {
+                const res = await fetch('/api/alumnos');
+                const alumnos = await res.json();
+
+                if (alumnos.length === 0) return;
+
+                window.alumnosData = alumnos;
+
+                alumnos.forEach(alum => {
+                    const opt = document.createElement('option');
+                    opt.value = `${alum.NumeroCuenta} - ${alum.NombreCompleto}`;
+                    ALUMNOS_LIST.appendChild(opt);
+                });
+            } catch (err) {
+                console.error("Error al cargar selector:", err);
+            }
+        }
+
+        // Evento para cuando seleccionan otro alumno del datalist
+        ALUMNO_INPUT.addEventListener('change', async (e) => {
+            const inputValue = e.target.value;
+            if (!inputValue) return;
+
+            const cuenta = inputValue.split(' - ')[0].trim();
+            
+            if (!window.alumnosData || !window.alumnosData.some(a => a.NumeroCuenta === cuenta)) {
+                return;
+            }
+
+            try {
+                WELCOME_TITLE.textContent = "Cargando...";
+                
+                CIRCLE.style.strokeDashoffset = 314;
+                
+                const res = await fetch('/api/alumnos/' + cuenta + '/dashboard');
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.error);
+
+                actualizarDashboard(data);
+            } catch (err) {
+                console.error(err);
+                WELCOME_TITLE.textContent = "Error al cargar datos";
+            }
+        });
+
+        // Limpiar el input cuando está vacío para volver al alumno actual
+        ALUMNO_INPUT.addEventListener('input', (e) => {
+            if (!e.target.value) {
+                cargarDashboardAlumnoActual();
+            }
+        });
+
+        // Lógica del Modal
+        btnOpen.onclick = () => {
+            modal.classList.remove('hidden');
+            showFileTab();
+            previewSection.classList.add('hidden');
+            pasteArea.value = '';
+        };
+
+        btnClose.onclick = () => {
+            modal.classList.add('hidden');
+            statusMsg.classList.add('hidden');
+            fileInfo.classList.add('hidden');
+            form.reset();
+            previewSection.classList.add('hidden');
+            currentPreviewData = null;
+        };
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+                statusMsg.classList.add('hidden');
+                fileInfo.classList.add('hidden');
+                form.reset();
+                previewSection.classList.add('hidden');
+                currentPreviewData = null;
+            }
+        });
+
+        function showFileTab() {
+            tabFile.classList.add('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+            tabFile.classList.remove('text-gray-500');
+            tabPaste.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+            tabPaste.classList.add('text-gray-500');
+            fileSection.classList.remove('hidden');
+            textSection.classList.add('hidden');
+            previewSection.classList.add('hidden');
+        }
+
+        function showPasteTab() {
+            tabPaste.classList.add('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+            tabPaste.classList.remove('text-gray-500');
+            tabFile.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+            tabFile.classList.add('text-gray-500');
+            textSection.classList.remove('hidden');
+            fileSection.classList.add('hidden');
+            previewSection.classList.add('hidden');
+        }
+
+        tabFile.addEventListener('click', showFileTab);
+        tabPaste.addEventListener('click', showPasteTab);
+
+        // Drag & Drop archivo
+        dropZone.onclick = () => fileInput.click();
+
+        fileInput.onchange = (e) => {
+            if (e.target.files.length) {
+                fileInfo.classList.remove('hidden');
+                fileName.textContent = e.target.files[0].name;
+            }
+        };
+
+        // Envío de Formulario (archivo)
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const file = fileInput.files[0];
+            if (!file) {
+                showStatus('Por favor selecciona un archivo', 'text-red-600');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('archivo', file);
+            formData.append('numeroCuenta', userAccount);
+
+            try {
+                btnSubmit.disabled = true;
+                btnSubmit.textContent = 'Procesando...';
+                showStatus('Subiendo y analizando archivo...', 'text-blue-600');
+
+                const response = await fetch('/api/ingest/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus(`¡Éxito! Se procesaron ${data.recordsProcessed} registros. (${data.inserts} nuevos, ${data.updates} actualizados)`, 'text-green-600');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    showStatus(data.error || 'Error al procesar el archivo', 'text-red-600');
+                }
+            } catch (error) {
+                showStatus('Error de conexión con el servidor', 'text-red-600');
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.textContent = 'Comenzar Procesamiento';
+            }
+        };
+
+        // Vista previa de texto
+        btnPreviewText.addEventListener('click', async () => {
+            const text = pasteArea.value.trim();
+            if (!text) {
+                showStatus('Por favor pega algún contenido', 'text-red-600');
+                return;
+            }
+
+            if (!userAccount) {
+                showStatus('Error: No se encontró el número de cuenta del usuario', 'text-red-600');
+                return;
+            }
+
+            try {
+                btnPreviewText.disabled = true;
+                btnPreviewText.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Procesando...';
+                showStatus('Procesando texto...', 'text-[#B20000]');
+
+                const response = await fetch('/api/ingest/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Error al procesar el texto');
+                }
+
+                // Guardar todos los datos para importación posterior
+                currentPreviewData = data.allData;
+                
+                // Mostrar preview
+                renderPreview(data.preview);
+                previewSection.classList.remove('hidden');
+                showStatus(`Se encontraron ${data.total} registros. Revisa la vista previa.`, 'text-green-600');
+
+            } catch (error) {
+                showStatus(error.message, 'text-red-600');
+            } finally {
+                btnPreviewText.disabled = false;
+                btnPreviewText.innerHTML = '<i class="fas fa-eye mr-2"></i> Vista Previa';
+            }
+        });
+
+        function renderPreview(data) {
+            if (!data || data.length === 0) {
+                previewTableBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-slate-400">No se encontraron datos</td></tr>';
+                previewCount.textContent = '(0 registros)';
+                return;
+            }
+
+            let html = '';
+            data.forEach((row, index) => {
+                const estadoClass = row.estado === 'APB' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+                html += `
+                    <tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">
+                        <td class="px-4 py-2 whitespace-nowrap font-mono text-xs">${row.codigo_materia || 'N/A'}</td>
+                        <td class="px-4 py-2 whitespace-nowrap max-w-xs truncate text-xs">${row.nombre_materia || 'N/A'}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-xs">${row.nota || 'N/A'}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-xs">
+                            <span class="${estadoClass} px-2 py-1 rounded-full text-xs font-semibold">
+                                ${row.estado || 'N/A'}
+                            </span>
+                        </td>
+                        <td class="px-4 py-2 whitespace-nowrap text-xs">${row.uvs || 'N/A'}</td>
+                    </tr>
+                `;
+            });
+
+            previewTableBody.innerHTML = html;
+            previewCount.textContent = `(${data.length} registros mostrados de ${currentPreviewData ? currentPreviewData.length : 0})`;
+        }
+
+        // Cancelar preview
+        btnCancelPreview.addEventListener('click', () => {
+            previewSection.classList.add('hidden');
+            currentPreviewData = null;
+            showPasteTab();
+        });
+
+        // Aceptar e importar
+        btnAcceptPreview.addEventListener('click', async () => {
+            if (!currentPreviewData || currentPreviewData.length === 0) {
+                showStatus('No hay datos para importar', 'text-red-600');
+                return;
+            }
+
+            if (!userAccount) {
+                showStatus('Error: No se encontró el número de cuenta del usuario', 'text-red-600');
+                return;
+            }
+
+            try {
+                btnAcceptPreview.disabled = true;
+                btnAcceptPreview.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Importando...';
+                showStatus('Importando datos...', 'text-[#B20000]');
+
+                const response = await fetch('/api/ingest/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        data: currentPreviewData,
+                        numeroCuenta: userAccount
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showStatus(`¡Éxito! Se importaron ${result.recordsProcessed} registros. (${result.inserts} nuevos, ${result.updates} actualizados)`, 'text-green-600');
+                    setTimeout(() => {
+                        modal.classList.add('hidden');
+                        location.reload();
+                    }, 2000);
+                } else {
+                    throw new Error(result.error || 'Error al importar');
+                }
+
+            } catch (error) {
+                showStatus(error.message, 'text-red-600');
+                btnAcceptPreview.disabled = false;
+                btnAcceptPreview.innerHTML = 'Aceptar e Importar';
+            }
+        });
+
+        function showStatus(text, colorClass) {
+            statusMsg.textContent = text;
+            statusMsg.className = `mt-4 text-center text-sm font-semibold ${colorClass}`;
+            statusMsg.classList.remove('hidden');
+        }
+
+        // Inicialización
+        fetchAlumnos();
+        cargarDashboardAlumnoActual();
+    </script>
+</body>
+
+</html>

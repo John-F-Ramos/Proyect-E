@@ -21,7 +21,7 @@ Dado que se ha configurado `jest`, puedes probar la lógica de procesamiento de 
 
 Para probar la inserción real en Firebase y visualización frontend, debes seguir estos pasos:
 
-### 1. Configurar Firebase Admin (Backend)
+<!-- ### 1. Configurar Firebase Admin (Backend)
 1. Ve a la consola de Firebase (`console.firebase.google.com`), selecciona el proyecto.
 2. Ve a la "Rueda dentada (Configuración) -> Configuración del proyecto -> Cuentas de servicio".
 3. Da clic en **Generar nueva clave privada**. Esto descargará un archivo `.json` de credenciales.
@@ -44,7 +44,7 @@ Para probar la inserción real en Firebase y visualización frontend, debes segu
    ```bash
    node server.js
    ```
-   *(Debe decir: Server running on port 3000)*
+   *(Debe decir: Server running on port 3000)* -->
 
 2. Levanta el cliente (Frontend). Abre una nueva terminal en `e:\Proyectos\Proyect-E` y usa `npx serve public/` (o abre `public/index.html` con Live Server de VSCode).
 3. Entra a `http://localhost:3000/localhost...` (la url que te de el serve).
