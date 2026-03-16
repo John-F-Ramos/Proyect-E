@@ -31,7 +31,21 @@ exports.getAllCarreras = async (req, res) => {
 exports.getAllMaterias = async (req, res) => {
     try {
         const pool = await poolPromise;
-        const result = await pool.request().query('SELECT * FROM Materias ORDER BY NombreMateria');
+        const result = await pool.request().query(`
+            SELECT 
+                m.CodigoMateria, 
+                m.NombreMateria, 
+                m.UVS, 
+                c.CodigoCarrera,
+                c.NombreCarrera, 
+                p.NombrePlan,
+                p.AnioPlan
+            FROM Materias m
+            LEFT JOIN Pensum_Materias pm ON m.CodigoMateria = pm.CodigoMateria
+            LEFT JOIN PlanesEstudio p ON pm.IdPlan = p.IdPlan
+            LEFT JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
+            ORDER BY m.NombreMateria
+        `);
         res.status(200).json(result.recordset);
     } catch (err) {
         console.error('Error getting materias:', err);
@@ -51,13 +65,16 @@ exports.createCarrera = async (req, res) => {
 
     try {
         const pool = await poolPromise;
-        // Check if exists
-        const check = await pool.request()
-            .input('codigo', sql.VarChar, codigo)
-            .query('SELECT CodigoCarrera FROM Carreras WHERE CodigoCarrera = @codigo');
         
-        if (check.recordset.length > 0) {
-            return res.status(409).json({ error: 'La carrera con ese código ya existe.' });
+        // Verificar si la carrera ya existe
+        const carreraCheck = await pool.request()
+            .input('codigo', sql.VarChar, codigo)
+            .query('SELECT NombreCarrera FROM Carreras WHERE CodigoCarrera = @codigo');
+        
+        if (carreraCheck.recordset.length > 0) {
+            return res.status(409).json({
+                error: `Carrera ya registrada bajo el ID: ${codigo}, carrera: ${carreraCheck.recordset[0].NombreCarrera}`
+            });
         }
 
         await pool.request()
@@ -65,37 +82,103 @@ exports.createCarrera = async (req, res) => {
             .input('nombre', sql.VarChar, nombre)
             .query('INSERT INTO Carreras (CodigoCarrera, NombreCarrera) VALUES (@codigo, @nombre)');
         
-        res.status(201).json({ message: 'Carrera creada exitosamente.', carrera: { CodigoCarrera: codigo, NombreCarrera: nombre } });
+        res.status(201).json({ message: 'Carrera creada exitosamente.' });
     } catch (err) {
         console.error('Error creating carrera:', err);
         res.status(500).json({ error: 'Error interno al crear carrera.' });
     }
 };
 
-exports.createMateria = async (req, res) => {
-    const { codigo, nombre, uvs } = req.body;
-    if (!codigo || !nombre) {
-        return res.status(400).json({ error: 'Código y Nombre son requeridos para la materia.' });
+exports.createPlan = async (req, res) => {
+    const { codigoCarrera, nombrePlan, anioPlan } = req.body;
+    if (!codigoCarrera || !nombrePlan || !anioPlan) {
+        return res.status(400).json({ error: 'Código de Carrera, Nombre del Plan y Año son requeridos.' });
     }
 
     try {
         const pool = await poolPromise;
-        // Check if exists
-        const check = await pool.request()
-            .input('codigo', sql.VarChar, codigo)
-            .query('SELECT CodigoMateria FROM Materias WHERE CodigoMateria = @codigo');
-        
-        if (check.recordset.length > 0) {
-            return res.status(409).json({ error: 'La materia con ese código ya existe.' });
+
+        // Verificar que la carrera exista
+        const carreraCheck = await pool.request()
+            .input('codigo', sql.VarChar, codigoCarrera)
+            .query('SELECT NombreCarrera FROM Carreras WHERE CodigoCarrera = @codigo');
+
+        if (carreraCheck.recordset.length === 0) {
+            return res.status(404).json({ error: `No existe ninguna carrera con el código: ${codigoCarrera}. Créela primero.` });
         }
 
+        // Verificar si el plan ya existe
+        const planCheck = await pool.request()
+            .input('codigo', sql.VarChar, codigoCarrera)
+            .input('nombrePlan', sql.VarChar, nombrePlan)
+            .query(`
+                SELECT p.IdPlan, c.NombreCarrera, p.NombrePlan 
+                FROM PlanesEstudio p
+                JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
+                WHERE p.CodigoCarrera = @codigo AND p.NombrePlan = @nombrePlan
+            `);
+        
+        if (planCheck.recordset.length > 0) {
+            const p = planCheck.recordset[0];
+            return res.status(409).json({ 
+                error: `carrera ya registrado bajo el ID: ${p.IdPlan}, carrera: ${p.NombreCarrera}, plan de estudio: ${p.NombrePlan}` 
+            });
+        }
+
+        const planInsert = await pool.request()
+            .input('codigo', sql.VarChar, codigoCarrera)
+            .input('nombrePlan', sql.VarChar, nombrePlan)
+            .input('anio', sql.Int, anioPlan)
+            .query('INSERT INTO PlanesEstudio (CodigoCarrera, NombrePlan, AnioPlan) OUTPUT INSERTED.IdPlan VALUES (@codigo, @nombrePlan, @anio)');
+        
+        const newPlanId = planInsert.recordset[0].IdPlan;
+
+        // 4. Vincular materias si se proporcionaron
+        if (req.body.materias && Array.from(req.body.materias).length > 0) {
+            const materias = Array.from(req.body.materias);
+            for (const codMateria of materias) {
+                await pool.request()
+                    .input('idPlan', sql.Int, newPlanId)
+                    .input('cod', sql.VarChar, codMateria)
+                    .query('INSERT INTO Pensum_Materias (IdPlan, CodigoMateria) VALUES (@idPlan, @cod)');
+            }
+        }
+        
+        res.status(201).json({ message: 'Plan de Estudio creado y materias vinculadas exitosamente.' });
+    } catch (err) {
+        console.error('Error creating plan:', err);
+        res.status(500).json({ error: 'Error interno al crear el plan.' });
+    }
+};
+
+exports.createMateria = async (req, res) => {
+    const { codigo, nombre, uvs } = req.body;
+    if (!codigo || !nombre) {
+        return res.status(400).json({ error: 'Código y Nombre son requeridos.' });
+    }
+
+    try {
+        const pool = await poolPromise;
+        
+        // 1. Verificar si la materia ya existe
+        const materiaExists = await pool.request()
+            .input('codigo', sql.VarChar, codigo)
+            .query('SELECT NombreMateria FROM Materias WHERE CodigoMateria = @codigo');
+        
+        if (materiaExists.recordset.length > 0) {
+            return res.status(409).json({ 
+                error: `Materia ya registrada bajo el ID: ${codigo}, nombre: ${materiaExists.recordset[0].NombreMateria}` 
+            });
+        }
+
+        // 2. Crear materia
         await pool.request()
             .input('codigo', sql.VarChar, codigo)
             .input('nombre', sql.VarChar, nombre)
             .input('uvs', sql.Int, uvs || 0)
             .query('INSERT INTO Materias (CodigoMateria, NombreMateria, UVS) VALUES (@codigo, @nombre, @uvs)');
         
-        res.status(201).json({ message: 'Materia creada exitosamente.', materia: { CodigoMateria: codigo, NombreMateria: nombre, UVS: uvs || 0 } });
+        res.status(201).json({ message: 'Materia registrada exitosamente.' });
     } catch (err) {
         console.error('Error creating materia:', err);
         res.status(500).json({ error: 'Error interno al crear materia.' });

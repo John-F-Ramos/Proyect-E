@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="/js/auth-guard.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -32,7 +33,7 @@
                 </a>
                 <a href="/plan-estudio"
                     class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
-                    <i class="fas fa-book mr-3 text-gray-400"></i> Planes de Estudio
+                    <i class="fas fa-book mr-3 text-gray-400"></i> Catálogos Académicos
                 </a>
                 <a href="/reportes"
                     class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
@@ -45,7 +46,8 @@
             </nav>
         </div>
         <div class="mt-auto p-6 border-t border-gray-200">
-            <button onclick="localStorage.removeItem('user'); window.location.href='/';" class="flex items-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
+            <button onclick="localStorage.removeItem('user'); window.location.href='/';"
+                class="flex items-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
                 <i class="fas fa-sign-out-alt mr-3"></i> Cerrar Sesión
             </button>
         </div>
@@ -55,12 +57,9 @@
         <header class="flex justify-between items-center mb-8">
             <h1 id="welcomeTitle" class="text-2xl font-bold text-slate-800">Estudiante: Cargando...</h1>
             <div class="flex items-center space-x-4">
-                <!-- Buscador de Alumno (opcional, para ver otros alumnos) -->
-                <div class="relative">
-                    <input type="text" list="alumnosList" id="alumnoInput" placeholder="Buscar otro alumno..."
+                    <input type="text" list="alumnosList" id="alumnoInput" placeholder="Buscar alumno..."
                         class="bg-white border text-sm rounded-lg border-gray-300 focus:ring-[#B20000] focus:border-[#B20000] block p-2.5 text-slate-600 shadow-sm min-w-[250px] placeholder-gray-400">
                     <datalist id="alumnosList"></datalist>
-                    <i class="fas fa-search absolute right-3 top-3 text-gray-400 pointer-events-none"></i>
                 </div>
 
                 <button id="btnOpenModal"
@@ -69,8 +68,27 @@
                 </button>
                 <i class="far fa-calendar text-slate-400"></i>
                 <i class="far fa-bell text-slate-400"></i>
-                <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000]">
-                    <i class="fas fa-user"></i>
+                
+                <!-- Profile Widget -->
+                <div class="relative inline-block text-left" id="profileWidget">
+                    <button type="button" class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000] hover:bg-red-200 transition focus:outline-none" id="profileDropdownBtn">
+                        <i class="fas fa-user"></i>
+                    </button>
+                    <!-- Dropdown Menu -->
+                    <div id="profileDropdown" class="hidden absolute right-0 mt-2 w-56 origin-top-right rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none z-[100] border border-gray-100">
+                        <div class="p-4 border-b border-gray-100">
+                            <p class="text-sm font-bold text-slate-800 truncate" id="dropdownUserName">Nombre Usuario</p>
+                            <p class="text-xs text-slate-500 mt-0.5" id="dropdownUserRole">Rol Usuario</p>
+                        </div>
+                        <div class="py-2">
+                            <a href="/perfil" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition group">
+                                <i class="fas fa-user-circle mr-3 text-slate-400 group-hover:text-[#B20000]"></i> Mi Perfil
+                            </a>
+                            <button onclick="localStorage.removeItem('user'); window.location.href='/';" class="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition group">
+                                <i class="fas fa-sign-out-alt mr-3 text-red-400 group-hover:text-red-600"></i> Cerrar Sesión
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
@@ -78,7 +96,8 @@
         <!-- MODAL DE IMPORTACIÓN -->
         <div id="uploadModal"
             class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-8 transform transition-all max-h-[90vh] overflow-y-auto">
+            <div
+                class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-8 transform transition-all max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-xl font-bold text-slate-800">Importar Historial</h3>
                     <button id="btnCloseModal" class="text-slate-400 hover:text-slate-600">
@@ -87,9 +106,13 @@
                 </div>
 
                 <!-- Tabs -->
-                <div class="flex border-b border-gray-200 mb-6">
-                    <button id="tabFile" class="px-4 py-2 text-sm font-medium text-[#B20000] border-b-2 border-[#B20000]">Subir Archivo</button>
-                    <button id="tabPaste" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-[#B20000] hover:border-b-2 hover:border-[#B20000]">Pegar Texto</button>
+                <div class="flex border-b border-gray-200 mb-6" id="importTabs">
+                    <button id="tabFile"
+                        class="px-4 py-2 text-sm font-medium text-[#B20000] border-b-2 border-[#B20000]">Subir
+                        Archivo</button>
+                    <button id="tabPaste"
+                        class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-[#B20000] hover:border-b-2 hover:border-[#B20000]">Pegar
+                        Texto</button>
                 </div>
 
                 <!-- Sección Archivo -->
@@ -97,7 +120,8 @@
                     <form id="uploadForm" class="space-y-6">
                         <div class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-[#B20000] transition group cursor-pointer"
                             id="dropZone">
-                            <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 group-hover:text-[#B20000] mb-4"></i>
+                            <i
+                                class="fas fa-cloud-upload-alt text-4xl text-slate-300 group-hover:text-[#B20000] mb-4"></i>
                             <p class="text-sm text-slate-600 mb-2">Arrastra tu archivo Excel aquí</p>
                             <p class="text-xs text-slate-400 font-medium italic">o haz clic para buscar</p>
                             <input type="file" id="excelFile" name="archivo" class="hidden" accept=".xlsx, .xls">
@@ -119,22 +143,22 @@
                 <!-- Sección Texto - AHORA CON COLORES COHERENTES -->
                 <div id="textSection" class="hidden">
                     <div class="space-y-4">
-                        <div class="bg-red-50 border-l-4 border-[#B20000] p-4 mb-4">
-                            <div class="flex">
-                                <div class="flex-shrink-0">
-                                    <i class="fas fa-info-circle text-[#B20000]"></i>
-                                </div>
-                                <div class="ml-3">
-                                    <p class="text-sm text-[#B20000]">
-                                        <strong>Información:</strong> Los registros se importarán con tu número de cuenta: <span id="userAccountDisplay" class="font-mono font-bold"></span>
-                                    </p>
-                                </div>
-                            </div>
+                        <!-- Manual Account Input -->
+                        <div id="manualAccountSection" class="hidden bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                                <i class="fas fa-user-graduate mr-1"></i> Cuenta del Alumno
+                            </label>
+                            <input type="text" id="manualAccountInput" placeholder="Ej: 61234567" 
+                                class="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:ring-[#B20000] focus:border-[#B20000]"
+                                title="Ingresa la cuenta del alumno para este bloque de texto">
+                            <p id="manualAccountHelp" class="text-[10px] text-slate-400 mt-2">
+                                <i class="fas fa-info-circle mr-1"></i> Si dejas esto vacío, se usará el alumno seleccionado en el Dashboard o la cuenta que venga en los datos.
+                            </p>
                         </div>
-                        <textarea id="pasteArea" rows="8" 
+                        <textarea id="pasteArea" rows="8"
                             class="w-full border border-gray-300 rounded-lg p-3 font-mono text-sm focus:ring-[#B20000] focus:border-[#B20000]"
                             placeholder="Pega aquí el contenido copiado de la universidad..."></textarea>
-                        
+
                         <button id="btnPreviewText"
                             class="w-full bg-[#B20000] text-white py-3 rounded-xl font-bold hover:bg-red-700 transition transform hover:scale-[1.02] active:scale-[0.98]">
                             <i class="fas fa-eye mr-2"></i> Vista Previa
@@ -151,10 +175,12 @@
                             <span id="previewCount" class="text-sm font-normal text-slate-500 ml-2"></span>
                         </h4>
                         <div class="space-x-2">
-                            <button id="btnCancelPreview" class="px-4 py-2 bg-gray-500 text-white rounded-lg text-sm font-semibold hover:bg-gray-600 transition">
+                            <button id="btnCancelPreview"
+                                class="px-4 py-2 bg-gray-500 text-white rounded-lg text-sm font-semibold hover:bg-gray-600 transition">
                                 Cancelar
                             </button>
-                            <button id="btnAcceptPreview" class="px-4 py-2 bg-[#B20000] text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition">
+                            <button id="btnAcceptPreview"
+                                class="px-4 py-2 bg-[#B20000] text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition">
                                 Aceptar e Importar
                             </button>
                         </div>
@@ -163,10 +189,14 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-slate-50">
                                 <tr>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Código</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Materia</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Nota</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Estado</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Código
+                                    </th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Materia
+                                    </th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Nota
+                                    </th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Estado
+                                    </th>
                                     <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">UV</th>
                                 </tr>
                             </thead>
@@ -264,7 +294,8 @@
                 <div id="proximasMateriasContainer" class="space-y-3 max-h-40 overflow-y-auto">
                     <p class="text-xs text-slate-400 text-center py-2">Cargando...</p>
                 </div>
-                <a href="/plan-estudio" class="block w-full mt-3 bg-slate-800 text-white py-2 rounded-lg text-xs font-semibold hover:bg-slate-700 text-center">
+                <a href="/plan-estudio"
+                    class="block w-full mt-3 bg-slate-800 text-white py-2 rounded-lg text-xs font-semibold hover:bg-slate-700 text-center">
                     Ver Plan de Estudio
                 </a>
             </div>
@@ -344,29 +375,102 @@
 
         let currentPreviewData = null;
 
-        // Mostrar número de cuenta del usuario en el modal
-        if (userAccountDisplay) {
-            userAccountDisplay.textContent = userAccount || 'No disponible';
+        // Ocultar buscador de alumnos para estudiantes (rol 3)
+        if (userFromStorage.rol === 3 && ALUMNO_INPUT) {
+            ALUMNO_INPUT.parentElement.style.display = 'none';
+        }
+
+        // Función para obtener la cuenta a la que se importarán los datos
+        function getTargetAccount() {
+            if (userFromStorage.rol === 1 || userFromStorage.rol === 2) {
+                // Admin/Jefe:
+                // 1. Prioridad: Cuenta ingresada manualmente en el modal (si estamos en pestaña Texto)
+                const manualAccount = document.getElementById('manualAccountInput')?.value.trim();
+                if (manualAccount && !textSection.classList.contains('hidden')) {
+                    return manualAccount;
+                }
+
+                // 2. Alumno seleccionado en el buscador global
+                const inputValue = ALUMNO_INPUT ? ALUMNO_INPUT.value : '';
+                if (inputValue) {
+                    return inputValue.split(' - ')[0].trim();
+                }
+
+                // 3. Valor genérico para el backend (usará cuentas de las filas)
+                return 'ADMIN_IMPORT';
+            }
+            return userAccount;
+        }
+
+        // --- LÓGICA DEL WIDGET DE PERFIL ---
+        const profileDropdownBtn = document.getElementById('profileDropdownBtn');
+        const profileDropdown = document.getElementById('profileDropdown');
+        const dropdownUserName = document.getElementById('dropdownUserName');
+        const dropdownUserRole = document.getElementById('dropdownUserRole');
+
+        if (profileDropdownBtn && profileDropdown) {
+            dropdownUserName.textContent = userFromStorage.nombre || 'Usuario';
+            dropdownUserRole.textContent = userFromStorage.rolNombre || (userFromStorage.rol === 1 ? 'Administrador' : userFromStorage.rol === 2 ? 'Jefe de Carrera' : 'Estudiante');
+
+            profileDropdownBtn.onclick = (e) => {
+                e.stopPropagation();
+                profileDropdown.classList.toggle('hidden');
+            };
+
+            window.onclick = () => {
+                if (!profileDropdown.classList.contains('hidden')) {
+                    profileDropdown.classList.add('hidden');
+                }
+            };
+        }
+
+        // --- RESTRICCIONES DE IMPORTACIÓN POR ROL ---
+        const manualAccountSection = document.getElementById('manualAccountSection');
+        const manualAccountInput = document.getElementById('manualAccountInput');
+        const manualAccountHelp = document.getElementById('manualAccountHelp');
+
+        if (manualAccountSection) manualAccountSection.classList.remove('hidden');
+
+        if (userFromStorage.rol === 3) {
+            // Estudiante: ocultar pestaña de archivo, solo permitir pegar texto
+            if (tabFile) tabFile.style.display = 'none';
+            if (tabPaste) tabPaste.click(); // Forzar pestaña de pegar texto
+            
+            // Configurar input de cuenta para estudiante
+            if (manualAccountInput) {
+                manualAccountInput.value = userAccount;
+                manualAccountInput.readOnly = true;
+                manualAccountInput.classList.add('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
+            }
+            if (manualAccountHelp) {
+                manualAccountHelp.innerHTML = '<i class="fas fa-info-circle mr-1"></i> Los registros se importarán obligatoriamente con tu número de cuenta actual.';
+            }
+        } else {
+            // Admin/Jefe
+            if (manualAccountInput) {
+                manualAccountInput.readOnly = false;
+                manualAccountInput.classList.remove('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
+            }
         }
 
         // Cargar datos del alumno actual automáticamente
         async function cargarDashboardAlumnoActual() {
             if (!userAccount) {
                 console.error('No hay número de cuenta de usuario');
-                WELCOME_TITLE.textContent = 'Estudiante: No autenticado';
+                WELCOME_TITLE.textContent = 'Estudiante: No Seleccionado';
                 return;
             }
 
             try {
                 WELCOME_TITLE.textContent = 'Estudiante: Cargando...';
-                
+
                 const res = await fetch('/api/alumnos/' + userAccount + '/dashboard');
                 const data = await res.json();
 
                 if (!res.ok) throw new Error(data.error);
 
                 actualizarDashboard(data);
-                
+
             } catch (err) {
                 console.error('Error al cargar dashboard:', err);
                 WELCOME_TITLE.textContent = 'Estudiante: Error al cargar datos';
@@ -403,7 +507,7 @@
             // Materias en curso
             const materiasContainer = document.getElementById('materiasEnCursoContainer');
             let totalUvsCurso = 0;
-            
+
             if (data.materiasEnCurso && data.materiasEnCurso.length > 0) {
                 let html = '';
                 data.materiasEnCurso.forEach(materia => {
@@ -493,16 +597,16 @@
             if (!inputValue) return;
 
             const cuenta = inputValue.split(' - ')[0].trim();
-            
+
             if (!window.alumnosData || !window.alumnosData.some(a => a.NumeroCuenta === cuenta)) {
                 return;
             }
 
             try {
                 WELCOME_TITLE.textContent = "Cargando...";
-                
+
                 CIRCLE.style.strokeDashoffset = 314;
-                
+
                 const res = await fetch('/api/alumnos/' + cuenta + '/dashboard');
                 const data = await res.json();
 
@@ -524,6 +628,10 @@
 
         // Lógica del Modal
         btnOpen.onclick = () => {
+            const target = getTargetAccount();
+            if (userAccountDisplay) {
+                userAccountDisplay.textContent = target && target !== 'ADMIN_IMPORT' ? target : (userAccount || 'N/A');
+            }
             modal.classList.remove('hidden');
             showFileTab();
             previewSection.classList.add('hidden');
@@ -592,9 +700,15 @@
                 return;
             }
 
+            const targetAccount = getTargetAccount();
+            if (!targetAccount) {
+                showStatus('Error: No se pudo determinar la cuenta de destino', 'text-red-600');
+                return;
+            }
+
             const formData = new FormData();
             formData.append('archivo', file);
-            formData.append('numeroCuenta', userAccount);
+            formData.append('numeroCuenta', targetAccount);
 
             try {
                 btnSubmit.disabled = true;
@@ -630,8 +744,9 @@
                 return;
             }
 
-            if (!userAccount) {
-                showStatus('Error: No se encontró el número de cuenta del usuario', 'text-red-600');
+            const targetAccount = getTargetAccount();
+            if (!targetAccount) {
+                showStatus('Error: No se pudo determinar la cuenta de destino', 'text-red-600');
                 return;
             }
 
@@ -654,7 +769,7 @@
 
                 // Guardar todos los datos para importación posterior
                 currentPreviewData = data.allData;
-                
+
                 // Mostrar preview
                 renderPreview(data.preview);
                 previewSection.classList.remove('hidden');
@@ -711,22 +826,26 @@
                 return;
             }
 
-            if (!userAccount) {
-                showStatus('Error: No se encontró el número de cuenta del usuario', 'text-red-600');
+            const targetAccount = getTargetAccount();
+            if (!targetAccount || targetAccount === 'ADMIN_IMPORT') {
+                showStatus('Error: Debes seleccionar un estudiante antes de confirmar la importación.', 'text-red-600');
                 return;
             }
 
             try {
                 btnAcceptPreview.disabled = true;
                 btnAcceptPreview.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Importando...';
-                showStatus('Importando datos...', 'text-[#B20000]');
+
+                // Si es Admin/Jefe, enviamos bypass=true para omitir validación de plan
+                const bypassPlan = (userFromStorage.rol === 1 || userFromStorage.rol === 2);
 
                 const response = await fetch('/api/ingest/import', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
+                    body: JSON.stringify({
+                        cuenta: targetAccount,
                         data: currentPreviewData,
-                        numeroCuenta: userAccount
+                        bypassPlanValidation: bypassPlan
                     })
                 });
 
@@ -758,6 +877,45 @@
         // Inicialización
         fetchAlumnos();
         cargarDashboardAlumnoActual();
+
+        // Configuración de Drag & Drop para el DropZone
+        const externalDropZone = document.getElementById('dropZone');
+        const hiddenExcelInput = document.getElementById('excelFile');
+
+        if (externalDropZone && hiddenExcelInput) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                externalDropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                externalDropZone.addEventListener(eventName, () => {
+                    externalDropZone.classList.add('border-[#B20000]', 'bg-red-50');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                externalDropZone.addEventListener(eventName, () => {
+                    externalDropZone.classList.remove('border-[#B20000]', 'bg-red-50');
+                }, false);
+            });
+
+            externalDropZone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+
+                if (files && files.length > 0) {
+                    hiddenExcelInput.files = files; // Asignar archivos al input oculto
+                    // Disparar evento change manualmente al input para activar la lógica
+                    const event = new Event('change');
+                    hiddenExcelInput.dispatchEvent(event);
+                }
+            }, false);
+        }
     </script>
 </body>
 

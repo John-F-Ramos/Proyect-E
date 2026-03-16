@@ -27,6 +27,7 @@ router.post('/materias', catalogoController.createMateria);
 router.get('/carreras-con-planes', catalogoController.getCarrerasConPlanes);
 router.get('/planes/:id/materias', catalogoController.getMateriasByPlan);
 router.get('/planes', catalogoController.getAllPlanes); // Opcional
+router.post('/planes', catalogoController.createPlan);
 
 // Ruta de Carga Masiva (Excel)
 router.post('/upload', upload.single('archivoCatalogo'), catalogoController.uploadCatalogosExcel);

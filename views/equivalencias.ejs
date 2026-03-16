@@ -1,29 +1,36 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mis Equivalencias | CEUTEC</title>
+    <title>Equivalencias | CEUTEC</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="/js/auth-guard.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #f8fafc; 
-            overflow-x: hidden; /* Evita scroll horizontal */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            overflow-x: hidden;
+            /* Evita scroll horizontal */
         }
+
         .equivalencia-card {
             transition: all 0.3s ease;
         }
+
         .equivalencia-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
         }
+
         .comparison-bar {
             transition: width 0.5s ease;
         }
+
         /* Contenedor del gráfico con tamaño fijo */
         .chart-container {
             position: relative;
@@ -32,36 +39,44 @@
             height: 200px;
             margin: 0 auto;
         }
+
         canvas {
             max-width: 100%;
             height: auto !important;
         }
     </style>
 </head>
+
 <body class="flex min-h-screen overflow-x-hidden">
     <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col flex-shrink-0">
         <div class="p-6">
             <img src="/assets/images/logo-ceutec.png" alt="CEUTEC" class="h-10 mb-8">
             <nav class="space-y-1">
-                <a href="/dashboard" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition group">
+                <a href="/dashboard"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition group">
                     <i class="fas fa-home mr-3 text-gray-400 group-hover:text-[#B20000]"></i> Dashboard
                 </a>
-                <a href="/equivalencias" class="flex items-center px-4 py-3 bg-slate-100 text-slate-900 font-semibold rounded-lg">
-                    <i class="fas fa-exchange-alt mr-3 text-[#B20000]"></i> Mis Equivalencias
+                <a href="/equivalencias"
+                    class="flex items-center px-4 py-3 bg-slate-100 text-slate-900 font-semibold rounded-lg">
+                    <i class="fas fa-exchange-alt mr-3 text-[#B20000]"></i> Equivalencias
                 </a>
-                <a href="/plan-estudio" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
-                    <i class="fas fa-book mr-3 text-gray-400"></i> Planes de Estudio
+                <a href="/plan-estudio"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-book mr-3 text-gray-400"></i> Catálogos Académicos
                 </a>
-                <a href="/reportes" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                <a href="/reportes"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
                     <i class="fas fa-file-alt mr-3 text-gray-400"></i> Reportes
                 </a>
-                <a href="/perfil" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                <a href="/perfil"
+                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
                     <i class="fas fa-user mr-3 text-gray-400"></i> Mi Perfil
                 </a>
             </nav>
         </div>
         <div class="mt-auto p-6 border-t border-gray-200">
-            <button onclick="localStorage.removeItem('user'); window.location.href='/';" class="flex items-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
+            <button onclick="localStorage.removeItem('user'); window.location.href='/';"
+                class="flex items-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
                 <i class="fas fa-sign-out-alt mr-3"></i> Cerrar Sesión
             </button>
         </div>
@@ -70,24 +85,23 @@
     <main class="flex-1 p-4 md:p-8 overflow-y-auto w-full max-w-full">
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-slate-800">Mis Equivalencias</h1>
+                <h1 class="text-2xl font-bold text-slate-800">Equivalencias</h1>
                 <p id="welcomeSubtitle" class="text-sm text-slate-500 mt-1">Cargando información...</p>
             </div>
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-                <button id="btnSimularCambio" class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center justify-center">
-                    <i class="fas fa-random mr-2"></i> Simular Cambio de Carrera
-                </button>
-                <button id="btnSolicitarEquivalencia" class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center justify-center">
+                <button id="btnSolicitarEquivalencia"
+                    class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center justify-center">
                     <i class="fas fa-plus-circle mr-2"></i> Solicitar Equivalencia
                 </button>
-                <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000] flex-shrink-0">
+                <div
+                    class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000] flex-shrink-0">
                     <i class="fas fa-user"></i>
                 </div>
             </div>
         </header>
 
         <!-- Stats Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+        <div id="statsCardsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
             <div class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 equivalencia-card">
                 <div class="flex items-center justify-between mb-4">
                     <div class="w-10 h-10 md:w-12 md:h-12 bg-green-100 rounded-xl flex items-center justify-center">
@@ -140,24 +154,39 @@
                     <i class="fas fa-random text-[#B20000] mr-2"></i>
                     Simulador de Cambio de Carrera
                 </h2>
-                <button id="btnCerrarSimulacion" class="text-slate-400 hover:text-slate-600">
+                <!-- Botón oculto permanentemente por nuevo flujo -->
+                <button id="btnCerrarSimulacion" class="text-slate-400 hover:text-slate-600 hidden">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6">
+            <!-- Buscador y Selectores en una sola fila -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 mb-6 items-end">
+                <div id="simAlumnoSelector" class="hidden">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">
+                        <i class="fas fa-user-graduate mr-1 text-[#B20000]"></i> Estudiante
+                    </label>
+                    <input type="text" list="simAlumnosList" id="simAlumnoInput"
+                        placeholder="Buscar alumno..."
+                        class="bg-white border text-sm rounded-lg border-gray-300 focus:ring-[#B20000] focus:border-[#B20000] block p-2.5 text-slate-600 shadow-sm w-full placeholder-gray-400">
+                    <datalist id="simAlumnosList"></datalist>
+                    <p id="simAlumnoStatus" class="text-[10px] text-slate-400 mt-1 truncate">Escribe nombre o cuenta</p>
+                </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-2">Carrera Actual</label>
-                    <input type="text" id="carreraActual" class="w-full border border-gray-300 rounded-lg p-2 md:p-3 text-sm bg-slate-50" readonly>
+                    <input type="text" id="carreraActual"
+                        class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-slate-50 text-slate-600 font-medium" readonly>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-2">Carrera Destino</label>
-                    <select id="carreraDestino" class="w-full border border-gray-300 rounded-lg p-2 md:p-3 text-sm focus:ring-[#B20000] focus:border-[#B20000]">
+                    <select id="carreraDestino"
+                        class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-[#B20000] focus:border-[#B20000]">
                         <option value="">Selecciona una carrera</option>
                     </select>
                 </div>
-                <div class="flex items-end">
-                    <button id="btnCalcularSimulacion" class="w-full bg-[#B20000] text-white px-4 md:px-6 py-2 md:py-3 rounded-lg text-sm font-semibold hover:bg-red-700 transition">
+                <div>
+                    <button id="btnCalcularSimulacion"
+                        class="w-full bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center justify-center">
                         <i class="fas fa-calculator mr-2"></i> Calcular
                     </button>
                 </div>
@@ -190,16 +219,20 @@
                     <div class="relative pt-1">
                         <div class="flex mb-2 items-center justify-between">
                             <div>
-                                <span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-[#B20000] bg-red-100">
+                                <span
+                                    class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-[#B20000] bg-red-100">
                                     Completado
                                 </span>
                             </div>
                             <div class="text-right">
-                                <span class="text-xs font-semibold inline-block text-[#B20000]" id="simPorcentaje">0%</span>
+                                <span class="text-xs font-semibold inline-block text-[#B20000]"
+                                    id="simPorcentaje">0%</span>
                             </div>
                         </div>
                         <div class="overflow-hidden h-3 md:h-4 mb-4 text-xs flex rounded bg-red-100">
-                            <div id="simProgressBar" style="width:0%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-[#B20000] comparison-bar"></div>
+                            <div id="simProgressBar" style="width:0%"
+                                class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-[#B20000] comparison-bar">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -211,22 +244,27 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-slate-50 sticky top-0">
                                 <tr>
-                                    <th class="px-3 md:px-4 py-2 text-left text-xs font-medium text-slate-500">Materia Cursada</th>
-                                    <th class="px-3 md:px-4 py-2 text-left text-xs font-medium text-slate-500">Equivalente</th>
+                                    <th class="px-3 md:px-4 py-2 text-left text-xs font-medium text-slate-500">Materia
+                                        Cursada</th>
+                                    <th class="px-3 md:px-4 py-2 text-left text-xs font-medium text-slate-500">
+                                        Equivalente</th>
                                     <th class="px-3 md:px-4 py-2 text-left text-xs font-medium text-slate-500">UVs</th>
                                 </tr>
                             </thead>
-                            <tbody id="tablaEquivalenciasSim" class="bg-white divide-y divide-gray-200 text-xs md:text-sm">
+                            <tbody id="tablaEquivalenciasSim"
+                                class="bg-white divide-y divide-gray-200 text-xs md:text-sm">
                             </tbody>
                         </table>
                     </div>
                 </div>
 
                 <div class="flex justify-end mt-6 space-x-3">
-                    <button id="btnCancelarSimulacion" class="px-4 md:px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition">
+                    <button id="btnCancelarSimulacion"
+                        class="px-4 md:px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition">
                         Cancelar
                     </button>
-                    <button id="btnConfirmarCambio" class="px-4 md:px-6 py-2 bg-[#B20000] text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center">
+                    <button id="btnConfirmarCambio"
+                        class="px-4 md:px-6 py-2 bg-[#B20000] text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center">
                         <i class="fas fa-check mr-2"></i> Confirmar Cambio
                     </button>
                 </div>
@@ -234,7 +272,7 @@
         </div>
 
         <!-- Gráficos y Resumen -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
+        <div id="graficosContainer" class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
             <div class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100">
                 <h3 class="text-sm font-semibold text-slate-500 mb-4 flex items-center">
                     <i class="fas fa-chart-pie mr-2 text-[#B20000]"></i>
@@ -253,7 +291,8 @@
                         <span class="font-semibold" id="externasCount">0</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span><span class="w-3 h-3 bg-yellow-500 inline-block rounded-full mr-2"></span>Por Revisar</span>
+                        <span><span class="w-3 h-3 bg-yellow-500 inline-block rounded-full mr-2"></span>Por
+                            Revisar</span>
                         <span class="font-semibold" id="revisarCount">0</span>
                     </div>
                 </div>
@@ -290,16 +329,19 @@
         </div>
 
         <!-- Tabs de Equivalencias -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+        <div id="tabsContainer" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
             <div class="border-b border-gray-200 overflow-x-auto">
                 <nav class="flex whitespace-nowrap">
-                    <button id="tabAprobadas" class="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-[#B20000] border-b-2 border-[#B20000]">
+                    <button id="tabAprobadas"
+                        class="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-[#B20000] border-b-2 border-[#B20000]">
                         <i class="fas fa-check-circle mr-2"></i>Aprobadas
                     </button>
-                    <button id="tabPendientes" class="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent">
+                    <button id="tabPendientes"
+                        class="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent">
                         <i class="fas fa-clock mr-2"></i>Pendientes
                     </button>
-                    <button id="tabHistorial" class="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent">
+                    <button id="tabHistorial"
+                        class="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent">
                         <i class="fas fa-history mr-2"></i>Historial
                     </button>
                 </nav>
@@ -376,7 +418,8 @@
         </div>
 
         <!-- Modal para Solicitar Equivalencia -->
-        <div id="modalSolicitud" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div id="modalSolicitud"
+            class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 md:p-8 max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-lg md:text-xl font-bold text-slate-800">Solicitar Equivalencia</h3>
@@ -388,24 +431,29 @@
                 <form id="formSolicitud" class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-2">Materia a solicitar</label>
-                        <select id="materiaPlan" class="w-full border border-gray-300 rounded-lg p-2 md:p-3 text-sm focus:ring-[#B20000] focus:border-[#B20000]">
+                        <select id="materiaPlan"
+                            class="w-full border border-gray-300 rounded-lg p-2 md:p-3 text-sm focus:ring-[#B20000] focus:border-[#B20000]">
                             <option value="">Selecciona una materia</option>
                         </select>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-2">Materia cursada equivalente</label>
-                        <select id="materiaCursada" class="w-full border border-gray-300 rounded-lg p-2 md:p-3 text-sm focus:ring-[#B20000] focus:border-[#B20000]">
+                        <select id="materiaCursada"
+                            class="w-full border border-gray-300 rounded-lg p-2 md:p-3 text-sm focus:ring-[#B20000] focus:border-[#B20000]">
                             <option value="">Selecciona una materia de tu historial</option>
                         </select>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-2">Justificación (opcional)</label>
-                        <textarea id="justificacion" rows="3" class="w-full border border-gray-300 rounded-lg p-2 md:p-3 text-sm focus:ring-[#B20000] focus:border-[#B20000]" placeholder="Explica por qué consideras que esta materia es equivalente..."></textarea>
+                        <textarea id="justificacion" rows="3"
+                            class="w-full border border-gray-300 rounded-lg p-2 md:p-3 text-sm focus:ring-[#B20000] focus:border-[#B20000]"
+                            placeholder="Explica por qué consideras que esta materia es equivalente..."></textarea>
                     </div>
 
-                    <button type="submit" class="w-full bg-[#B20000] text-white py-2 md:py-3 rounded-xl font-bold hover:bg-red-700 transition">
+                    <button type="submit"
+                        class="w-full bg-[#B20000] text-white py-2 md:py-3 rounded-xl font-bold hover:bg-red-700 transition">
                         Enviar Solicitud
                     </button>
                 </form>
@@ -449,51 +497,178 @@
         let chart = null;
         let carrerasData = [];
         let historialMaterias = [];
+        let simAccountSeleccionado = ''; // cuenta del alumno elegido en el simulador
+        let alumnosListData = []; // lista global de alumnos
 
         // Mostrar subtítulo
-        document.getElementById('welcomeSubtitle').innerHTML = `Hola, <span class="font-semibold">${userNombre}</span> • Revisa el estado de tus equivalencias`;
+        document.getElementById('welcomeSubtitle').innerHTML = `Hola, <span class="font-semibold">${userNombre}</span> • Revise el estado de equivalencias`;
+
+        // Lógica de visibilidad inmediata según el rol
+        const userRol = userFromStorage.rol;
+        // Los elementos ya están definidos arriba (btnSolicitar, panelSimulacion, etc.)
+
+        if (userRol === 1 || userRol === 2) {
+            // Modo Admin/Jefe: Mostrar simulador, ocultar el resto
+            if (document.getElementById('simAlumnoSelector')) document.getElementById('simAlumnoSelector').classList.remove('hidden');
+            if (panelSimulacion) panelSimulacion.classList.remove('hidden');
+            
+            if (btnSolicitar) btnSolicitar.style.display = 'none';
+            if (document.getElementById('statsCardsContainer')) document.getElementById('statsCardsContainer').style.display = 'none';
+            if (document.getElementById('graficosContainer')) document.getElementById('graficosContainer').style.display = 'none';
+            if (document.getElementById('tabsContainer')) document.getElementById('tabsContainer').style.display = 'none';
+        } else {
+            // Modo Alumno: Ocultar simulador, mostrar el resto
+            if (document.getElementById('simAlumnoSelector')) document.getElementById('simAlumnoSelector').classList.add('hidden');
+            if (panelSimulacion) panelSimulacion.classList.add('hidden');
+            
+            if (btnSolicitar) btnSolicitar.style.display = 'flex';
+            if (document.getElementById('statsCardsContainer')) document.getElementById('statsCardsContainer').style.display = 'grid';
+            if (document.getElementById('graficosContainer')) document.getElementById('graficosContainer').style.display = 'grid';
+            if (document.getElementById('tabsContainer')) document.getElementById('tabsContainer').style.display = 'block';
+        }
 
         // Cargar datos iniciales
         async function cargarDatosIniciales() {
             try {
-                // Cargar equivalencias
-                const resEquiv = await fetch(`/api/alumnos/${userAccount}/equivalencias`);
-                if (!resEquiv.ok) throw new Error('Error al cargar equivalencias');
-                equivalenciasData = await resEquiv.json();
+                // 1. CARGAR DATOS GLOBALES (Requeridos por Admin y Alumnos)
                 
                 // Cargar carreras para el simulador
                 const resCarreras = await fetch('/api/catalogos/carreras');
-                carrerasData = await resCarreras.json();
-                
-                // Cargar historial del alumno
-                const resHistorial = await fetch(`/api/alumnos/${userAccount}/historial`);
-                historialMaterias = await resHistorial.json();
-                
-                // Cargar información actual del alumno
-                const resAlumno = await fetch(`/api/alumnos/${userAccount}/dashboard`);
-                const alumnoData = await resAlumno.json();
-                
-                carreraActual.value = alumnoData.alumno.NombreCarrera;
-                
-                // Llenar selector de carreras destino
-                carrerasData.forEach(c => {
-                    if (c.CodigoCarrera !== alumnoData.alumno.CodigoCarrera) {
-                        const option = document.createElement('option');
-                        option.value = c.CodigoCarrera;
-                        option.textContent = c.NombreCarrera;
-                        carreraDestino.appendChild(option);
+                if (resCarreras.ok) {
+                    carrerasData = await resCarreras.json();
+                    
+                    // Llenar selector de carreras destino
+                    if (carreraDestino) {
+                        carreraDestino.innerHTML = '<option value="">Selecciona una carrera</option>';
+                        carrerasData.forEach(c => {
+                            const option = document.createElement('option');
+                            option.value = c.CodigoCarrera;
+                            option.textContent = `${c.CodigoCarrera} - ${c.NombreCarrera}`;
+                            carreraDestino.appendChild(option);
+                        });
                     }
-                });
+                }
 
-                actualizarEstadisticas(equivalenciasData);
-                actualizarTablas(equivalenciasData);
-                actualizarGrafico(equivalenciasData);
-                
+                // Cargar lista de alumnos para el simulador (CRÍTICO PARA ADMIN)
+                const resAlumnos = await fetch('/api/alumnos');
+                if (resAlumnos.ok) {
+                    alumnosListData = await resAlumnos.json();
+                    
+                    // Llenar datalist del simulador
+                    const simList = document.getElementById('simAlumnosList');
+                    if (simList) {
+                        simList.innerHTML = '';
+                        alumnosListData.forEach(a => {
+                            const opt = document.createElement('option');
+                            opt.value = `${a.NumeroCuenta} - ${a.NombreCompleto}`;
+                            simList.appendChild(opt);
+                        });
+                    }
+                }
+
+                // 2. CARGAR DATOS ESPECÍFICOS DEL USUARIO (Si tiene cuenta)
+                if (userAccount && userAccount !== '' && userAccount !== 'N/A') {
+                    // Cargar equivalencias
+                    const resEquiv = await fetch(`/api/alumnos/${userAccount}/equivalencias`);
+                    if (resEquiv.ok) {
+                        equivalenciasData = await resEquiv.json();
+                        actualizarEstadisticas(equivalenciasData);
+                        actualizarTablas(equivalenciasData);
+                        actualizarGrafico(equivalenciasData);
+                    }
+
+                    // Cargar historial
+                    const resHistorial = await fetch(`/api/alumnos/${userAccount}/historial`);
+                    if (resHistorial.ok) {
+                        historialMaterias = await resHistorial.json();
+                    }
+
+                    // Cargar dashboard (para carrera actual)
+                    const resAlumno = await fetch(`/api/alumnos/${userAccount}/dashboard`);
+                    if (resAlumno.ok) {
+                        const alumnoData = await resAlumno.json();
+                        const carreraActualDiv = document.getElementById('carreraActual');
+                        if (alumnoData.alumno && carreraActualDiv) {
+                            carreraActualDiv.value = alumnoData.alumno.NombreCarrera;
+                        }
+                        simAccountSeleccionado = userAccount;
+
+                        // Pre-rellenar input si es alumno
+                        const simInput = document.getElementById('simAlumnoInput');
+                        if (simInput && userRol === 3) {
+                            simInput.value = `${userAccount} - ${userNombre}`;
+                        }
+                    }
+                }
+
             } catch (error) {
                 console.error('Error al cargar datos:', error);
                 showStatus('Error al cargar los datos', 'text-red-600');
             }
         }
+
+        // Función para buscar y cargar datos de un alumno
+        async function buscarYSeleccionarAlumno(inputValue) {
+            if (!inputValue) {
+                simAccountSeleccionado = '';
+                if (carreraActual) carreraActual.value = '';
+                document.getElementById('simAlumnoStatus').textContent = 'Escribe el nombre o cuenta del estudiante';
+                return;
+            }
+
+            // Normalizar entrada
+            const searchVal = inputValue.trim().toLowerCase();
+            const cuentaFromFormat = inputValue.split(' - ')[0].trim();
+
+            // Intentar buscar por:
+            // 1. Cuenta exacta (del formato "Cuenta - Nombre" o directamente)
+            // 2. Nombre exacto o contenido
+            const alumno = alumnosListData.find(a => 
+                a.NumeroCuenta.toString() === cuentaFromFormat || 
+                a.NumeroCuenta.toString() === searchVal ||
+                a.NombreCompleto.toLowerCase().includes(searchVal)
+            );
+            
+            if (alumno) {
+                const cuenta = alumno.NumeroCuenta;
+                simAccountSeleccionado = cuenta;
+                document.getElementById('simAlumnoStatus').innerHTML = `<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i>Estudiante: ${alumno.NombreCompleto}</span>`;
+                
+                try {
+                    const res = await fetch(`/api/alumnos/${cuenta}/dashboard`);
+                    const data = await res.json();
+                    if (res.ok && data.alumno) {
+                        const carreraActualDiv = document.getElementById('carreraActual');
+                        if (carreraActualDiv) {
+                            carreraActualDiv.value = data.alumno.NombreCarrera;
+                        }
+                        const resultadosSimulacion = document.getElementById('resultadosSimulacion');
+                        if (resultadosSimulacion) {
+                            resultadosSimulacion.classList.add('hidden');
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error al cargar datos del estudiante:', err);
+                }
+            } else {
+                simAccountSeleccionado = '';
+                document.getElementById('simAlumnoStatus').innerHTML = `<span class="text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>Estudiante no encontrado</span>`;
+            }
+        }
+
+        // Evento: estudiante seleccionado en el simulador (al cambiar o seleccionar de datalist)
+        document.getElementById('simAlumnoInput').addEventListener('change', (e) => {
+            buscarYSeleccionarAlumno(e.target.value.trim());
+        });
+
+        // Opcional: también escuchar 'input' para reaccionar inmediatamente si el valor coincide con algo de la lista
+        document.getElementById('simAlumnoInput').addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            // Si el valor tiene el formato "Cuenta - Nombre", procesar inmediatamente
+            if (val.includes(' - ')) {
+                buscarYSeleccionarAlumno(val);
+            }
+        });
 
         // Calcular simulación
         btnCalcular.addEventListener('click', async () => {
@@ -503,32 +678,38 @@
                 return;
             }
 
+            const cuentaSimulacion = simAccountSeleccionado || userAccount;
+            if (!cuentaSimulacion) {
+                alert('Por favor selecciona un estudiante primero');
+                return;
+            }
+
             try {
                 const response = await fetch('/api/simulacion/calcular', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        cuenta: userAccount,
+                        cuenta: cuentaSimulacion,
                         carreraDestino: destino
                     })
                 });
 
                 const data = await response.json();
-                
+
                 document.getElementById('simMateriasEquiv').textContent = data.materiasEquivalentes;
                 document.getElementById('simUVSEquiv').textContent = data.uvsEquivalentes;
                 document.getElementById('simMateriasFalt').textContent = data.materiasFaltantes;
                 document.getElementById('simUVSFalt').textContent = data.uvsFaltantes;
-                
+
                 // Nueva lógica para leer correctamente la estructura de tu API
                 const uvsObtenidas = data.uvsEquivalentes || 0;
                 const uvsTotales = data.planDestino ? data.planDestino.totalUvs : 0;
-                
+
                 const porcentaje = uvsTotales > 0 ? Math.round((uvsObtenidas / uvsTotales) * 100) : 0;
-                
+
                 document.getElementById('simPorcentaje').textContent = porcentaje + '%';
                 document.getElementById('simProgressBar').style.width = porcentaje + '%';
-                
+
                 const tbody = document.getElementById('tablaEquivalenciasSim');
                 tbody.innerHTML = data.equivalencias.map(e => `
                     <tr>
@@ -537,9 +718,9 @@
                         <td class="px-3 md:px-4 py-2">${e.uvs}</td>
                     </tr>
                 `).join('');
-                
+
                 resultadosSimulacion.classList.remove('hidden');
-                
+
             } catch (error) {
                 console.error('Error en simulación:', error);
                 alert('Error al calcular la simulación');
@@ -574,16 +755,6 @@
             }
         });
 
-        // Mostrar/ocultar panel de simulación
-        btnSimular.addEventListener('click', () => {
-            panelSimulacion.classList.remove('hidden');
-        });
-
-        btnCerrarSimulacion.addEventListener('click', () => {
-            panelSimulacion.classList.add('hidden');
-            resultadosSimulacion.classList.add('hidden');
-        });
-
         btnCancelarSimulacion.addEventListener('click', () => {
             resultadosSimulacion.classList.add('hidden');
         });
@@ -592,7 +763,7 @@
             const aprobadas = data.filter(e => e.TipoEquivalencia === 'Interna' || e.Estado === 'Aprobada');
             const pendientes = data.filter(e => e.Estado === 'Pendiente' || e.Estado === 'En Revisión');
             const totalUVS = data.reduce((sum, e) => sum + (e.UVSPlan || 0), 0);
-            
+
             const internas = data.filter(e => e.TipoEquivalencia === 'Interna').length;
             const externas = data.filter(e => e.TipoEquivalencia === 'Externa').length;
             const revisar = pendientes.length;
@@ -605,11 +776,11 @@
 
             // Verificar si el alumno es bilingüe (tiene materias ING)
             const esBilingue = historialMaterias.some(m => m.CodigoMateria?.startsWith('ING'));
-            
+
             // Calcular porcentajes
             const porcentajeArte = arteCount > 0 ? 100 : 0;
             const porcentajeBio = bioCount > 0 ? 100 : 0;
-            
+
             // Para inglés: si es bilingüe, es 100% (porque todas las electivas están cubiertas automáticamente)
             // Si no es bilingüe, calcular basado en cuántas EIE tiene
             let porcentajeIngles = 0;
@@ -638,13 +809,13 @@
             document.getElementById('arteCompletado').textContent = `${porcentajeArte}% completado`;
             document.getElementById('bioCompletado').textContent = `${porcentajeBio}% completado`;
             document.getElementById('inglesCompletado').textContent = `${porcentajeIngles}% completado`;
-            
+
             console.log('Estadísticas:', { esBilingue, inglesCount, porcentajeIngles });
         }
 
         function actualizarGrafico(data) {
             const ctx = document.getElementById('equivalenciasChart').getContext('2d');
-            
+
             const internas = data.filter(e => e.TipoEquivalencia === 'Interna').length;
             const externas = data.filter(e => e.TipoEquivalencia === 'Externa').length;
             const pendientes = data.filter(e => e.Estado === 'Pendiente').length;
@@ -665,7 +836,7 @@
                     responsive: true,
                     maintainAspectRatio: true,
                     cutout: '70%',
-                    plugins: { 
+                    plugins: {
                         legend: { display: false },
                         tooltip: { enabled: true }
                     },
@@ -684,7 +855,7 @@
         function actualizarTablas(data) {
             const aprobadasBody = document.getElementById('tablaAprobadasBody');
             const aprobadas = data.filter(e => e.TipoEquivalencia === 'Interna');
-            
+
             if (aprobadas.length === 0) {
                 aprobadasBody.innerHTML = '<tr><td colspan="5" class="px-2 md:px-4 py-6 md:py-8 text-center text-slate-400 italic">No tienes equivalencias aprobadas.</td></tr>';
             } else {
@@ -715,7 +886,7 @@
             tabHistorial.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
             tabPendientes.classList.add('text-gray-500');
             tabHistorial.classList.add('text-gray-500');
-            
+
             tablaAprobadas.classList.remove('hidden');
             tablaPendientes.classList.add('hidden');
             tablaHistorial.classList.add('hidden');
@@ -727,7 +898,7 @@
             tabHistorial.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
             tabAprobadas.classList.add('text-gray-500');
             tabHistorial.classList.add('text-gray-500');
-            
+
             tablaPendientes.classList.remove('hidden');
             tablaAprobadas.classList.add('hidden');
             tablaHistorial.classList.add('hidden');
@@ -739,7 +910,7 @@
             tabPendientes.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
             tabAprobadas.classList.add('text-gray-500');
             tabPendientes.classList.add('text-gray-500');
-            
+
             tablaHistorial.classList.remove('hidden');
             tablaAprobadas.classList.add('hidden');
             tablaPendientes.classList.add('hidden');
@@ -773,11 +944,8 @@
         }
 
         // Inicialización
-        if (userAccount) {
-            cargarDatosIniciales();
-        } else {
-            document.getElementById('welcomeSubtitle').innerHTML = 'Por favor, inicia sesión';
-        }
+        cargarDatosIniciales();
     </script>
 </body>
+
 </html>

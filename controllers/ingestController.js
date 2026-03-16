@@ -3,7 +3,7 @@ const textParser = require('../services/textparser');
 const { poolPromise, sql } = require('../config/db');
 
 // Función reutilizable para procesar datos en la BD
-async function processDataInDB(rawData, numeroCuenta) {
+async function processDataInDB(rawData, numeroCuenta, bypassPlanValidation = false) {
     const pool = await poolPromise;
     let count = 0;
     let errors = [];
@@ -86,39 +86,70 @@ async function processDataInDB(rawData, numeroCuenta) {
             const row = {};
             Object.keys(record).forEach(k => row[k.toLowerCase().trim()] = record[k]);
 
-            // Usar la carrera del alumno (no la del texto)
-            const codigoCarrera = codigoCarreraAlumno;
-            const nombreCarrera = nombreCarreraAlumno;
-            
-            // Extraer año del plan actual del alumno
+            // Extraer año del plan actual o actual global
             const anioPlan = new Date().getFullYear();
             const nombrePlanExcel = `Plan ${anioPlan}`;
-            
+
             // Datos de la materia
             const codigoMateria = row.codigo_materia || 'S/D';
             const nombreMateria = row.nombre_materia || 'S/D';
             const uvs = parseInt(row.uvs || 0);
 
-            const cuenta = numeroCuenta;
-            const nombreAlumno = 'Alumno Importado';
-            const indiceAlumno = 0;
-
             const nota = parseFloat(row.nota || 0);
             const estado = row.estado || 'EN CURSO';
 
-            if (!cuenta || !codigoMateria || codigoMateria === 'S/D') {
+            // --- VALIDACIÓN Y EXTRACCIÓN DE CUENTA ---
+            const cuentaEnData = row.cuenta || row.numerocuenta || row.account;
+            let cuenta = numeroCuenta;
+            let nombreAlumno = row.nombre || row.nombrecompleto || row.student_name || 'Nombre Desconocido';
+            let indiceAlumno = parseFloat(row.indice || row.indiceacademico || row.index || 0);
+            
+            if (isNaN(indiceAlumno)) indiceAlumno = 0;
+
+            // Si numeroCuenta es 'ADMIN_IMPORT', intentamos obtener la cuenta de la fila
+            const targetAcc = numeroCuenta ? numeroCuenta.toString().trim() : '';
+            if (targetAcc === 'ADMIN_IMPORT') {
+                if (cuentaEnData) {
+                    cuenta = cuentaEnData.toString().trim();
+                } else {
+                    // Si no hay cuenta en la fila y es ADMIN_IMPORT, no podemos procesar
+                    continue;
+                }
+            } else {
+                // Si NO es 'ADMIN_IMPORT' (es un alumno o admin con alumno seleccionado)
+                // Solo validamos si la cuenta viene en los datos y no coincide
+                if (cuentaEnData && cuentaEnData.toString().trim() !== targetAcc) {
+                    console.warn(`[Ingest] Fila ignorada: la cuenta en datos (${cuentaEnData}) no coincide con la seleccionada (${targetAcc})`);
+                    continue;
+                }
+            }
+
+            // Datos de Carrera: si no tenemos carrera del alumno, intentar extraer del texto
+            let codigo_carrera_row = row.codigo_carrera || row.cod_carrera || row.career_code;
+            let nombre_carrera_row = row.nombre_carrera || row.nom_carrera || row.career_name;
+
+            let finalCodigoCarrera = codigoCarreraAlumno;
+            let finalNombreCarrera = nombreCarreraAlumno;
+
+            // Si el alumno no tiene carrera (S/D) y la fila trae una, usar la de la fila
+            if ((finalCodigoCarrera === 'S/D' || numeroCuenta === 'ADMIN_IMPORT') && codigo_carrera_row) {
+                finalCodigoCarrera = codigo_carrera_row.toString().trim();
+                finalNombreCarrera = nombre_carrera_row ? nombre_carrera_row.toString().trim() : (finalCodigoCarrera === 'S/D' ? 'Sin Asignar' : 'Carrera ' + finalCodigoCarrera);
+            }
+
+            if (!codigoMateria || codigoMateria === 'S/D') {
                 continue;
             }
 
-            // Gestionar Carrera (solo si realmente necesitamos crearla)
-            if (!cache.carreras.has(codigoCarrera) && codigoCarrera !== 'S/D') {
+            // Gestionar Carrera (siempre crear si no existe para evitar conflicto FK)
+            if (!cache.carreras.has(finalCodigoCarrera)) {
                 try {
                     await pool.request()
-                        .input('cod', sql.VarChar, codigoCarrera)
-                        .input('nom', sql.VarChar, nombreCarrera)
+                        .input('cod', sql.VarChar, finalCodigoCarrera)
+                        .input('nom', sql.VarChar, finalNombreCarrera)
                         .query('INSERT INTO Carreras (CodigoCarrera, NombreCarrera) VALUES (@cod, @nom)');
-                    cache.carreras.add(codigoCarrera);
-                    console.log(`[Ingest] Creada Carrera: ${codigoCarrera}`);
+                    cache.carreras.add(finalCodigoCarrera);
+                    console.log(`[Ingest] Creada Carrera: ${finalCodigoCarrera}`);
                 } catch (e) {
                     // Si ya existe, ignorar
                 }
@@ -126,24 +157,29 @@ async function processDataInDB(rawData, numeroCuenta) {
 
             // Gestionar Plan (usar el plan del alumno o crear uno nuevo)
             let idPlan = idPlanAlumno;
-            if (!idPlan) {
-                const planKey = `${codigoCarrera}|${nombrePlanExcel.toLowerCase()}`;
+            const planKey = `${finalCodigoCarrera}|${nombrePlanExcel.toLowerCase()}`;
+
+            if (!idPlan || numeroCuenta === 'ADMIN_IMPORT') {
                 idPlan = cache.planes.get(planKey);
                 
-                if (!idPlan) {
-                    const planResult = await pool.request()
-                        .input('codCarrera', sql.VarChar, codigoCarrera)
-                        .input('anio', sql.Int, anioPlan)
-                        .input('nom', sql.VarChar, nombrePlanExcel)
-                        .query(`
-                            INSERT INTO PlanesEstudio (CodigoCarrera, AnioPlan, NombrePlan) 
-                            OUTPUT INSERTED.IdPlan
-                            VALUES (@codCarrera, @anio, @nom)
-                        `);
-                    
-                    idPlan = planResult.recordset[0].IdPlan;
-                    cache.planes.set(planKey, idPlan);
-                    console.log(`[Ingest] Creado Plan: ${nombrePlanExcel} (ID: ${idPlan})`);
+                if (!idPlan && (finalCodigoCarrera && finalCodigoCarrera !== 'S/D')) {
+                    try {
+                        const planResult = await pool.request()
+                            .input('codCarrera', sql.VarChar, finalCodigoCarrera)
+                            .input('anio', sql.Int, anioPlan)
+                            .input('nom', sql.VarChar, nombrePlanExcel)
+                            .query(`
+                                INSERT INTO PlanesEstudio (CodigoCarrera, AnioPlan, NombrePlan) 
+                                OUTPUT INSERTED.IdPlan
+                                VALUES (@codCarrera, @anio, @nom)
+                            `);
+                        
+                        idPlan = planResult.recordset[0].IdPlan;
+                        cache.planes.set(planKey, idPlan);
+                        console.log(`[Ingest] Creado Plan: ${nombrePlanExcel} (ID: ${idPlan}) para carrera ${finalCodigoCarrera}`);
+                    } catch (e) {
+                        console.error(`[Ingest] Error al crear Plan ${nombrePlanExcel}:`, e.message);
+                    }
                 }
             }
 
@@ -177,8 +213,19 @@ async function processDataInDB(rawData, numeroCuenta) {
                     cache.alumnos.add(cuenta);
                     console.log(`[Ingest] Creado Alumno: ${cuenta}`);
                 } catch (e) {
-                    // Si ya existe, ignorar
+                    console.error(`[Ingest] Error al crear Alumno ${cuenta}:`, e.message);
                 }
+            }
+
+            // --- SEGURIDAD: SI EL ALUMNO NO EXISTE EN CACHÉ NI PUDO SER CREADO, SALTAR ---
+            if (!cache.alumnos.has(cuenta)) {
+                // Re-verificar en DB por si acaso los cachés fallaron
+                const checkAlum = await pool.request().input('c', sql.VarChar, cuenta).query('SELECT 1 FROM Alumnos WHERE NumeroCuenta = @c');
+                if (checkAlum.recordset.length === 0) {
+                    console.warn(`[Ingest] Omitiendo historial: el alumno ${cuenta} no pudo ser creado.`);
+                    continue;
+                }
+                cache.alumnos.add(cuenta);
             }
 
             // --- UPSERT EN HISTORIAL ---
@@ -319,19 +366,20 @@ exports.previewText = async (req, res) => {
 // Endpoint para importar datos (recibe JSON)
 exports.importData = async (req, res) => {
     try {
-        const { data, numeroCuenta } = req.body;
+        const { data, cuenta, bypassPlanValidation } = req.body;
+        const targetAccount = cuenta || req.body.numeroCuenta;
         
         if (!data || !Array.isArray(data)) {
             return res.status(400).json({ error: 'Datos inválidos' });
         }
 
-        if (!numeroCuenta) {
+        if (!targetAccount) {
             return res.status(400).json({ error: 'Número de cuenta requerido' });
         }
 
-        console.log(`[Ingest] Importando ${data.length} registros para cuenta ${numeroCuenta}...`);
+        console.log(`[Ingest] Importando ${data.length} registros para cuenta ${targetAccount}. BypassPlan: ${bypassPlanValidation}`);
 
-        const { count, inserts, updates, errors } = await processDataInDB(data, numeroCuenta);
+        const { count, inserts, updates, errors } = await processDataInDB(data, targetAccount, bypassPlanValidation);
 
         res.status(200).json({
             message: 'Importación Completada',

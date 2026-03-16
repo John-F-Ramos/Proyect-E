@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="/js/auth-guard.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -158,7 +159,7 @@
                 </a>
                 <a href="/plan-estudio"
                     class="flex items-center px-4 py-3 bg-slate-100 text-slate-900 font-semibold rounded-lg">
-                    <i class="fas fa-book mr-3 text-[#B20000]"></i> Planes de estudio
+                    <i class="fas fa-book mr-3 text-[#B20000]"></i> Catálogos Académicos
                 </a>
                 <a href="/reportes"
                     class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
@@ -180,7 +181,7 @@
     <main class="flex-1 p-8 overflow-y-auto">
         <header class="flex justify-between items-center mb-8">
             <div>
-                <h1 class="text-2xl font-bold text-slate-800">Planes de Estudio</h1>
+                <h1 class="text-2xl font-bold text-slate-800">Catálogos Académicos</h1>
                 <p class="text-slate-500 text-sm mt-1">Gestión de Carreras, Planes de Estudio y Materias del sistema.</p>
             </div>
             <div class="flex items-center space-x-3">
@@ -191,6 +192,10 @@
                 <button onclick="openModal('materiaModal')"
                     class="bg-white border border-gray-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition flex items-center">
                     <i class="fas fa-plus mr-2"></i> Nueva Materia
+                </button>
+                <button onclick="openModal('pensumModal')"
+                    class="bg-white border border-gray-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition flex items-center">
+                    <i class="fas fa-plus mr-2"></i> Nuevo Plan
                 </button>
                 <button onclick="openModal('uploadModal')"
                     class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center">
@@ -206,6 +211,9 @@
                 </button>
                 <button onclick="switchTab('materias')" id="tab-materias" class="pb-3 tab-inactive transition">
                     Materias Registradas
+                </button>
+                <button onclick="switchTab('pensum')" id="tab-pensum" class="pb-3 tab-inactive transition">
+                    Planes de Estudio (Pensum)
                 </button>
             </div>
 
@@ -242,16 +250,40 @@
                                     <th scope="col" class="px-6 py-4 rounded-tl-lg">Código</th>
                                     <th scope="col" class="px-6 py-4">Nombre de la Materia</th>
                                     <th scope="col" class="px-6 py-4">UVs</th>
+                                    <th scope="col" class="px-6 py-4">Carrera</th>
+                                    <th scope="col" class="px-6 py-4">Año Plan</th>
                                 </tr>
                             </thead>
                             <tbody id="materiasBody" class="divide-y divide-gray-100">
                                 <tr>
-                                    <td colspan="3" class="px-6 py-4 text-center">Cargando materias...</td>
+                                    <td colspan="5" class="px-6 py-4 text-center">Cargando materias...</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
+
+                <!-- PANEL PENSUM -->
+                <div id="panel-pensum" class="hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-500">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-4 rounded-tl-lg">IdPlan</th>
+                                    <th scope="col" class="px-6 py-4">Código Carrera</th>
+                                    <th scope="col" class="px-6 py-4">Año Plan</th>
+                                    <th scope="col" class="px-6 py-4">Nombre Plan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pensumBody" class="divide-y divide-gray-100">
+                                <tr>
+                                    <td colspan="4" class="px-6 py-4 text-center">Cargando planes...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
         </div>
     </main>
@@ -345,7 +377,7 @@
                 </div>
                 <button type="submit"
                     class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition mt-4">
-                    Guardar
+                    Guardar Materia
                 </button>
             </form>
         </div>
@@ -393,6 +425,49 @@
         </div>
     </div>
 
+    <!-- Modal Nuevo Plan de Estudio (Pensum) -->
+    <div id="pensumModal"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 transform transition-all">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-slate-800">Nuevo Plan de Estudio</h3>
+                <button onclick="closeModal('pensumModal')" class="text-slate-400 hover:text-slate-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="pensumForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Carrera</label>
+                    <select id="pensumCarreraSelect" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Seleccione una carrera...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Nombre del Plan</label>
+                    <input type="text" id="pensumNombrePlan" required placeholder="Ej: Plan 2024"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Año del Plan</label>
+                    <input type="number" id="pensumAnioPlan" required placeholder="2024"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1 uppercase tracking-wider">Seleccionar Materias</label>
+                    <div id="pensumMateriasList" class="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2 bg-slate-50">
+                        <!-- Materias se cargarán aquí dinámicamente -->
+                        <p class="text-xs text-slate-400 italic">Cargando materias...</p>
+                    </div>
+                </div>
+                <button type="submit"
+                    class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition mt-4">
+                    Guardar Plan
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- JS Logic -->
     <script>
         // Estado global
@@ -416,11 +491,12 @@
 
         // Tabs
         function switchTab(tab) {
-            document.getElementById('tab-carreras').className = tab === 'carreras' ? 'pb-3 tab-active transition' : 'pb-3 tab-inactive transition';
-            document.getElementById('tab-materias').className = tab === 'materias' ? 'pb-3 tab-active transition' : 'pb-3 tab-inactive transition';
-
-            document.getElementById('panel-carreras').style.display = tab === 'carreras' ? 'block' : 'none';
-            document.getElementById('panel-materias').style.display = tab === 'materias' ? 'block' : 'none';
+            const tabs = ['carreras', 'materias', 'pensum'];
+            tabs.forEach(t => {
+                document.getElementById(`tab-${t}`).className = tab === t ? 'pb-3 tab-active transition' : 'pb-3 tab-inactive transition';
+                const panel = document.getElementById(`panel-${t}`);
+                if (panel) panel.style.display = tab === t ? 'block' : 'none';
+            });
         }
 
         // Obtener usuario actual del localStorage
@@ -524,11 +600,14 @@
                 planesData = data.planes || [];
                 
                 renderCarreras();
+                populatePensumSelects(); // Nueva función
+                renderPensum();
 
                 // Fetch Materias
                 const resM = await fetch('/api/catalogos/materias');
                 materiasData = await resM.json();
                 renderMaterias();
+                populatePensumMaterias(); // Nueva función
 
             } catch (err) {
                 console.error("Error loading data", err);
@@ -669,11 +748,18 @@
             tbody.innerHTML = '';
 
             if (!materiasData || materiasData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center">No hay materias registradas.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center">No hay materias registradas.</td></tr>';
                 return;
             }
 
             materiasData.forEach(m => {
+                // Construir texto de carrera: codigo + nombre
+                const carreraText = m.CodigoCarrera && m.NombreCarrera
+                    ? `${m.CodigoCarrera} - ${m.NombreCarrera}`
+                    : (m.NombreCarrera || m.CodigoCarrera || '');
+                const carreraDisplay = carreraText || '<span class="text-gray-400 italic">No asignada</span>';
+                const anioDisplay = m.AnioPlan || '<span class="text-gray-400 italic">N/A</span>';
+
                 tbody.innerHTML += `
                     <tr class="bg-white hover:bg-gray-50">
                         <td class="px-6 py-4 font-medium text-gray-900">${m.CodigoMateria}</td>
@@ -681,8 +767,102 @@
                         <td class="px-6 py-4">
                             <span class="badge-uv">${m.UVS} UVs</span>
                         </td>
+                        <td class="px-6 py-4 text-xs">${carreraDisplay}</td>
+                        <td class="px-6 py-4 text-xs">${anioDisplay}</td>
                     </tr>
                 `;
+            });
+        }
+
+        // Renderizar tabla de planes de estudio (pensum)
+        function renderPensum() {
+            const tbody = document.getElementById('pensumBody');
+            tbody.innerHTML = '';
+
+            if (!planesData || planesData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center">No hay planes registrados.</td></tr>';
+                return;
+            }
+
+            planesData.forEach(p => {
+                tbody.innerHTML += `
+                    <tr class="bg-white hover:bg-gray-50">
+                        <td class="px-6 py-4 font-medium text-gray-900">${p.IdPlan}</td>
+                        <td class="px-6 py-4">${p.CodigoCarrera}</td>
+                        <td class="px-6 py-4">${p.AnioPlan}</td>
+                        <td class="px-6 py-4">${p.NombrePlan}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Poblar selects del modal Pensum
+        function populatePensumSelects() {
+            const select = document.getElementById('pensumCarreraSelect');
+            if (!select) return;
+            select.innerHTML = '<option value="">Seleccione una carrera...</option>';
+            carrerasData.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.CodigoCarrera;
+                opt.textContent = `${c.CodigoCarrera} - ${c.NombreCarrera}`;
+                select.appendChild(opt);
+            });
+        }
+
+        // Poblar lista de materias para el modal Pensum
+        function populatePensumMaterias() {
+            const list = document.getElementById('pensumMateriasList');
+            if (!list) return;
+            list.innerHTML = '';
+            
+            if (materiasData.length === 0) {
+                list.innerHTML = '<p class="text-xs text-slate-400 italic">No hay materias registradas.</p>';
+                return;
+            }
+
+            // Usar un Set para evitar duplicados visuales si una materia está en varios planes
+            const uniqueMaterias = [];
+            const codes = new Set();
+            materiasData.forEach(m => {
+                if (!codes.has(m.CodigoMateria)) {
+                    codes.add(m.CodigoMateria);
+                    uniqueMaterias.push(m);
+                }
+            });
+
+            uniqueMaterias.sort((a, b) => a.NombreMateria.localeCompare(b.NombreMateria)).forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center space-x-2 p-1 hover:bg-white rounded transition';
+                div.innerHTML = `
+                    <input type="checkbox" id="m-${m.CodigoMateria}" value="${m.CodigoMateria}" class="materia-checkbox rounded text-[#B20000] focus:ring-red-500">
+                    <label for="m-${m.CodigoMateria}" class="text-xs text-slate-700 cursor-pointer flex-1">
+                        <span class="font-bold">${m.CodigoMateria}</span> - ${m.NombreMateria}
+                    </label>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        // Filtrar planes según la carrera seleccionada
+        function filterPlanesForMateria() {
+            // Esta función ya no es necesaria en el nuevo flujo de Nueva Materia, 
+            // pero la mantenemos por si se usa en otros lados o para evitar errores.
+            const carreraSelect = document.getElementById('carreraMateria');
+            if (!carreraSelect) return;
+            const carreraCod = carreraSelect.value;
+            const planSelect = document.getElementById('planMateria');
+            if (!planSelect) return;
+            
+            planSelect.innerHTML = '<option value="">Seleccione un plan...</option>';
+            
+            if (!carreraCod) return;
+            
+            const planes = planesData.filter(p => p.CodigoCarrera === carreraCod);
+            planes.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.IdPlan;
+                opt.textContent = `${p.NombrePlan} (${p.AnioPlan})`;
+                planSelect.appendChild(opt);
             });
         }
 
@@ -691,14 +871,18 @@
             e.preventDefault();
             const body = {
                 codigo: document.getElementById('codigoCarrera').value,
-                nombre: document.getElementById('nombreCarrera').value
+                nombre: document.getElementById('nombreCarrera').value,
+                nombrePlan: document.getElementById('nombrePlanCarrera').value,
+                anioPlan: document.getElementById('anioPlanCarrera').value
             };
             try {
                 const res = await fetch('/api/catalogos/carreras', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+                
                 if (!res.ok) {
-                    const data = await res.json();
-                    alert(data.error);
+                    alert(data.error || "Error al crear carrera");
                 } else {
+                    alert(data.message || "Carrera/Plan creado exitosamente");
                     closeModal('carreraModal');
                     e.target.reset();
                     loadData();
@@ -716,11 +900,38 @@
             };
             try {
                 const res = await fetch('/api/catalogos/materias', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+                
                 if (!res.ok) {
-                    const data = await res.json();
-                    alert(data.error);
+                    alert(data.error || "Error al crear materia");
                 } else {
+                    alert(data.message || "Materia agregada exitosamente");
                     closeModal('materiaModal');
+                    e.target.reset();
+                    loadData();
+                }
+            } catch (e) { alert("Error de red"); }
+        });
+
+        // Form Submit: Plan de Estudio (Pensum)
+        document.getElementById('pensumForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const selectedMaterias = Array.from(document.querySelectorAll('.materia-checkbox:checked')).map(cb => cb.value);
+            
+            const body = {
+                codigoCarrera: document.getElementById('pensumCarreraSelect').value,
+                nombrePlan: document.getElementById('pensumNombrePlan').value,
+                anioPlan: document.getElementById('pensumAnioPlan').value,
+                materias: selectedMaterias
+            };
+            try {
+                const res = await fetch('/api/catalogos/planes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || "Error al crear el plan");
+                } else {
+                    alert(data.message || "Plan de Estudio creado exitosamente");
+                    closeModal('pensumModal');
                     e.target.reset();
                     loadData();
                 }
