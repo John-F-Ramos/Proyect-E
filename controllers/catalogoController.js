@@ -215,8 +215,25 @@ exports.uploadCatalogosExcel = async (req, res) => {
         const resultMaterias = await pool.request().query('SELECT CodigoMateria FROM Materias');
         resultMaterias.recordset.forEach(m => materiasSet.set(m.CodigoMateria, true));
 
+        // Cache para PlanesEstudio (clave: codigoCarrera|nombrePlan)
+        const planesSet = new Map();
+        const resultPlanes = await pool.request().query('SELECT IdPlan, CodigoCarrera, NombrePlan FROM PlanesEstudio');
+        resultPlanes.recordset.forEach(p => {
+            if(p.CodigoCarrera && p.NombrePlan) {
+                planesSet.set(`${p.CodigoCarrera}|${p.NombrePlan.toLowerCase()}`, p.IdPlan);
+            }
+        });
+
+        const pensumSet = new Map();
+        const resultPensum = await pool.request().query('SELECT IdPlan, CodigoMateria FROM Pensum_Materias');
+        resultPensum.recordset.forEach(pm => {
+            pensumSet.set(`${pm.IdPlan}|${pm.CodigoMateria}`, true);
+        });
+
         let carrerasNuevas = 0;
         let materiasNuevas = 0;
+        let planesNuevos = 0;
+        let pensumNuevos = 0;
 
         // Procesar archivo
         for (const row of data) {
@@ -225,6 +242,7 @@ exports.uploadCatalogosExcel = async (req, res) => {
             // Posibles campos del excel para carreras
             const codigoCarrera = (rawRow['codigo_carrera'] || rawRow['codigocarrera'] || '').toString().trim();
             const nombreCarrera = (rawRow['nombre_carrera'] || rawRow['nombrecarrera'] || '').toString().trim();
+            const planValue = (rawRow['plan'] || '').toString().trim(); 
 
             if (codigoCarrera && nombreCarrera && !carrerasSet.has(codigoCarrera)) {
                 await pool.request()
@@ -236,10 +254,29 @@ exports.uploadCatalogosExcel = async (req, res) => {
                 carrerasNuevas++;
             }
 
-            // Procesamos posibles materias del excel. Habían 2 pares posibles según la imagen:
-            // codigo_materia_cursada / nombre_materia_cursada
-            // codigo_materia_otorgada / nombre_materia_otorgada
-            
+            // Si hay "plan" lo guardamos en PlanesEstudio
+            let currentIdPlan = null;
+            if (codigoCarrera && planValue) {
+                const planKey = `${codigoCarrera}|${planValue.toLowerCase()}`;
+                if (!planesSet.has(planKey)) {
+                    const anioPlan = new Date().getFullYear();
+                    const resultNewPlan = await pool.request()
+                        .input('cod', sql.VarChar, codigoCarrera.substring(0, 20))
+                        .input('nom', sql.VarChar, planValue.substring(0, 100))
+                        .input('anio', sql.Int, anioPlan)
+                        .query(`INSERT INTO PlanesEstudio (CodigoCarrera, NombrePlan, AnioPlan) 
+                                OUTPUT INSERTED.IdPlan 
+                                VALUES (@cod, @nom, @anio)`);
+                    
+                    currentIdPlan = resultNewPlan.recordset[0].IdPlan;
+                    planesSet.set(planKey, currentIdPlan);
+                    planesNuevos++;
+                } else {
+                    currentIdPlan = planesSet.get(planKey);
+                }
+            }
+
+            // Procesamos posibles materias del excel.
             const checksMaterias = [
                 {
                     cod: (rawRow['codigo_materia_cursada'] || '').toString().trim(),
@@ -252,14 +289,29 @@ exports.uploadCatalogosExcel = async (req, res) => {
             ];
 
             for (let mat of checksMaterias) {
-                if (mat.cod && mat.nom && !materiasSet.has(mat.cod)) {
-                    await pool.request()
-                        .input('codigo', sql.VarChar, mat.cod.substring(0, 20))
-                        .input('nombre', sql.VarChar, mat.nom.substring(0, 150))
-                        .input('uvs', sql.Int, 0) // Default 0 as we don't know it from the dict
-                        .query('INSERT INTO Materias (CodigoMateria, NombreMateria, UVS) VALUES (@codigo, @nombre, @uvs)');
-                    materiasSet.set(mat.cod, true);
-                    materiasNuevas++;
+                if (mat.cod && mat.nom) {
+                    if (!materiasSet.has(mat.cod)) {
+                        await pool.request()
+                            .input('codigo', sql.VarChar, mat.cod.substring(0, 20))
+                            .input('nombre', sql.VarChar, mat.nom.substring(0, 150))
+                            .input('uvs', sql.Int, 0) // Default 0
+                            .query('INSERT INTO Materias (CodigoMateria, NombreMateria, UVS) VALUES (@codigo, @nombre, @uvs)');
+                        materiasSet.set(mat.cod, true);
+                        materiasNuevas++;
+                    }
+
+                    // Vincular al Plan en Pensum_Materias si tenemos un currentIdPlan
+                    if (currentIdPlan) {
+                        const pensumKey = `${currentIdPlan}|${mat.cod}`;
+                        if (!pensumSet.has(pensumKey)) {
+                            await pool.request()
+                                .input('idp', sql.Int, currentIdPlan)
+                                .input('codm', sql.VarChar, mat.cod.substring(0, 20))
+                                .query('INSERT INTO Pensum_Materias (IdPlan, CodigoMateria) VALUES (@idp, @codm)');
+                            pensumSet.set(pensumKey, true);
+                            pensumNuevos++;
+                        }
+                    }
                 }
             }
         }
@@ -270,7 +322,9 @@ exports.uploadCatalogosExcel = async (req, res) => {
         res.status(200).json({ 
             message: 'Procesamiento de catálogo completado.',
             carrerasNuevas,
-            materiasNuevas
+            materiasNuevas,
+            planesNuevos,
+            pensumNuevos
         });
 
     } catch (error) {

@@ -29,7 +29,7 @@
                 </a>
                 <a href="/equivalencias"
                     class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
-                    <i class="fas fa-exchange-alt mr-3 text-gray-400"></i> Mis Equivalencias
+                    <i class="fas fa-exchange-alt mr-3 text-gray-400"></i> Equivalencias
                 </a>
                 <a href="/plan-estudio"
                     class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
@@ -57,39 +57,44 @@
         <header class="flex justify-between items-center mb-8">
             <h1 id="welcomeTitle" class="text-2xl font-bold text-slate-800">Estudiante: Cargando...</h1>
             <div class="flex items-center space-x-4">
-                    <input type="text" list="alumnosList" id="alumnoInput" placeholder="Buscar alumno..."
-                        class="bg-white border text-sm rounded-lg border-gray-300 focus:ring-[#B20000] focus:border-[#B20000] block p-2.5 text-slate-600 shadow-sm min-w-[250px] placeholder-gray-400">
-                    <datalist id="alumnosList"></datalist>
-                </div>
+                <input type="text" list="alumnosList" id="alumnoInput" placeholder="Buscar alumno..."
+                    class="bg-white border text-sm rounded-lg border-gray-300 focus:ring-[#B20000] focus:border-[#B20000] block p-2.5 text-slate-600 shadow-sm min-w-[250px] placeholder-gray-400">
+                <datalist id="alumnosList"></datalist>
+            </div>
 
-                <button id="btnOpenModal"
-                    class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center">
-                    <i class="fas fa-file-excel mr-2"></i> Importar Historial
+            <button id="btnOpenModal"
+                class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center">
+                <i class="fas fa-file-excel mr-2"></i> Importar Historial
+            </button>
+            <i class="far fa-calendar text-slate-400"></i>
+            <i class="far fa-bell text-slate-400"></i>
+
+            <!-- Profile Widget -->
+            <div class="relative inline-block text-left" id="profileWidget">
+                <button type="button"
+                    class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000] hover:bg-red-200 transition focus:outline-none"
+                    id="profileDropdownBtn">
+                    <i class="fas fa-user"></i>
                 </button>
-                <i class="far fa-calendar text-slate-400"></i>
-                <i class="far fa-bell text-slate-400"></i>
-                
-                <!-- Profile Widget -->
-                <div class="relative inline-block text-left" id="profileWidget">
-                    <button type="button" class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000] hover:bg-red-200 transition focus:outline-none" id="profileDropdownBtn">
-                        <i class="fas fa-user"></i>
-                    </button>
-                    <!-- Dropdown Menu -->
-                    <div id="profileDropdown" class="hidden absolute right-0 mt-2 w-56 origin-top-right rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none z-[100] border border-gray-100">
-                        <div class="p-4 border-b border-gray-100">
-                            <p class="text-sm font-bold text-slate-800 truncate" id="dropdownUserName">Nombre Usuario</p>
-                            <p class="text-xs text-slate-500 mt-0.5" id="dropdownUserRole">Rol Usuario</p>
-                        </div>
-                        <div class="py-2">
-                            <a href="/perfil" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition group">
-                                <i class="fas fa-user-circle mr-3 text-slate-400 group-hover:text-[#B20000]"></i> Mi Perfil
-                            </a>
-                            <button onclick="localStorage.removeItem('user'); window.location.href='/';" class="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition group">
-                                <i class="fas fa-sign-out-alt mr-3 text-red-400 group-hover:text-red-600"></i> Cerrar Sesión
-                            </button>
-                        </div>
+                <!-- Dropdown Menu -->
+                <div id="profileDropdown"
+                    class="hidden absolute right-0 mt-2 w-56 origin-top-right rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none z-[100] border border-gray-100">
+                    <div class="p-4 border-b border-gray-100">
+                        <p class="text-sm font-bold text-slate-800 truncate" id="dropdownUserName">Nombre Usuario</p>
+                        <p class="text-xs text-slate-500 mt-0.5" id="dropdownUserRole">Rol Usuario</p>
+                    </div>
+                    <div class="py-2">
+                        <a href="/perfil"
+                            class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition group">
+                            <i class="fas fa-user-circle mr-3 text-slate-400 group-hover:text-[#B20000]"></i> Mi Perfil
+                        </a>
+                        <button onclick="localStorage.removeItem('user'); window.location.href='/';"
+                            class="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition group">
+                            <i class="fas fa-sign-out-alt mr-3 text-red-400 group-hover:text-red-600"></i> Cerrar Sesión
+                        </button>
                     </div>
                 </div>
+            </div>
             </div>
         </header>
 
@@ -144,15 +149,17 @@
                 <div id="textSection" class="hidden">
                     <div class="space-y-4">
                         <!-- Manual Account Input -->
-                        <div id="manualAccountSection" class="hidden bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+                        <div id="manualAccountSection"
+                            class="hidden bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                                 <i class="fas fa-user-graduate mr-1"></i> Cuenta del Alumno
                             </label>
-                            <input type="text" id="manualAccountInput" placeholder="Ej: 61234567" 
+                            <input type="text" id="manualAccountInput" placeholder="Ej: 61234567"
                                 class="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:ring-[#B20000] focus:border-[#B20000]"
                                 title="Ingresa la cuenta del alumno para este bloque de texto">
                             <p id="manualAccountHelp" class="text-[10px] text-slate-400 mt-2">
-                                <i class="fas fa-info-circle mr-1"></i> Si dejas esto vacío, se usará el alumno seleccionado en el Dashboard o la cuenta que venga en los datos.
+                                <i class="fas fa-info-circle mr-1"></i> Si dejas esto vacío, se usará el alumno
+                                seleccionado en el Dashboard o la cuenta que venga en los datos.
                             </p>
                         </div>
                         <textarea id="pasteArea" rows="8"
@@ -435,7 +442,7 @@
             // Estudiante: ocultar pestaña de archivo, solo permitir pegar texto
             if (tabFile) tabFile.style.display = 'none';
             if (tabPaste) tabPaste.click(); // Forzar pestaña de pegar texto
-            
+
             // Configurar input de cuenta para estudiante
             if (manualAccountInput) {
                 manualAccountInput.value = userAccount;

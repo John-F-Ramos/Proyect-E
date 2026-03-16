@@ -44,6 +44,28 @@
             max-width: 100%;
             height: auto !important;
         }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #panelSimulacion, #panelSimulacion * {
+                visibility: visible;
+            }
+            #panelSimulacion {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                border: none;
+                box-shadow: none;
+            }
+            aside, header, #btnDescargarSimulacion, #btnCancelarSimulacion {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 
@@ -263,9 +285,9 @@
                         class="px-4 md:px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition">
                         Cancelar
                     </button>
-                    <button id="btnConfirmarCambio"
+                    <button id="btnDescargarSimulacion"
                         class="px-4 md:px-6 py-2 bg-[#B20000] text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center">
-                        <i class="fas fa-check mr-2"></i> Confirmar Cambio
+                        <i class="fas fa-file-pdf mr-2"></i> Descargar Simulación
                     </button>
                 </div>
             </div>
@@ -491,7 +513,7 @@
         const carreraDestino = document.getElementById('carreraDestino');
         const btnCalcular = document.getElementById('btnCalcularSimulacion');
         const resultadosSimulacion = document.getElementById('resultadosSimulacion');
-        const btnConfirmarCambio = document.getElementById('btnConfirmarCambio');
+        const btnDescargarSimulacion = document.getElementById('btnDescargarSimulacion');
 
         let equivalenciasData = [];
         let chart = null;
@@ -727,32 +749,9 @@
             }
         });
 
-        // Confirmar cambio de carrera
-        btnConfirmarCambio.addEventListener('click', async () => {
-            if (!confirm('¿Estás seguro de cambiar de carrera? Esta acción no se puede deshacer.')) {
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/alumnos/cambiar-carrera', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        cuenta: userAccount,
-                        nuevaCarrera: carreraDestino.value
-                    })
-                });
-
-                if (response.ok) {
-                    alert('¡Carrera cambiada exitosamente!');
-                    location.reload();
-                } else {
-                    throw new Error('Error al cambiar de carrera');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error al cambiar de carrera');
-            }
+        // Descargar simulación (imprimir)
+        btnDescargarSimulacion.addEventListener('click', () => {
+            window.print();
         });
 
         btnCancelarSimulacion.addEventListener('click', () => {

@@ -43,7 +43,8 @@
 
         /* Estilo para la carrera y plan del usuario - rojo muy sutil */
         .carrera-row.usuario-plan {
-            background-color: rgba(178, 0, 0, 0.03); /* Rojo muy tenue al 3% */
+            background-color: rgba(178, 0, 0, 0.03);
+            /* Rojo muy tenue al 3% */
             border-left: 2px solid rgba(178, 0, 0, 0.2);
             position: relative;
         }
@@ -60,7 +61,8 @@
         }
 
         .carrera-row.usuario-plan:hover {
-            background-color: rgba(178, 0, 0, 0.08); /* Un poco más visible al hover */
+            background-color: rgba(178, 0, 0, 0.08);
+            /* Un poco más visible al hover */
         }
 
         .carrera-row.usuario-plan:hover::after {
@@ -77,6 +79,7 @@
                 opacity: 0;
                 transform: translateY(-10px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -155,7 +158,7 @@
                 </a>
                 <a href="/equivalencias"
                     class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
-                    <i class="fas fa-exchange-alt mr-3 text-gray-400"></i> Mis Equivalencias
+                    <i class="fas fa-exchange-alt mr-3 text-gray-400"></i> Equivalencias
                 </a>
                 <a href="/plan-estudio"
                     class="flex items-center px-4 py-3 bg-slate-100 text-slate-900 font-semibold rounded-lg">
@@ -172,7 +175,8 @@
             </nav>
         </div>
         <div class="mt-auto p-6 border-t border-gray-200">
-            <button onclick="localStorage.removeItem('user'); window.location.href='/';" class="flex items-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
+            <button onclick="localStorage.removeItem('user'); window.location.href='/';"
+                class="flex items-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
                 <i class="fas fa-sign-out-alt mr-3"></i> Cerrar Sesión
             </button>
         </div>
@@ -182,7 +186,8 @@
         <header class="flex justify-between items-center mb-8">
             <div>
                 <h1 class="text-2xl font-bold text-slate-800">Catálogos Académicos</h1>
-                <p class="text-slate-500 text-sm mt-1">Gestión de Carreras, Planes de Estudio y Materias del sistema.</p>
+                <p class="text-slate-500 text-sm mt-1">Gestión de Carreras, Planes de Estudio y Materias del sistema.
+                </p>
             </div>
             <div class="flex items-center space-x-3">
                 <button onclick="openModal('carreraModal')"
@@ -384,8 +389,10 @@
     </div>
 
     <!-- Modal Detalle de Plan de Estudio (AHORA MÁS GRANDE) -->
-    <div id="planDetalleModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-8 transform transition-all max-h-[80vh] overflow-hidden flex flex-col">
+    <div id="planDetalleModal"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div
+            class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-8 transform transition-all max-h-[80vh] overflow-hidden flex flex-col">
             <div class="flex justify-between items-start mb-6 flex-shrink-0">
                 <div class="flex-1">
                     <h3 class="text-xl font-bold text-slate-800" id="modalPlanTitulo"></h3>
@@ -397,18 +404,19 @@
                         <i class="fas fa-download"></i>
                         Descargar Plan de Estudio
                     </a>
-                    <button onclick="closeModal('planDetalleModal')" class="text-slate-400 hover:text-slate-600 transition">
+                    <button onclick="closeModal('planDetalleModal')"
+                        class="text-slate-400 hover:text-slate-600 transition">
                         <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>
             </div>
-            
+
             <div class="overflow-y-auto flex-1 pr-2">
                 <div class="mb-4 flex space-x-4 text-sm">
                     <span class="badge-materias" id="modalTotalMaterias">0 materias</span>
                     <span class="badge-uv" id="modalTotalUVs">0 UVs</span>
                 </div>
-                
+
                 <table class="w-full text-sm text-left text-gray-500">
                     <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
                         <tr>
@@ -426,8 +434,7 @@
     </div>
 
     <!-- Modal Nuevo Plan de Estudio (Pensum) -->
-    <div id="pensumModal"
-        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div id="pensumModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 transform transition-all">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-slate-800">Nuevo Plan de Estudio</h3>
@@ -454,8 +461,10 @@
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1 uppercase tracking-wider">Seleccionar Materias</label>
-                    <div id="pensumMateriasList" class="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2 bg-slate-50">
+                    <label class="block text-sm font-medium text-slate-700 mb-1 uppercase tracking-wider">Seleccionar
+                        Materias</label>
+                    <div id="pensumMateriasList"
+                        class="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2 bg-slate-50">
                         <!-- Materias se cargarán aquí dinámicamente -->
                         <p class="text-xs text-slate-400 italic">Cargando materias...</p>
                     </div>
@@ -525,7 +534,7 @@
                 if (response.ok) {
                     const data = await response.json();
                     console.log('Dashboard data:', data); // Para debug
-                    
+
                     if (data.alumno) {
                         usuarioPlan = {
                             nombre: data.alumno.NombrePlan,
@@ -552,14 +561,14 @@
                 console.log('No hay usuarioPlan o idPlan:', { usuarioPlan, idPlan });
                 return false;
             }
-            
+
             // Convertir ambos a número para comparación segura
             const idPlanNum = parseInt(idPlan);
             const usuarioPlanIdNum = parseInt(usuarioPlan.idPlan);
-            
+
             const esMiPlan = idPlanNum === usuarioPlanIdNum;
             console.log(`Comparando plan ${idPlanNum} con usuario ${usuarioPlanIdNum}: ${esMiPlan}`);
-            
+
             return esMiPlan;
         }
 
@@ -567,7 +576,7 @@
         function getUrlDescargaPlan(codigoCarrera, nombrePlan, anio) {
             // Limpiar nombre del plan para usarlo como key
             const planKey = nombrePlan.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-            
+
             // Intentar diferentes formatos de key
             const keys = [
                 `${codigoCarrera}|${nombrePlan}|${anio}`,
@@ -575,13 +584,13 @@
                 `${codigoCarrera}-${anio}`,
                 `${planKey}-${anio}`
             ];
-            
+
             for (const key of keys) {
                 if (pensumUrls[key]) {
                     return pensumUrls[key];
                 }
             }
-            
+
             // URL por defecto basada en código y año (escalable)
             return `/pensums/${codigoCarrera}-${anio}.pdf`;
         }
@@ -598,7 +607,7 @@
                 const data = await resC.json();
                 carrerasData = data.carreras || [];
                 planesData = data.planes || [];
-                
+
                 renderCarreras();
                 populatePensumSelects(); // Nueva función
                 renderPensum();
@@ -630,7 +639,7 @@
             // Agrupar planes por carrera
             carrerasData.forEach(carrera => {
                 const planesCarrera = planesData.filter(p => p.CodigoCarrera === carrera.CodigoCarrera);
-                
+
                 if (planesCarrera.length === 0) {
                     // Carrera sin planes
                     tbody.innerHTML += `
@@ -646,12 +655,12 @@
                 } else {
                     // Mostrar cada plan como una fila
                     planesCarrera.sort((a, b) => b.AnioPlan - a.AnioPlan); // Más reciente primero
-                    
+
                     planesCarrera.forEach((plan, index) => {
                         const esPrimero = index === 0;
                         const esMiPlan = esPlanDelUsuario(plan.IdPlan);
                         const claseAdicional = esMiPlan ? 'usuario-plan' : '';
-                        
+
                         tbody.innerHTML += `
                             <tr class="bg-white hover:bg-gray-50 carrera-row ${claseAdicional}" 
                                 data-idplan="${plan.IdPlan}" 
@@ -689,9 +698,9 @@
                     const idPlan = row.dataset.idplan;
                     if (idPlan) {
                         verDetallePlan(
-                            idPlan, 
-                            row.dataset.carrera, 
-                            row.dataset.plan, 
+                            idPlan,
+                            row.dataset.carrera,
+                            row.dataset.plan,
                             row.dataset.anio,
                             row.dataset.codigo
                         );
@@ -705,21 +714,21 @@
             try {
                 const response = await fetch(`/api/catalogos/planes/${idPlan}/materias`);
                 const materias = await response.json();
-                
+
                 document.getElementById('modalPlanTitulo').innerHTML = `${nombreCarrera} - ${nombrePlan} (${anio})`;
                 document.getElementById('modalPlanSubtitulo').innerHTML = `Plan de Estudio`;
-                
+
                 const totalMaterias = materias.length;
                 const totalUVs = materias.reduce((sum, m) => sum + (m.UVS || 0), 0);
-                
+
                 document.getElementById('modalTotalMaterias').innerHTML = `${totalMaterias} materias`;
                 document.getElementById('modalTotalUVs').innerHTML = `${totalUVs} UVs`;
-                
+
                 // Configurar el botón de descarga
                 const btnDescargar = document.getElementById('btnDescargarPlan');
                 const urlDescarga = getUrlDescargaPlan(codigoCarrera, nombrePlan, anio);
                 btnDescargar.href = urlDescarga;
-                
+
                 const tbody = document.getElementById('modalPlanBody');
                 if (materias.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">Este plan no tiene materias asignadas.</td></tr>';
@@ -733,9 +742,9 @@
                         </tr>
                     `).join('');
                 }
-                
+
                 openModal('planDetalleModal');
-                
+
             } catch (error) {
                 console.error('Error al cargar materias del plan:', error);
                 alert('Error al cargar el detalle del plan');
@@ -814,7 +823,7 @@
             const list = document.getElementById('pensumMateriasList');
             if (!list) return;
             list.innerHTML = '';
-            
+
             if (materiasData.length === 0) {
                 list.innerHTML = '<p class="text-xs text-slate-400 italic">No hay materias registradas.</p>';
                 return;
@@ -852,11 +861,11 @@
             const carreraCod = carreraSelect.value;
             const planSelect = document.getElementById('planMateria');
             if (!planSelect) return;
-            
+
             planSelect.innerHTML = '<option value="">Seleccione un plan...</option>';
-            
+
             if (!carreraCod) return;
-            
+
             const planes = planesData.filter(p => p.CodigoCarrera === carreraCod);
             planes.forEach(p => {
                 const opt = document.createElement('option');
@@ -878,7 +887,7 @@
             try {
                 const res = await fetch('/api/catalogos/carreras', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
                 const data = await res.json();
-                
+
                 if (!res.ok) {
                     alert(data.error || "Error al crear carrera");
                 } else {
@@ -901,7 +910,7 @@
             try {
                 const res = await fetch('/api/catalogos/materias', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
                 const data = await res.json();
-                
+
                 if (!res.ok) {
                     alert(data.error || "Error al crear materia");
                 } else {
@@ -917,7 +926,7 @@
         document.getElementById('pensumForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const selectedMaterias = Array.from(document.querySelectorAll('.materia-checkbox:checked')).map(cb => cb.value);
-            
+
             const body = {
                 codigoCarrera: document.getElementById('pensumCarreraSelect').value,
                 nombrePlan: document.getElementById('pensumNombrePlan').value,
@@ -987,7 +996,7 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    alert(`Éxito!\nCarreras Nuevas: ${data.carrerasNuevas}\nMaterias Nuevas: ${data.materiasNuevas}`);
+                    alert(`Éxito!\nCarreras Nuevas: ${data.carrerasNuevas}\nMaterias Nuevas: ${data.materiasNuevas}\nPlanes Nuevos: ${data.planesNuevos}\nMaterias Vinculadas: ${data.pensumNuevos}`);
                     closeModal('uploadModal');
                     fileInfo.classList.add('hidden');
                     dropZone.classList.remove('border-[#B20000]', 'bg-red-50');
