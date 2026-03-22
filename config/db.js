@@ -1,6 +1,5 @@
 const sql = require('mssql');
 
-// Configuración basada en el estándar de seguridad
 const dbConfig = {
     user: process.env.DB_USER || 'UsuariosDB',
     password: process.env.DB_PASSWORD || 'Temporal2025',

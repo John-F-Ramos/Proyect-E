@@ -1,65 +1,745 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reportes | CEUTEC</title>
+    <title>Reportes Académicos | CEUTEC</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="/js/auth-guard.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        
+        /* Estilos para el pensum grid */
+        .pensum-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+        
+        .semestre-column {
+            background: white;
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+        }
+        
+        .semestre-header {
+            background: #1e293b;
+            color: white;
+            padding: 0.75rem;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .materia-card {
+            padding: 0.75rem;
+            border-bottom: 1px solid #f1f5f9;
+            transition: all 0.2s;
+        }
+        
+        .materia-card:last-child {
+            border-bottom: none;
+        }
+        
+        .materia-card.completada {
+            background-color: #f0fdf4;
+            opacity: 0.7;
+        }
+        
+        .materia-card.en-curso {
+            background-color: #eff6ff;
+            border-left: 3px solid #3b82f6;
+        }
+        
+        .materia-card.pendiente {
+            background-color: white;
+        }
+        
+        .materia-card:hover {
             background-color: #f8fafc;
+            transform: translateX(4px);
+        }
+        
+        .badge-uv {
+            background-color: #e2e8f0;
+            color: #334155;
+            padding: 0.125rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        
+        .proyeccion-card {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s;
+        }
+        
+        .stat-card:hover {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        @media print {
+            .no-print { display: none; }
+            body { background: white; }
         }
     </style>
 </head>
-
 <body class="flex min-h-screen">
-    <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
+    <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col no-print">
         <div class="p-6">
             <img src="/assets/images/logo-ceutec.png" alt="CEUTEC" class="h-10 mb-8">
             <nav class="space-y-1">
-                <a href="/dashboard"
-                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition group">
+                <a href="/dashboard" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition group">
                     <i class="fas fa-home mr-3 text-gray-400 group-hover:text-[#B20000]"></i> Dashboard
                 </a>
-                <a href="/equivalencias"
-                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
-                    <i class="fas fa-exchange-alt mr-3 text-gray-400"></i> Equivalencias
+                <a href="/equivalencias" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-exchange-alt mr-3 text-gray-400"></i> Mis Equivalencias
                 </a>
-                <a href="/plan-estudio"
-                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
-                    <i class="fas fa-book mr-3 text-gray-400"></i> Catálogos Académicos
+                <a href="/plan-estudio" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fas fa-book mr-3 text-gray-400"></i> Planes de Estudio
                 </a>
-                <a href="/reportes"
-                    class="flex items-center px-4 py-3 bg-slate-100 text-slate-900 font-semibold rounded-lg">
+                <a href="/reportes" class="flex items-center px-4 py-3 bg-slate-100 text-slate-900 font-semibold rounded-lg">
                     <i class="fas fa-file-alt mr-3 text-[#B20000]"></i> Reportes
                 </a>
-                <a href="/perfil"
-                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
+                <a href="/perfil" class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
                     <i class="fas fa-user mr-3 text-gray-400"></i> Mi Perfil
                 </a>
             </nav>
         </div>
         <div class="mt-auto p-6 border-t border-gray-200">
-            <button onclick="localStorage.removeItem('user'); window.location.href='/';"
-                class="flex items-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
+            <button onclick="localStorage.removeItem('user'); window.location.href='/';" class="flex items-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
                 <i class="fas fa-sign-out-alt mr-3"></i> Cerrar Sesión
             </button>
         </div>
     </aside>
 
-    <main class="flex-1 p-8 overflow-y-auto">
-        <header class="flex justify-between items-center mb-8">
-            <h1 class="text-2xl font-bold text-slate-800">Reportes Académicos</h1>
-        </header>
-        <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-            <p class="text-slate-600">Genera y descarga reportes detallados de tu avance académico.</p>
+    <main class="flex-1 p-8 overflow-y-auto" id="area-reporte">
+        <!-- Header con controles -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 no-print">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800">Reporte de Avance Académico</h1>
+                <p class="text-sm text-slate-500 mt-1" id="subtituloReporte">Cargando información del estudiante...</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="exportarPDF()" class="bg-[#B20000] text-white px-4 py-2 rounded-lg hover:bg-red-800 transition flex items-center shadow-md">
+                    <i class="fas fa-file-pdf mr-2"></i> Exportar PDF
+                </button>
+                <button onclick="window.print()" class="bg-white border border-gray-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition flex items-center">
+                    <i class="fas fa-print mr-2"></i> Imprimir
+                </button>
+            </div>
+        </div>
+
+        <!-- Tarjetas de resumen rápido -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 no-print">
+            <div class="stat-card">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm text-slate-500">Avance Total</span>
+                    <span class="text-2xl font-bold text-slate-800" id="porcentajeAvance">0%</span>
+                </div>
+                <div class="w-full bg-slate-200 rounded-full h-2">
+                    <div class="bg-[#B20000] h-2 rounded-full" id="barraAvance" style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-slate-400 mt-2" id="uvsInfo">0/0 UVs</p>
+            </div>
+
+            <div class="stat-card">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-check-circle text-green-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500">Completadas</p>
+                        <p class="text-xl font-bold text-slate-800" id="totalCompletadas">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-clock text-blue-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500">En Curso</p>
+                        <p class="text-xl font-bold text-slate-800" id="totalEnCurso">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-hourglass-half text-slate-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500">Pendientes</p>
+                        <p class="text-xl font-bold text-slate-800" id="totalPendientes">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Proyección de graduación (trimestres de 3 meses) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div class="proyeccion-card lg:col-span-1">
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                    <i class="fas fa-rocket mr-2"></i> Proyección de Graduación
+                </h3>
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-sm text-slate-300 mb-1">Trimestre Actual</p>
+                        <p class="text-3xl font-bold" id="trimestreActual">-</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-300 mb-1">Trimestres Restantes</p>
+                        <p class="text-3xl font-bold" id="trimestresRestantes">-</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-300 mb-1">Fecha Estimada de Graduación</p>
+                        <p class="text-xl font-bold" id="fechaGraduacion">-</p>
+                    </div>
+                    <div class="pt-4 border-t border-slate-600">
+                        <p class="text-sm text-slate-300 mb-1">Ritmo Recomendado</p>
+                        <p class="text-lg font-semibold" id="ritmoRecomendado">- materias/trimestre</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center">
+                    <i class="fas fa-chart-bar mr-2 text-[#B20000]"></i>
+                    Avance por Trimestre
+                </h3>
+                <div class="h-64">
+                    <canvas id="graficoAvanceSemestral"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pensum Visual de Materias Restantes -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-8">
+            <div class="p-6 border-b border-gray-100">
+                <h2 class="font-bold text-slate-800 text-lg flex items-center">
+                    <i class="fas fa-graduation-cap mr-2 text-[#B20000]"></i>
+                    Plan de Estudios Personalizado
+                </h2>
+                <p class="text-xs text-slate-500 mt-1">
+                    <span class="inline-block w-3 h-3 bg-green-100 border border-green-300 rounded-sm mr-1"></span> Completada 
+                    <span class="inline-block w-3 h-3 bg-blue-100 border border-blue-300 rounded-sm mr-1 ml-3"></span> En curso 
+                    <span class="inline-block w-3 h-3 bg-white border border-slate-300 rounded-sm mr-1 ml-3"></span> Pendiente
+                </p>
+            </div>
+            
+            <div class="p-6" id="pensumContainer">
+                <div class="text-center py-12">
+                    <i class="fas fa-spinner fa-spin text-3xl text-[#B20000]"></i>
+                    <p class="mt-2 text-slate-500">Cargando pensum personalizado...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla detallada de materias pendientes -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden no-print">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                <div>
+                    <h2 class="font-bold text-slate-800 text-lg">Materias Pendientes Detalladas</h2>
+                    <p class="text-xs text-slate-500">Listado de todas las materias que faltan por cursar</p>
+                </div>
+                <div class="flex gap-2">
+                    <select id="filtroSemestre" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="todos">Todos los trimestres</option>
+                    </select>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-slate-600 uppercase text-xs font-semibold">
+                        <tr>
+                            <th class="px-6 py-4">Código</th>
+                            <th class="px-6 py-4">Materia</th>
+                            <th class="px-6 py-4 text-center">UV</th>
+                            <th class="px-6 py-4 text-center">Trimestre</th>
+                            <th class="px-6 py-4 text-center">Estado</th>
+                            <th class="px-6 py-4 text-center">Requisitos</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pendientesBody" class="divide-y divide-gray-100">
+                        <tr>
+                            <td colspan="6" class="px-6 py-8 text-center text-slate-400">
+                                <i class="fas fa-spinner fa-spin mr-2"></i> Cargando...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </main>
-</body>
 
+    <script>
+        // Mapeo de electivas (misma lógica que en el backend)
+        const ELECTIVAS_MAP = {
+            'ART/DEP': { prefijo: 'DEP', tipo: 'Arte/Deporte' },
+            'BIO': { prefijo: 'BIO', tipo: 'Ciencias Naturales' },
+            'EIE1': { prefijo: 'ING', tipo: 'Inglés I', materiaBase: 'ING113' },
+            'EIE2': { prefijo: 'ING', tipo: 'Inglés II', materiaBase: 'ING114' },
+            'EIE3': { prefijo: 'ING', tipo: 'Inglés III', materiaBase: 'ING115' },
+            'EIE4': { prefijo: 'ING', tipo: 'Inglés IV', materiaBase: 'ING116' },
+            'EIE5': { prefijo: 'ING', tipo: 'Inglés V', materiaBase: 'ING116' },
+            'EIE6': { prefijo: 'ING', tipo: 'Inglés VI', materiaBase: 'ING116' },
+            'EIE7': { prefijo: 'ING', tipo: 'Inglés VII', materiaBase: 'ING116' },
+            'EIE8': { prefijo: 'ING', tipo: 'Inglés VIII', materiaBase: 'ING116' }
+        };
+
+        // Estado global
+        let usuarioActual = null;
+        let dashboardData = null;
+        let materiasPlan = [];
+        let graficoAvance = null;
+        let materiasAprobadasHistorial = [];
+        let materiasEnCursoList = [];
+
+        // Obtener usuario actual
+        function getUsuarioActual() {
+            try {
+                const userStr = localStorage.getItem('user');
+                if (userStr) {
+                    usuarioActual = JSON.parse(userStr);
+                    console.log('Usuario actual:', usuarioActual);
+                }
+            } catch (e) {
+                console.error('Error al obtener usuario:', e);
+            }
+        }
+
+        // Cargar datos del dashboard
+        async function cargarDatosDashboard() {
+            if (!usuarioActual || !usuarioActual.numeroCuenta) {
+                document.getElementById('subtituloReporte').textContent = 'Error: No hay sesión activa';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/alumnos/${usuarioActual.numeroCuenta}/dashboard`);
+                if (!response.ok) throw new Error('Error al cargar dashboard');
+                
+                dashboardData = await response.json();
+                document.getElementById('subtituloReporte').innerHTML = `
+                    <span class="font-semibold">${dashboardData.alumno.NombreCompleto}</span> • 
+                    ${dashboardData.alumno.NombreCarrera} • 
+                    Plan ${dashboardData.alumno.NombrePlan} (${dashboardData.alumno.AnioPlan})
+                `;
+
+                // Preparar listas auxiliares para electivas
+                if (dashboardData.historialCompleto) {
+                    materiasAprobadasHistorial = dashboardData.historialCompleto
+                        .filter(m => ['APB', 'APR', 'APROBADO', 'REQ'].includes((m.Estado || '').toUpperCase()))
+                        .map(m => m.CodigoMateria);
+                    
+                    materiasEnCursoList = dashboardData.historialCompleto
+                        .filter(m => (m.Estado || '').toUpperCase() === 'EN CURSO')
+                        .map(m => m.CodigoMateria);
+                }
+
+                // Obtener todas las materias del plan
+                await cargarMateriasPlan(dashboardData.alumno.IdPlanActual);
+                
+                // Renderizar todo
+                renderizarResumen();
+                renderizarPensum();
+                renderizarTablaPendientes();
+                renderizarGraficoAvanceSemestral();
+                calcularProyeccion();
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('subtituloReporte').textContent = 'Error al cargar datos';
+            }
+        }
+
+        // Cargar materias del plan
+        async function cargarMateriasPlan(idPlan) {
+            try {
+                const response = await fetch(`/api/catalogos/planes/${idPlan}/materias`);
+                materiasPlan = await response.json();
+            } catch (error) {
+                console.error('Error al cargar materias del plan:', error);
+                materiasPlan = [];
+            }
+        }
+
+        // Verificar si una electiva está cumplida (misma lógica que el backend)
+        function isElectivaCumplida(codigoPlan) {
+            const electiva = ELECTIVAS_MAP[codigoPlan];
+            if (!electiva) return false;
+
+            // Electivas de inglés
+            if (codigoPlan.startsWith('EIE')) {
+                if (codigoPlan === 'EIE1' && materiasAprobadasHistorial.includes('ING113')) return true;
+                if (codigoPlan === 'EIE2' && materiasAprobadasHistorial.includes('ING114')) return true;
+                if (codigoPlan === 'EIE3' && materiasAprobadasHistorial.includes('ING115')) return true;
+                if (codigoPlan === 'EIE4' && materiasAprobadasHistorial.includes('ING116')) return true;
+                if ((codigoPlan === 'EIE5' || codigoPlan === 'EIE6' || codigoPlan === 'EIE7' || codigoPlan === 'EIE8') && 
+                    materiasAprobadasHistorial.includes('ING116')) return true;
+                return false;
+            }
+            
+            // Electivas normales (ART/DEP, BIO)
+            const materiaQueCumple = materiasAprobadasHistorial.find(cod => 
+                cod.startsWith(electiva.prefijo)
+            );
+            return !!materiaQueCumple;
+        }
+
+        // Verificar si una electiva está en curso
+        function isElectivaEnCurso(codigoPlan) {
+            const electiva = ELECTIVAS_MAP[codigoPlan];
+            if (!electiva || !electiva.materiaBase) return false;
+
+            return materiasEnCursoList.includes(electiva.materiaBase);
+        }
+
+        // Determinar estado de una materia (incluyendo electivas)
+        function getEstadoMateria(codigoMateria) {
+            // Si es una electiva
+            if (ELECTIVAS_MAP[codigoMateria]) {
+                if (isElectivaCumplida(codigoMateria)) return 'completada';
+                if (isElectivaEnCurso(codigoMateria)) return 'en-curso';
+                return 'pendiente';
+            }
+
+            // Materias normales
+            if (!dashboardData || !dashboardData.historialCompleto) return 'pendiente';
+            
+            const materiaHistorial = dashboardData.historialCompleto.find(m => m.CodigoMateria === codigoMateria);
+            
+            if (!materiaHistorial) return 'pendiente';
+            
+            const estado = (materiaHistorial.Estado || '').toUpperCase();
+            if (['APB', 'APR', 'APROBADO', 'REQ'].includes(estado)) return 'completada';
+            if (estado === 'EN CURSO') return 'en-curso';
+            return 'pendiente';
+        }
+
+        // Renderizar resumen
+        function renderizarResumen() {
+            if (!dashboardData) return;
+
+            const progreso = dashboardData.progreso;
+            const totalUVs = progreso.totalUvsPlan || 1;
+            const porcentaje = progreso.porcentaje || 0;
+            
+            document.getElementById('porcentajeAvance').textContent = `${porcentaje}%`;
+            document.getElementById('barraAvance').style.width = `${porcentaje}%`;
+            document.getElementById('uvsInfo').textContent = `${progreso.uvsAprobadas}/${totalUVs} UVs`;
+            
+            // Contar estados (incluyendo electivas)
+            let completadas = 0;
+            let enCurso = 0;
+
+            materiasPlan.forEach(materia => {
+                const estado = getEstadoMateria(materia.CodigoMateria);
+                if (estado === 'completada') completadas++;
+                if (estado === 'en-curso') enCurso++;
+            });
+            
+            document.getElementById('totalCompletadas').textContent = completadas;
+            document.getElementById('totalEnCurso').textContent = enCurso;
+            
+            const totalMateriasPlan = materiasPlan.length;
+            const pendientes = totalMateriasPlan - completadas - enCurso;
+            document.getElementById('totalPendientes').textContent = pendientes;
+        }
+
+        // Renderizar pensum visual
+        function renderizarPensum() {
+            if (!materiasPlan.length || !dashboardData) return;
+
+            // Agrupar por trimestre
+            const materiasPorTrimestre = {};
+            materiasPlan.forEach(m => {
+                const trimestre = m.Semestre || 0;
+                if (!materiasPorTrimestre[trimestre]) materiasPorTrimestre[trimestre] = [];
+                materiasPorTrimestre[trimestre].push(m);
+            });
+
+            const trimestres = Object.keys(materiasPorTrimestre).sort((a, b) => a - b);
+            const container = document.getElementById('pensumContainer');
+            
+            let html = '<div class="pensum-grid">';
+            
+            trimestres.forEach(trimestre => {
+                const materias = materiasPorTrimestre[trimestre];
+                
+                html += `
+                    <div class="semestre-column">
+                        <div class="semestre-header">
+                            Trimestre ${trimestre}
+                        </div>
+                        <div class="p-2">
+                `;
+                
+                materias.forEach(materia => {
+                    const estado = getEstadoMateria(materia.CodigoMateria);
+                    const estadoClass = {
+                        'completada': 'completada',
+                        'en-curso': 'en-curso',
+                        'pendiente': 'pendiente'
+                    }[estado];
+                    
+                    // Agregar indicador de electiva si aplica
+                    const esElectiva = ELECTIVAS_MAP[materia.CodigoMateria] ? true : false;
+                    const electivaInfo = esElectiva ? ` <span class="text-[10px] text-purple-600">(Electiva)</span>` : '';
+                    
+                    html += `
+                        <div class="materia-card ${estadoClass}">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-medium text-sm text-slate-800">${materia.CodigoMateria}${electivaInfo}</p>
+                                    <p class="text-xs text-slate-500 mt-0.5">${materia.NombreMateria}</p>
+                                </div>
+                                <span class="badge-uv">${materia.UVS || 0} UV</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div></div>';
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // Renderizar gráfico de avance por trimestre
+        function renderizarGraficoAvanceSemestral() {
+            if (!materiasPlan.length || !dashboardData) return;
+
+            // Agrupar por trimestre
+            const materiasPorTrimestre = {};
+            materiasPlan.forEach(m => {
+                const trimestre = m.Semestre || 0;
+                if (!materiasPorTrimestre[trimestre]) {
+                    materiasPorTrimestre[trimestre] = { completadas: 0, enCurso: 0, pendientes: 0, total: 0 };
+                }
+                materiasPorTrimestre[trimestre].total++;
+            });
+
+            // Contar estados por trimestre usando la misma lógica de getEstadoMateria
+            materiasPlan.forEach(materia => {
+                const trimestre = materia.Semestre || 0;
+                if (!materiasPorTrimestre[trimestre]) return;
+                
+                const estado = getEstadoMateria(materia.CodigoMateria);
+                if (estado === 'completada') {
+                    materiasPorTrimestre[trimestre].completadas++;
+                } else if (estado === 'en-curso') {
+                    materiasPorTrimestre[trimestre].enCurso++;
+                }
+            });
+
+            // Calcular pendientes
+            Object.keys(materiasPorTrimestre).forEach(trim => {
+                const data = materiasPorTrimestre[trim];
+                data.pendientes = data.total - data.completadas - data.enCurso;
+            });
+
+            // Preparar datos para el gráfico
+            const trimestres = Object.keys(materiasPorTrimestre).sort((a, b) => a - b);
+            const completadasData = trimestres.map(s => materiasPorTrimestre[s].completadas);
+            const enCursoData = trimestres.map(s => materiasPorTrimestre[s].enCurso);
+            const pendientesData = trimestres.map(s => materiasPorTrimestre[s].pendientes);
+
+            const ctx = document.getElementById('graficoAvanceSemestral').getContext('2d');
+            
+            if (graficoAvance) graficoAvance.destroy();
+
+            graficoAvance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: trimestres.map(s => `Trim ${s}`),
+                    datasets: [
+                        {
+                            label: 'Completadas',
+                            data: completadasData,
+                            backgroundColor: '#22c55e',
+                            stack: 'avance'
+                        },
+                        {
+                            label: 'En Curso',
+                            data: enCursoData,
+                            backgroundColor: '#3b82f6',
+                            stack: 'avance'
+                        },
+                        {
+                            label: 'Pendientes',
+                            data: pendientesData,
+                            backgroundColor: '#cbd5e1',
+                            stack: 'avance'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    scales: {
+                        x: { stacked: true },
+                        y: { 
+                            stacked: true,
+                            beginAtZero: true,
+                            title: { display: true, text: 'Cantidad de materias' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Calcular proyección de graduación
+        function calcularProyeccion() {
+            if (!dashboardData || !materiasPlan.length) return;
+
+            const trimestreActual = dashboardData.alumno.SemestreActual || 1;
+            
+            // Encontrar el máximo trimestre en el plan
+            const maxTrimestre = Math.max(...materiasPlan.map(m => m.Semestre || 0));
+            
+            // Calcular trimestres restantes
+            const trimestresRestantes = maxTrimestre - trimestreActual;
+            
+            // Calcular materias por trimestre promedio
+            const materiasPorTrimestre = {};
+            materiasPlan.forEach(m => {
+                const trim = m.Semestre || 0;
+                if (!materiasPorTrimestre[trim]) materiasPorTrimestre[trim] = 0;
+                materiasPorTrimestre[trim]++;
+            });
+            
+            const promedioMaterias = Object.values(materiasPorTrimestre).reduce((a, b) => a + b, 0) / Object.keys(materiasPorTrimestre).length;
+            
+            // Calcular fecha estimada de graduación (CADA TRIMESTRE = 3 MESES)
+            const hoy = new Date();
+            const fechaGraduacion = new Date(hoy);
+            
+            if (trimestresRestantes > 0) {
+                fechaGraduacion.setMonth(hoy.getMonth() + (trimestresRestantes * 3));
+            }
+            
+            const opcionesFecha = { year: 'numeric', month: 'long' };
+            const fechaFormateada = fechaGraduacion.toLocaleDateString('es-ES', opcionesFecha);
+            
+            const mes = fechaGraduacion.getMonth();
+            let trimestreEstimado = '';
+            if (mes >= 0 && mes <= 2) trimestreEstimado = 'I';
+            else if (mes >= 3 && mes <= 5) trimestreEstimado = 'II';
+            else if (mes >= 6 && mes <= 8) trimestreEstimado = 'III';
+            else trimestreEstimado = 'IV';
+            
+            document.getElementById('trimestreActual').textContent = trimestreActual;
+            document.getElementById('trimestresRestantes').textContent = trimestresRestantes >= 0 ? trimestresRestantes : 0;
+            document.getElementById('fechaGraduacion').textContent = `${fechaFormateada} (Trimestre ${trimestreEstimado})`;
+            document.getElementById('ritmoRecomendado').textContent = `${Math.ceil(promedioMaterias)} materias/trimestre`;
+        }
+
+        // Renderizar tabla de pendientes
+        function renderizarTablaPendientes() {
+            if (!dashboardData || !dashboardData.proximasMaterias) return;
+
+            const pendientes = dashboardData.proximasMaterias;
+            const select = document.getElementById('filtroSemestre');
+            const tbody = document.getElementById('pendientesBody');
+
+            // Llenar filtro de trimestres
+            const trimestresUnicos = [...new Set(pendientes.map(m => m.Semestre))].sort((a, b) => a - b);
+            select.innerHTML = '<option value="todos">Todos los trimestres</option>';
+            trimestresUnicos.forEach(trim => {
+                select.innerHTML += `<option value="${trim}">Trimestre ${trim}</option>`;
+            });
+
+            function actualizarTabla() {
+                const filtro = select.value;
+                const filtradas = filtro === 'todos' ? pendientes : pendientes.filter(m => m.Semestre == filtro);
+                
+                if (filtradas.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-slate-400">No hay materias pendientes para este trimestre</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = filtradas.map(m => {
+                    const esElectiva = ELECTIVAS_MAP[m.CodigoMateria] ? true : false;
+                    const electivaInfo = esElectiva ? ' (Electiva)' : '';
+                    
+                    return `
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-6 py-4 font-mono text-xs font-bold text-slate-500">${m.CodigoMateria}${electivaInfo}</td>
+                        <td class="px-6 py-4 font-medium text-slate-800">${m.NombreMateria}</td>
+                        <td class="px-6 py-4 text-center">${m.UVS || 0}</td>
+                        <td class="px-6 py-4 text-center">${m.Semestre || '-'}</td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-yellow-100 text-yellow-700">
+                                PENDIENTE
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-center text-xs text-slate-400">-</td>
+                    </tr>
+                `}).join('');
+            }
+
+            select.addEventListener('change', actualizarTabla);
+            actualizarTabla();
+        }
+
+        // Exportar a PDF
+        function exportarPDF() {
+            const elemento = document.getElementById('area-reporte');
+            const botones = document.querySelectorAll('.no-print');
+            
+            botones.forEach(el => el.style.visibility = 'hidden');
+
+            const opciones = {
+                margin: [0.5, 0.5, 0.5, 0.5],
+                filename: `Reporte_Avance_${usuarioActual?.numeroCuenta || 'CEUTEC'}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opciones).from(elemento).save()
+                .then(() => {
+                    botones.forEach(el => el.style.visibility = 'visible');
+                })
+                .catch((err) => {
+                    console.error("Error al generar PDF:", err);
+                    botones.forEach(el => el.style.visibility = 'visible');
+                    alert("No se pudo generar el PDF. Revisa la consola.");
+                });
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            getUsuarioActual();
+            if (usuarioActual?.numeroCuenta) {
+                cargarDatosDashboard();
+            } else {
+                document.getElementById('subtituloReporte').textContent = 'Por favor, inicia sesión';
+            }
+        });
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</body>
 </html>
