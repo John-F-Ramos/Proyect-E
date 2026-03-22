@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="/js/auth-guard.js"></script>
+    <script src="/js/student-search-combobox.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -57,9 +58,10 @@
         <header class="flex justify-between items-center mb-8">
             <h1 id="welcomeTitle" class="text-2xl font-bold text-slate-800">Estudiante: Cargando...</h1>
             <div class="flex items-center space-x-4">
-                <input type="text" list="alumnosList" id="alumnoInput" placeholder="Buscar alumno..."
-                    class="bg-white border text-sm rounded-lg border-gray-300 focus:ring-[#B20000] focus:border-[#B20000] block p-2.5 text-slate-600 shadow-sm min-w-[250px] placeholder-gray-400">
-                <datalist id="alumnosList"></datalist>
+                <div class="student-search-wrap relative min-w-[250px]">
+                    <input type="text" id="alumnoInput" placeholder="Buscar alumno..." autocomplete="off"
+                        class="bg-white border text-sm rounded-lg border-gray-300 focus:ring-[#B20000] focus:border-[#B20000] block p-2.5 text-slate-600 shadow-sm w-full placeholder-gray-400">
+                </div>
             </div>
 
             <button id="btnOpenModal"
@@ -371,7 +373,6 @@
 
         // Elementos del dashboard
         const ALUMNO_INPUT = document.getElementById('alumnoInput');
-        const ALUMNOS_LIST = document.getElementById('alumnosList');
         const WELCOME_TITLE = document.getElementById('welcomeTitle');
         const CIRCLE = document.getElementById('progressCircle');
         const PERC_TEXT = document.getElementById('progressPercentageText');
@@ -578,7 +579,7 @@
             }
         }
 
-        // Cargar Lista de Alumnos para el buscador
+        // Cargar Lista de Alumnos y combobox de búsqueda (admin / jefe de carrera)
         async function fetchAlumnos() {
             try {
                 const res = await fetch('/api/alumnos');
@@ -588,50 +589,31 @@
 
                 window.alumnosData = alumnos;
 
-                alumnos.forEach(alum => {
-                    const opt = document.createElement('option');
-                    opt.value = `${alum.NumeroCuenta} - ${alum.NombreCompleto}`;
-                    ALUMNOS_LIST.appendChild(opt);
-                });
+                if (userFromStorage.rol !== 3 && typeof window.initStudentSearchCombobox === 'function' && ALUMNO_INPUT) {
+                    window.initStudentSearchCombobox({
+                        input: ALUMNO_INPUT,
+                        getAlumnos: () => window.alumnosData,
+                        onSelect: async (alumno) => {
+                            const cuenta = alumno.NumeroCuenta;
+                            try {
+                                WELCOME_TITLE.textContent = 'Cargando...';
+                                CIRCLE.style.strokeDashoffset = 314;
+                                const resDash = await fetch('/api/alumnos/' + cuenta + '/dashboard');
+                                const data = await resDash.json();
+                                if (!resDash.ok) throw new Error(data.error);
+                                actualizarDashboard(data);
+                            } catch (err) {
+                                console.error(err);
+                                WELCOME_TITLE.textContent = 'Error al cargar datos';
+                            }
+                        },
+                        onClear: () => cargarDashboardAlumnoActual(),
+                    });
+                }
             } catch (err) {
-                console.error("Error al cargar selector:", err);
+                console.error('Error al cargar selector:', err);
             }
         }
-
-        // Evento para cuando seleccionan otro alumno del datalist
-        ALUMNO_INPUT.addEventListener('change', async (e) => {
-            const inputValue = e.target.value;
-            if (!inputValue) return;
-
-            const cuenta = inputValue.split(' - ')[0].trim();
-
-            if (!window.alumnosData || !window.alumnosData.some(a => a.NumeroCuenta === cuenta)) {
-                return;
-            }
-
-            try {
-                WELCOME_TITLE.textContent = "Cargando...";
-
-                CIRCLE.style.strokeDashoffset = 314;
-
-                const res = await fetch('/api/alumnos/' + cuenta + '/dashboard');
-                const data = await res.json();
-
-                if (!res.ok) throw new Error(data.error);
-
-                actualizarDashboard(data);
-            } catch (err) {
-                console.error(err);
-                WELCOME_TITLE.textContent = "Error al cargar datos";
-            }
-        });
-
-        // Limpiar el input cuando está vacío para volver al alumno actual
-        ALUMNO_INPUT.addEventListener('input', (e) => {
-            if (!e.target.value) {
-                cargarDashboardAlumnoActual();
-            }
-        });
 
         // Lógica del Modal
         btnOpen.onclick = () => {

@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="/js/auth-guard.js"></script>
+    <script src="/js/student-search-combobox.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -188,10 +189,10 @@
                     <label class="block text-sm font-medium text-slate-700 mb-2">
                         <i class="fas fa-user-graduate mr-1 text-[#B20000]"></i> Estudiante
                     </label>
-                    <input type="text" list="simAlumnosList" id="simAlumnoInput"
-                        placeholder="Buscar alumno..."
-                        class="bg-white border text-sm rounded-lg border-gray-300 focus:ring-[#B20000] focus:border-[#B20000] block p-2.5 text-slate-600 shadow-sm w-full placeholder-gray-400">
-                    <datalist id="simAlumnosList"></datalist>
+                    <div class="student-search-wrap relative w-full">
+                        <input type="text" id="simAlumnoInput" placeholder="Buscar alumno..." autocomplete="off"
+                            class="bg-white border text-sm rounded-lg border-gray-300 focus:ring-[#B20000] focus:border-[#B20000] block p-2.5 text-slate-600 shadow-sm w-full placeholder-gray-400">
+                    </div>
                     <p id="simAlumnoStatus" class="text-[10px] text-slate-400 mt-1 truncate">Escribe nombre o cuenta</p>
                 </div>
                 <div>
@@ -575,16 +576,25 @@
                 const resAlumnos = await fetch('/api/alumnos');
                 if (resAlumnos.ok) {
                     alumnosListData = await resAlumnos.json();
-                    
-                    // Llenar datalist del simulador
-                    const simList = document.getElementById('simAlumnosList');
-                    if (simList) {
-                        simList.innerHTML = '';
-                        alumnosListData.forEach(a => {
-                            const opt = document.createElement('option');
-                            opt.value = `${a.NumeroCuenta} - ${a.NombreCompleto}`;
-                            simList.appendChild(opt);
-                        });
+
+                    if ((userRol === 1 || userRol === 2) && typeof window.initStudentSearchCombobox === 'function') {
+                        const simInputEl = document.getElementById('simAlumnoInput');
+                        if (simInputEl) {
+                            window.initStudentSearchCombobox({
+                                input: simInputEl,
+                                getAlumnos: () => alumnosListData,
+                                onSelect: (alumno) => {
+                                    buscarYSeleccionarAlumno(
+                                        `${alumno.NumeroCuenta} - ${alumno.NombreCompleto || ''}`.trim()
+                                    );
+                                },
+                                onClear: () => buscarYSeleccionarAlumno(''),
+                            });
+                            simInputEl.addEventListener('blur', function onSimBlur() {
+                                const v = simInputEl.value.trim();
+                                if (v.includes(' - ')) buscarYSeleccionarAlumno(v);
+                            });
+                        }
                     }
                 }
 
@@ -677,20 +687,6 @@
                 document.getElementById('simAlumnoStatus').innerHTML = `<span class="text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>Estudiante no encontrado</span>`;
             }
         }
-
-        // Evento: estudiante seleccionado en el simulador (al cambiar o seleccionar de datalist)
-        document.getElementById('simAlumnoInput').addEventListener('change', (e) => {
-            buscarYSeleccionarAlumno(e.target.value.trim());
-        });
-
-        // Opcional: también escuchar 'input' para reaccionar inmediatamente si el valor coincide con algo de la lista
-        document.getElementById('simAlumnoInput').addEventListener('input', (e) => {
-            const val = e.target.value.trim();
-            // Si el valor tiene el formato "Cuenta - Nombre", procesar inmediatamente
-            if (val.includes(' - ')) {
-                buscarYSeleccionarAlumno(val);
-            }
-        });
 
         // Calcular simulación
         btnCalcular.addEventListener('click', async () => {
