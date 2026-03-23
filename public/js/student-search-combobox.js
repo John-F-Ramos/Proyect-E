@@ -31,7 +31,7 @@
 
     function filterAlumnos(alumnos, query) {
         const q = query.trim().toLowerCase();
-        if (!q) return [];
+        if (!q) return alumnos.slice(0, 100);
         return alumnos.filter((a) => {
             const name = (a.NombreCompleto || '').toLowerCase();
             const cuenta = String(a.NumeroCuenta || '');
@@ -164,8 +164,7 @@
         }
 
         function onInputFocus() {
-            const q = input.value.trim();
-            if (q) render(q);
+            render(input.value || '');
         }
 
         function onDocClick(e) {

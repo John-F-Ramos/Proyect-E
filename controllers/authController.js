@@ -33,13 +33,23 @@ async function login(req, res) {
 
         if (isMatch) {
             console.log(`[Login] Login exitoso para: ${email}`);
+
+            const roleNameMap = {
+                1: 'Administrador',
+                2: 'Jefe de Carrera',
+                3: 'Estudiante'
+            };
+
             res.status(200).json({
                 message: "Login exitoso",
                 user: { 
                     id: user.IdUsuario, 
                     nombre: user.NombreCompleto, 
                     rol: user.IdRol,
-                    numeroCuenta: user.NumeroCuenta // AGREGAMOS ESTO
+                    rolNombre: roleNameMap[user.IdRol] || 'Usuario',
+                    numeroCuenta: user.NumeroCuenta,
+                    correoInstitucional: user.CorreoInstitucional,
+                    fechaCreacion: user.FechaCreacion
                 }
             });
         } else {
@@ -53,4 +63,46 @@ async function login(req, res) {
     }
 }
 
-module.exports = { login };
+async function getUserById(req, res) {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ message: 'Id de usuario inválido' });
+    }
+
+    try {
+        const pool = await poolPromise;
+        const result = await pool.request()
+            .input('id', sql.Int, id)
+            .query(`
+                SELECT IdUsuario, NombreCompleto, CorreoInstitucional, IdRol, NumeroCuenta, FechaCreacion
+                FROM Usuarios
+                WHERE IdUsuario = @id
+            `);
+
+        const user = result.recordset[0];
+        if (!user) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+
+        const roleNameMap = {
+            1: 'Administrador',
+            2: 'Jefe de Carrera',
+            3: 'Estudiante'
+        };
+
+        return res.status(200).json({
+            id: user.IdUsuario,
+            nombre: user.NombreCompleto,
+            rol: user.IdRol,
+            rolNombre: roleNameMap[user.IdRol] || 'Usuario',
+            numeroCuenta: user.NumeroCuenta,
+            correoInstitucional: user.CorreoInstitucional,
+            fechaCreacion: user.FechaCreacion
+        });
+    } catch (err) {
+        console.error(`[Auth] Error obteniendo usuario por id: ${err.message}`);
+        return res.status(500).json({ message: 'Error interno del servidor' });
+    }
+}
+
+module.exports = { login, getUserById };

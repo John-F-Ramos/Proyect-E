@@ -4,6 +4,7 @@ const alumnosController = require('../controllers/alumnosController');
 
 // Rutas existentes
 router.get('/', alumnosController.getAllAlumnos);
+router.get('/visibles/:idUsuario', alumnosController.getVisibleAlumnos);
 router.get('/:cuenta/dashboard', alumnosController.getAlumnoDashboard);
 router.get('/:cuenta/pendientes', alumnosController.getMateriasPendientes);
 router.get('/:cuenta/resumen', alumnosController.getResumenEstados);

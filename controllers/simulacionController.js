@@ -16,23 +16,44 @@ const ELECTIVAS_MAP = {
 
 exports.calcularSimulacion = async (req, res) => {
     try {
-        const { cuenta, carreraDestino } = req.body;
+        const { cuenta, carreraDestino, idPlanDestino } = req.body;
         const pool = await poolPromise;
 
-        // 1. Obtener el plan de la carrera destino (el más reciente)
-        const planDestinoResult = await pool.request()
-            .input('codigoCarrera', sql.VarChar, carreraDestino)
-            .query(`
-                SELECT TOP 1 p.IdPlan, p.NombrePlan, p.AnioPlan,
-                       COUNT(pm.CodigoMateria) AS TotalMaterias,
-                       ISNULL(SUM(m.UVS), 0) AS TotalUVS
-                FROM PlanesEstudio p
-                LEFT JOIN Pensum_Materias pm ON p.IdPlan = pm.IdPlan
-                LEFT JOIN Materias m ON pm.CodigoMateria = m.CodigoMateria
-                WHERE p.CodigoCarrera = @codigoCarrera
-                GROUP BY p.IdPlan, p.NombrePlan, p.AnioPlan
-                ORDER BY p.AnioPlan DESC
-            `);
+        // 1. Obtener el plan destino (por IdPlan seleccionado o carrera legacy)
+        let planDestinoResult;
+        const planId = Number(idPlanDestino);
+        if (Number.isInteger(planId) && planId > 0) {
+            planDestinoResult = await pool.request()
+                .input('idPlan', sql.Int, planId)
+                .query(`
+                    SELECT 
+                        p.IdPlan, p.NombrePlan, p.AnioPlan, p.CodigoCarrera, c.NombreCarrera,
+                        COUNT(pm.CodigoMateria) AS TotalMaterias,
+                        ISNULL(SUM(m.UVS), 0) AS TotalUVS
+                    FROM PlanesEstudio p
+                    LEFT JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
+                    LEFT JOIN Pensum_Materias pm ON p.IdPlan = pm.IdPlan
+                    LEFT JOIN Materias m ON pm.CodigoMateria = m.CodigoMateria
+                    WHERE p.IdPlan = @idPlan
+                    GROUP BY p.IdPlan, p.NombrePlan, p.AnioPlan, p.CodigoCarrera, c.NombreCarrera
+                `);
+        } else {
+            planDestinoResult = await pool.request()
+                .input('codigoCarrera', sql.VarChar, carreraDestino)
+                .query(`
+                    SELECT TOP 1 
+                        p.IdPlan, p.NombrePlan, p.AnioPlan, p.CodigoCarrera, c.NombreCarrera,
+                        COUNT(pm.CodigoMateria) AS TotalMaterias,
+                        ISNULL(SUM(m.UVS), 0) AS TotalUVS
+                    FROM PlanesEstudio p
+                    LEFT JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
+                    LEFT JOIN Pensum_Materias pm ON p.IdPlan = pm.IdPlan
+                    LEFT JOIN Materias m ON pm.CodigoMateria = m.CodigoMateria
+                    WHERE p.CodigoCarrera = @codigoCarrera
+                    GROUP BY p.IdPlan, p.NombrePlan, p.AnioPlan, p.CodigoCarrera, c.NombreCarrera
+                    ORDER BY p.AnioPlan DESC
+                `);
+        }
 
         if (planDestinoResult.recordset.length === 0) {
             return res.status(404).json({ error: 'Plan de destino no encontrado' });
@@ -177,7 +198,11 @@ exports.calcularSimulacion = async (req, res) => {
 
         res.json({
             planDestino: {
+                idPlan: planDestino.IdPlan,
+                codigoCarrera: planDestino.CodigoCarrera,
+                nombreCarrera: planDestino.NombreCarrera,
                 nombre: planDestino.NombrePlan,
+                anioPlan: planDestino.AnioPlan,
                 totalMaterias: planDestino.TotalMaterias,
                 totalUvs: planDestino.TotalUVS
             },

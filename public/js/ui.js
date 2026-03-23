@@ -470,14 +470,12 @@ const UI = (() => {
         elements.uploadResponse?.classList.add('hidden');
         if (elements.progressBar) elements.progressBar.style.width = '0%';
         
-        // Simular progreso con curva de aceleración mejorada
+        // Simular progreso visual mientras responde el backend.
         let progress = 0;
-        
         const progressInterval = setInterval(() => {
-            // Curva de progreso más natural (ease-out cuadrático)
-            const target = 100;
+            const target = 85;
             const increment = Math.max(0.5, (target - progress) / 20);
-            progress = Math.min(100, progress + increment);
+            progress = Math.min(target, progress + increment);
             
             if (elements.progressBar) {
                 elements.progressBar.style.width = progress + '%';
@@ -485,34 +483,81 @@ const UI = (() => {
             if (elements.progressPercent) {
                 elements.progressPercent.textContent = Math.floor(progress) + '%';
             }
-            
-            if (progress >= 100) {
-                clearInterval(progressInterval);
-                
-                // Animación de completado
-                setTimeout(() => {
-                    elements.progressContainer?.classList.add('hidden');
-                    if (elements.responseMessage) {
-                        const records = Math.floor(Math.random() * 300) + 100;
-                        elements.responseMessage.innerHTML = `
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center">
-                                    <i class="fas fa-check-circle text-green-500 mr-2 animate-bounce-slow"></i>
-                                    <span class="text-gray-700">¡Procesado exitosamente!</span>
-                                </div>
-                                <span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
-                                    ${records} registros
-                                </span>
-                            </div>
-                        `;
-                    }
-                    elements.uploadResponse?.classList.remove('hidden');
-                    
-                    // Celebrar con confeti virtual mejorado
-                    celebrate();
-                }, 500);
-            }
         }, 40);
+
+        try {
+            const formData = new FormData();
+            formData.append('archivoCatalogo', file);
+
+            const response = await fetch('/api/catalogos/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const payload = await response.json().catch(() => ({}));
+
+            clearInterval(progressInterval);
+            progress = 100;
+            if (elements.progressBar) {
+                elements.progressBar.style.width = '100%';
+            }
+            if (elements.progressPercent) {
+                elements.progressPercent.textContent = '100%';
+            }
+
+            if (!response.ok) {
+                elements.progressContainer?.classList.add('hidden');
+                showUploadError(payload);
+                return;
+            }
+
+            setTimeout(() => {
+                elements.progressContainer?.classList.add('hidden');
+                if (elements.responseMessage) {
+                    const rows = payload.filasProcesadas || payload.recordsProcessed || 0;
+                    elements.responseMessage.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <i class="fas fa-check-circle text-green-500 mr-2 animate-bounce-slow"></i>
+                                <span class="text-gray-700">¡Procesado exitosamente!</span>
+                            </div>
+                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
+                                ${rows} registros
+                            </span>
+                        </div>
+                    `;
+                }
+                elements.uploadResponse?.classList.remove('hidden');
+                celebrate();
+            }, 300);
+        } catch (error) {
+            clearInterval(progressInterval);
+            elements.progressContainer?.classList.add('hidden');
+            showError('No se pudo conectar con el servidor para procesar la carga.', 'error');
+        }
+    };
+
+    const showUploadError = (payload) => {
+        if (!payload || typeof payload !== 'object') {
+            showError('La carga fallo. Verifica el archivo e intenta de nuevo.', 'error');
+            return;
+        }
+
+        if (payload.error === 'VALIDATION_FAILED' && Array.isArray(payload.missingHeaders) && payload.missingHeaders.length > 0) {
+            const readableHeaders = payload.missingHeaders.map((h) => h.replaceAll('_', ' '));
+            showError(`Faltan columnas obligatorias en la plantilla: ${readableHeaders.join(', ')}.`, 'warning');
+            return;
+        }
+
+        if (payload.error === 'VALIDATION_FAILED' && Array.isArray(payload.errors) && payload.errors.length > 0) {
+            const first = payload.errors[0];
+            const row = first.rowNumber ? `fila ${first.rowNumber}` : 'una fila';
+            const detail = first.message || 'Error de formato en la plantilla';
+            showError(`Se detecto un error en ${row}: ${detail}.`, 'warning');
+            return;
+        }
+
+        showError(payload.error || 'La carga fallo. Verifica el archivo e intenta de nuevo.', 'error');
     };
 
     // Celebración mejorada

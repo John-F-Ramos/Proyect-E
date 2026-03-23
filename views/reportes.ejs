@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="/js/auth-guard.js"></script>
+    <script src="/js/student-search-combobox.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
@@ -133,6 +134,16 @@
             <div>
                 <h1 class="text-2xl font-bold text-slate-800">Reporte de Avance Académico</h1>
                 <p class="text-sm text-slate-500 mt-1" id="subtituloReporte">Cargando información del estudiante...</p>
+                <div id="selectorAlumnoWrap" class="hidden mt-3 max-w-md">
+                    <label for="alumnoReporteInput" class="block text-xs font-semibold text-slate-500 mb-1">
+                        Alumno para reporte
+                    </label>
+                    <div class="student-search-wrap relative min-w-[250px]">
+                        <input type="text" id="alumnoReporteInput" placeholder="Buscar alumno..." autocomplete="off"
+                            class="bg-white border text-sm rounded-lg border-gray-300 focus:ring-[#B20000] focus:border-[#B20000] block p-2.5 text-slate-600 shadow-sm w-full placeholder-gray-400">
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">Como jefe de carrera puedes cambiar el alumno y generar su reporte.</p>
+                </div>
             </div>
             <div class="flex gap-3">
                 <button onclick="exportarPDF()" class="bg-[#B20000] text-white px-4 py-2 rounded-lg hover:bg-red-800 transition flex items-center shadow-md">
@@ -141,6 +152,30 @@
                 <button onclick="window.print()" class="bg-white border border-gray-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition flex items-center">
                     <i class="fas fa-print mr-2"></i> Imprimir
                 </button>
+                <div class="relative inline-block text-left" id="profileWidget">
+                    <button type="button"
+                        class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000] hover:bg-red-200 transition focus:outline-none"
+                        id="profileDropdownBtn">
+                        <i class="fas fa-user"></i>
+                    </button>
+                    <div id="profileDropdown"
+                        class="hidden absolute right-0 mt-2 w-56 origin-top-right rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none z-[100] border border-gray-100">
+                        <div class="p-4 border-b border-gray-100">
+                            <p class="text-sm font-bold text-slate-800 truncate" id="dropdownUserName">Nombre Usuario</p>
+                            <p class="text-xs text-slate-500 mt-0.5" id="dropdownUserRole">Rol Usuario</p>
+                        </div>
+                        <div class="py-2">
+                            <a href="/perfil"
+                                class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition group">
+                                <i class="fas fa-user-circle mr-3 text-slate-400 group-hover:text-[#B20000]"></i> Mi Perfil
+                            </a>
+                            <button onclick="localStorage.removeItem('user'); window.location.href='/';"
+                                class="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition group">
+                                <i class="fas fa-sign-out-alt mr-3 text-red-400 group-hover:text-red-600"></i> Cerrar Sesión
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -312,6 +347,7 @@
         let graficoAvance = null;
         let materiasAprobadasHistorial = [];
         let materiasEnCursoList = [];
+        let cuentaSeleccionadaReporte = null;
 
         // Obtener usuario actual
         function getUsuarioActual() {
@@ -326,22 +362,65 @@
             }
         }
 
+        function esRolGestion() {
+            return usuarioActual && (usuarioActual.rol === 1 || usuarioActual.rol === 2);
+        }
+
+        function obtenerNombreRol(rol) {
+            if (rol === 1) return 'Administrador';
+            if (rol === 2) return 'Jefe de Carrera';
+            return 'Estudiante';
+        }
+
+        function inicializarProfileWidget() {
+            const profileDropdownBtn = document.getElementById('profileDropdownBtn');
+            const profileDropdown = document.getElementById('profileDropdown');
+            const dropdownUserName = document.getElementById('dropdownUserName');
+            const dropdownUserRole = document.getElementById('dropdownUserRole');
+            if (!profileDropdownBtn || !profileDropdown) return;
+
+            if (dropdownUserName) dropdownUserName.textContent = usuarioActual?.nombre || 'Usuario';
+            if (dropdownUserRole) dropdownUserRole.textContent = obtenerNombreRol(usuarioActual?.rol);
+
+            profileDropdownBtn.onclick = (e) => {
+                e.stopPropagation();
+                profileDropdown.classList.toggle('hidden');
+            };
+
+            window.addEventListener('click', () => {
+                if (!profileDropdown.classList.contains('hidden')) {
+                    profileDropdown.classList.add('hidden');
+                }
+            });
+        }
+
         // Cargar datos del dashboard
-        async function cargarDatosDashboard() {
-            if (!usuarioActual || !usuarioActual.numeroCuenta) {
-                document.getElementById('subtituloReporte').textContent = 'Error: No hay sesión activa';
+        async function cargarDatosDashboard(cuentaObjetivo) {
+            if (!usuarioActual) {
+                document.getElementById('subtituloReporte').textContent = 'Error: No hay sesión activa.';
                 return;
             }
 
+            const cuenta = (cuentaObjetivo || '').toString().trim();
+            if (!cuenta) {
+                document.getElementById('subtituloReporte').textContent = esRolGestion()
+                    ? `Perfil ${obtenerNombreRol(usuarioActual.rol)}: selecciona un alumno para generar el reporte.`
+                    : 'Error: no se pudo identificar tu número de cuenta.';
+                return;
+            }
+
+            cuentaSeleccionadaReporte = cuenta;
+
             try {
-                const response = await fetch(`/api/alumnos/${usuarioActual.numeroCuenta}/dashboard`);
+                const response = await fetch(`/api/alumnos/${cuenta}/dashboard`);
                 if (!response.ok) throw new Error('Error al cargar dashboard');
                 
                 dashboardData = await response.json();
                 document.getElementById('subtituloReporte').innerHTML = `
                     <span class="font-semibold">${dashboardData.alumno.NombreCompleto}</span> • 
                     ${dashboardData.alumno.NombreCarrera} • 
-                    Plan ${dashboardData.alumno.NombrePlan} (${dashboardData.alumno.AnioPlan})
+                    Plan ${dashboardData.alumno.NombrePlan} (${dashboardData.alumno.AnioPlan}) • 
+                    Perfil: ${obtenerNombreRol(usuarioActual.rol)}
                 `;
 
                 // Preparar listas auxiliares para electivas
@@ -368,6 +447,64 @@
             } catch (error) {
                 console.error('Error:', error);
                 document.getElementById('subtituloReporte').textContent = 'Error al cargar datos';
+            }
+        }
+
+        async function inicializarSelectorAlumnos() {
+            const wrap = document.getElementById('selectorAlumnoWrap');
+            const input = document.getElementById('alumnoReporteInput');
+            if (!wrap || !input) return;
+
+            wrap.classList.remove('hidden');
+
+            try {
+                let alumnos = [];
+                const idUsuario = usuarioActual?.id;
+                if (idUsuario) {
+                    const resVisibles = await fetch(`/api/alumnos/visibles/${idUsuario}`);
+                    if (resVisibles.ok) {
+                        alumnos = await resVisibles.json();
+                    }
+                }
+
+                // Fallback de compatibilidad si no existe perfil visible.
+                if (!Array.isArray(alumnos) || alumnos.length === 0) {
+                    const resAll = await fetch('/api/alumnos');
+                    if (resAll.ok) {
+                        alumnos = await resAll.json();
+                    }
+                }
+
+                if (!Array.isArray(alumnos) || alumnos.length === 0) {
+                    document.getElementById('subtituloReporte').textContent = 'No hay alumnos disponibles para generar reportes.';
+                    return;
+                }
+
+                if (typeof window.initStudentSearchCombobox === 'function') {
+                    window.initStudentSearchCombobox({
+                        input,
+                        getAlumnos: () => alumnos,
+                        onSelect: async (alumno) => {
+                            const cuenta = (alumno && alumno.NumeroCuenta) ? alumno.NumeroCuenta : '';
+                            if (cuenta) {
+                                await cargarDatosDashboard(cuenta);
+                            }
+                        },
+                        onClear: () => {
+                            cuentaSeleccionadaReporte = null;
+                            document.getElementById('subtituloReporte').textContent =
+                                `Perfil ${obtenerNombreRol(usuarioActual.rol)}: selecciona un alumno para generar el reporte.`;
+                        },
+                    });
+                }
+
+                // No autoseleccionar alumno: el jefe/admin elige explícitamente.
+                input.value = '';
+                document.getElementById('subtituloReporte').textContent =
+                    `Perfil ${obtenerNombreRol(usuarioActual.rol)}: selecciona un alumno para generar el reporte.`;
+            } catch (error) {
+                console.error('Error al cargar alumnos para reportes:', error);
+                document.getElementById('subtituloReporte').textContent = 'No se pudo cargar la lista de alumnos.';
             }
         }
 
@@ -714,7 +851,7 @@
 
             const opciones = {
                 margin: [0.5, 0.5, 0.5, 0.5],
-                filename: `Reporte_Avance_${usuarioActual?.numeroCuenta || 'CEUTEC'}.pdf`,
+                filename: `Reporte_Avance_${cuentaSeleccionadaReporte || usuarioActual?.numeroCuenta || 'CEUTEC'}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, letterRendering: true },
                 jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
@@ -734,10 +871,22 @@
         // Inicialización
         document.addEventListener('DOMContentLoaded', () => {
             getUsuarioActual();
+            if (!usuarioActual) {
+                document.getElementById('subtituloReporte').textContent = 'Por favor, inicia sesión.';
+                return;
+            }
+
+            inicializarProfileWidget();
+
+            if (esRolGestion()) {
+                inicializarSelectorAlumnos();
+                return;
+            }
+
             if (usuarioActual?.numeroCuenta) {
-                cargarDatosDashboard();
+                cargarDatosDashboard(usuarioActual.numeroCuenta);
             } else {
-                document.getElementById('subtituloReporte').textContent = 'Por favor, inicia sesión';
+                document.getElementById('subtituloReporte').textContent = 'Tu perfil no tiene número de cuenta asociado.';
             }
         });
     </script>

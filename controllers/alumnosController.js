@@ -14,6 +14,15 @@ const ELECTIVAS_MAP = {
     'EIE8': { prefijo: 'ING', tipo: 'Inglés VIII', materiaBase: 'ING116' }
 };
 
+function normalizeText(value) {
+    return (value || '')
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
 // Obtener lista ligera de alumnos para el dropdown
 exports.getAllAlumnos = async (req, res) => {
     try {
@@ -28,6 +37,77 @@ exports.getAllAlumnos = async (req, res) => {
     } catch (error) {
         console.error('Error al obtener lista de alumnos:', error);
         res.status(500).json({ error: 'Error interno del servidor al obtener alumnos.' });
+    }
+};
+
+// Obtener alumnos visibles por perfil de usuario (admin/jefe/alumno)
+exports.getVisibleAlumnos = async (req, res) => {
+    try {
+        const { idUsuario } = req.params;
+        const pool = await poolPromise;
+
+        const userResult = await pool.request()
+            .input('idUsuario', sql.Int, Number(idUsuario))
+            .query(`
+                SELECT IdUsuario, IdRol, NumeroCuenta, CorreoInstitucional
+                FROM Usuarios
+                WHERE IdUsuario = @idUsuario
+            `);
+
+        if (!userResult.recordset.length) {
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
+        }
+
+        const user = userResult.recordset[0];
+
+        const alumnosResult = await pool.request().query(`
+            SELECT
+                a.NumeroCuenta,
+                a.NombreCompleto,
+                c.CodigoCarrera,
+                c.NombreCarrera
+            FROM Alumnos a
+            LEFT JOIN PlanesEstudio p ON a.IdPlanActual = p.IdPlan
+            LEFT JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
+            ORDER BY a.NombreCompleto ASC
+        `);
+
+        const alumnos = alumnosResult.recordset;
+
+        // Administrador: ve todos los alumnos.
+        if (user.IdRol === 1) {
+            return res.status(200).json(alumnos);
+        }
+
+        // Alumno: solo su cuenta.
+        if (user.IdRol === 3) {
+            const cuenta = (user.NumeroCuenta || '').toString().trim();
+            const own = alumnos.filter((a) => (a.NumeroCuenta || '').toString().trim() === cuenta);
+            return res.status(200).json(own);
+        }
+
+        // Jefe de carrera: filtrar por palabras clave del correo institucional.
+        // Ej: jefe.logistica@... -> token "logistica" debe coincidir con NombreCarrera.
+        const localPart = ((user.CorreoInstitucional || '').split('@')[0] || '').toLowerCase();
+        const rawTokens = localPart.split(/[.\-_]/g).map((t) => t.trim()).filter(Boolean);
+        const excluded = new Set(['jefe', 'coord', 'coordinador', 'admin', 'administrador']);
+        const tokens = rawTokens.filter((t) => !excluded.has(t) && t.length >= 3);
+
+        if (!tokens.length) {
+            return res.status(200).json(alumnos);
+        }
+
+        const visible = alumnos.filter((alumno) => {
+            const carrera = normalizeText(alumno.NombreCarrera);
+            const codigo = normalizeText(alumno.CodigoCarrera);
+            return tokens.some((token) => carrera.includes(normalizeText(token)) || codigo.includes(normalizeText(token)));
+        });
+
+        // Si no hubo match por correo, devolver lista general para no bloquear operación.
+        return res.status(200).json(visible.length ? visible : alumnos);
+    } catch (error) {
+        console.error('Error al obtener alumnos visibles por perfil:', error);
+        return res.status(500).json({ error: 'Error interno del servidor al obtener alumnos visibles.' });
     }
 };
 

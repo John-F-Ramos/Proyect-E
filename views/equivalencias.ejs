@@ -116,9 +116,29 @@
                     class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center justify-center">
                     <i class="fas fa-plus-circle mr-2"></i> Solicitar Equivalencia
                 </button>
-                <div
-                    class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000] flex-shrink-0">
-                    <i class="fas fa-user"></i>
+                <div class="relative inline-block text-left" id="profileWidget">
+                    <button type="button"
+                        class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000] hover:bg-red-200 transition focus:outline-none"
+                        id="profileDropdownBtn">
+                        <i class="fas fa-user"></i>
+                    </button>
+                    <div id="profileDropdown"
+                        class="hidden absolute right-0 mt-2 w-56 origin-top-right rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none z-[100] border border-gray-100">
+                        <div class="p-4 border-b border-gray-100">
+                            <p class="text-sm font-bold text-slate-800 truncate" id="dropdownUserName">Nombre Usuario</p>
+                            <p class="text-xs text-slate-500 mt-0.5" id="dropdownUserRole">Rol Usuario</p>
+                        </div>
+                        <div class="py-2">
+                            <a href="/perfil"
+                                class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition group">
+                                <i class="fas fa-user-circle mr-3 text-slate-400 group-hover:text-[#B20000]"></i> Mi Perfil
+                            </a>
+                            <button onclick="localStorage.removeItem('user'); window.location.href='/';"
+                                class="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition group">
+                                <i class="fas fa-sign-out-alt mr-3 text-red-400 group-hover:text-red-600"></i> Cerrar Sesión
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
@@ -199,13 +219,15 @@
                     <label class="block text-sm font-medium text-slate-700 mb-2">Carrera Actual</label>
                     <input type="text" id="carreraActual"
                         class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-slate-50 text-slate-600 font-medium" readonly>
+                    <p class="text-[10px] text-transparent mt-1 select-none">.</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Carrera Destino</label>
-                    <select id="carreraDestino"
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Plan Destino</label>
+                    <select id="planDestino"
                         class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-[#B20000] focus:border-[#B20000]">
-                        <option value="">Selecciona una carrera</option>
+                        <option value="">Selecciona un plan</option>
                     </select>
+                    <p class="text-[10px] text-transparent mt-1 select-none">.</p>
                 </div>
                 <div>
                     <button id="btnCalcularSimulacion"
@@ -492,6 +514,34 @@
         const userAccount = userFromStorage.numeroCuenta || '';
         const userNombre = userFromStorage.nombre || '';
 
+        function nombreRol(rol) {
+            if (rol === 1) return 'Administrador';
+            if (rol === 2) return 'Jefe de Carrera';
+            return 'Estudiante';
+        }
+
+        function inicializarProfileWidget() {
+            const profileDropdownBtn = document.getElementById('profileDropdownBtn');
+            const profileDropdown = document.getElementById('profileDropdown');
+            const dropdownUserName = document.getElementById('dropdownUserName');
+            const dropdownUserRole = document.getElementById('dropdownUserRole');
+            if (!profileDropdownBtn || !profileDropdown) return;
+
+            if (dropdownUserName) dropdownUserName.textContent = userNombre || 'Usuario';
+            if (dropdownUserRole) dropdownUserRole.textContent = userFromStorage.rolNombre || nombreRol(userFromStorage.rol);
+
+            profileDropdownBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                profileDropdown.classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!profileDropdown.classList.contains('hidden') && !profileDropdown.contains(e.target) && e.target !== profileDropdownBtn) {
+                    profileDropdown.classList.add('hidden');
+                }
+            });
+        }
+
         // Elementos del DOM
         const tabAprobadas = document.getElementById('tabAprobadas');
         const tabPendientes = document.getElementById('tabPendientes');
@@ -511,14 +561,14 @@
         const btnCerrarSimulacion = document.getElementById('btnCerrarSimulacion');
         const btnCancelarSimulacion = document.getElementById('btnCancelarSimulacion');
         const carreraActual = document.getElementById('carreraActual');
-        const carreraDestino = document.getElementById('carreraDestino');
+        const planDestino = document.getElementById('planDestino');
         const btnCalcular = document.getElementById('btnCalcularSimulacion');
         const resultadosSimulacion = document.getElementById('resultadosSimulacion');
         const btnDescargarSimulacion = document.getElementById('btnDescargarSimulacion');
 
         let equivalenciasData = [];
         let chart = null;
-        let carrerasData = [];
+        let planesData = [];
         let historialMaterias = [];
         let simAccountSeleccionado = ''; // cuenta del alumno elegido en el simulador
         let alumnosListData = []; // lista global de alumnos
@@ -555,19 +605,19 @@
             try {
                 // 1. CARGAR DATOS GLOBALES (Requeridos por Admin y Alumnos)
                 
-                // Cargar carreras para el simulador
-                const resCarreras = await fetch('/api/catalogos/carreras');
-                if (resCarreras.ok) {
-                    carrerasData = await resCarreras.json();
-                    
-                    // Llenar selector de carreras destino
-                    if (carreraDestino) {
-                        carreraDestino.innerHTML = '<option value="">Selecciona una carrera</option>';
-                        carrerasData.forEach(c => {
+                // Cargar planes para el simulador
+                const resPlanes = await fetch('/api/catalogos/planes');
+                if (resPlanes.ok) {
+                    planesData = await resPlanes.json();
+
+                    // Llenar selector de plan destino
+                    if (planDestino) {
+                        planDestino.innerHTML = '<option value="">Selecciona un plan</option>';
+                        planesData.forEach(p => {
                             const option = document.createElement('option');
-                            option.value = c.CodigoCarrera;
-                            option.textContent = `${c.CodigoCarrera} - ${c.NombreCarrera}`;
-                            carreraDestino.appendChild(option);
+                            option.value = p.IdPlan;
+                            option.textContent = `${p.CodigoCarrera} - ${p.NombreCarrera} - ${p.AnioPlan}`;
+                            planDestino.appendChild(option);
                         });
                     }
                 }
@@ -690,9 +740,9 @@
 
         // Calcular simulación
         btnCalcular.addEventListener('click', async () => {
-            const destino = carreraDestino.value;
+            const destino = planDestino.value;
             if (!destino) {
-                alert('Selecciona una carrera destino');
+                alert('Selecciona un plan destino');
                 return;
             }
 
@@ -708,7 +758,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         cuenta: cuentaSimulacion,
-                        carreraDestino: destino
+                        idPlanDestino: Number(destino)
                     })
                 });
 
@@ -939,6 +989,7 @@
         }
 
         // Inicialización
+        inicializarProfileWidget();
         cargarDatosIniciales();
     </script>
 </body>

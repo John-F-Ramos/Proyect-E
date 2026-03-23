@@ -144,6 +144,81 @@
         .btn-descargar i {
             font-size: 1rem;
         }
+
+        .btn-min {
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            color: #334155;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-min:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .btn-min-primary {
+            border-color: #bfdbfe;
+            color: #1d4ed8;
+            background: #eff6ff;
+        }
+
+        .btn-min-primary:hover {
+            background: #dbeafe;
+            border-color: #93c5fd;
+        }
+
+        .btn-min-success {
+            border-color: #bbf7d0;
+            color: #166534;
+            background: #f0fdf4;
+        }
+
+        .btn-min-success:hover {
+            background: #dcfce7;
+            border-color: #86efac;
+        }
+
+        .btn-min-cancel {
+            border-color: #e2e8f0;
+            color: #475569;
+            background: #f8fafc;
+        }
+
+        .btn-min-danger {
+            border-color: #fecaca;
+            color: #b91c1c;
+            background: #fef2f2;
+        }
+
+        .btn-min-danger:hover {
+            background: #fee2e2;
+            border-color: #fca5a5;
+        }
+
+        .action-menu {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            z-index: 30;
+            min-width: 180px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+            padding: 8px;
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .action-menu.open {
+            display: flex;
+        }
     </style>
 </head>
 
@@ -206,6 +281,30 @@
                     class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center">
                     <i class="fas fa-file-excel mr-2"></i> Importar Catálogos
                 </button>
+                <div class="relative inline-block text-left" id="profileWidget">
+                    <button type="button"
+                        class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000] hover:bg-red-200 transition focus:outline-none"
+                        id="profileDropdownBtn">
+                        <i class="fas fa-user"></i>
+                    </button>
+                    <div id="profileDropdown"
+                        class="hidden absolute right-0 mt-2 w-56 origin-top-right rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none z-[100] border border-gray-100">
+                        <div class="p-4 border-b border-gray-100">
+                            <p class="text-sm font-bold text-slate-800 truncate" id="dropdownUserName">Nombre Usuario</p>
+                            <p class="text-xs text-slate-500 mt-0.5" id="dropdownUserRole">Rol Usuario</p>
+                        </div>
+                        <div class="py-2">
+                            <a href="/perfil"
+                                class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition group">
+                                <i class="fas fa-user-circle mr-3 text-slate-400 group-hover:text-[#B20000]"></i> Mi Perfil
+                            </a>
+                            <button onclick="localStorage.removeItem('user'); window.location.href='/';"
+                                class="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition group">
+                                <i class="fas fa-sign-out-alt mr-3 text-red-400 group-hover:text-red-600"></i> Cerrar Sesión
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -219,6 +318,9 @@
                 </button>
                 <button onclick="switchTab('pensum')" id="tab-pensum" class="pb-3 tab-inactive transition">
                     Planes de Estudio (Pensum)
+                </button>
+                <button onclick="switchTab('templates')" id="tab-templates" class="pb-3 tab-inactive transition">
+                    Plantillas de Carga
                 </button>
             </div>
 
@@ -235,11 +337,12 @@
                                     <th scope="col" class="px-6 py-4 text-center">Total Materias</th>
                                     <th scope="col" class="px-6 py-4 text-center">Total UVs</th>
                                     <th scope="col" class="px-6 py-4 text-center">Año</th>
+                                    <th scope="col" class="px-6 py-4 text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="carrerasBody" class="divide-y divide-gray-100">
                                 <tr>
-                                    <td colspan="6" class="px-6 py-4 text-center">Cargando carreras...</td>
+                                    <td colspan="7" class="px-6 py-4 text-center">Cargando carreras...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -257,11 +360,12 @@
                                     <th scope="col" class="px-6 py-4">UVs</th>
                                     <th scope="col" class="px-6 py-4">Carrera</th>
                                     <th scope="col" class="px-6 py-4">Año Plan</th>
+                                    <th scope="col" class="px-6 py-4 text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="materiasBody" class="divide-y divide-gray-100">
                                 <tr>
-                                    <td colspan="5" class="px-6 py-4 text-center">Cargando materias...</td>
+                                    <td colspan="6" class="px-6 py-4 text-center">Cargando materias...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -278,14 +382,81 @@
                                     <th scope="col" class="px-6 py-4">Código Carrera</th>
                                     <th scope="col" class="px-6 py-4">Año Plan</th>
                                     <th scope="col" class="px-6 py-4">Nombre Plan</th>
+                                    <th scope="col" class="px-6 py-4 text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="pensumBody" class="divide-y divide-gray-100">
                                 <tr>
-                                    <td colspan="4" class="px-6 py-4 text-center">Cargando planes...</td>
+                                    <td colspan="5" class="px-6 py-4 text-center">Cargando planes...</td>
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- PANEL TEMPLATES -->
+                <div id="panel-templates" class="hidden p-6">
+                    <div class="mb-5 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-3">
+                        <i class="fas fa-folder-open mr-2"></i>
+                        Ruta en servidor para plantillas personalizadas:
+                        <code class="font-semibold">public/templates/</code>
+                        (nombres esperados: <code>plantilla_pensum.xlsx</code> y <code>plantilla_reglas_equivalencia.xlsx</code>).
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-slate-800">Plantilla de Pensum</h3>
+                                    <p class="text-sm text-slate-500 mt-1">
+                                        Descarga el formato oficial para carga masiva de plan de estudio.
+                                    </p>
+                                </div>
+                                <i class="fas fa-file-excel text-2xl text-[#B20000]"></i>
+                            </div>
+                            <div class="mt-4 text-xs text-slate-600 bg-slate-50 rounded-lg p-3">
+                                <strong>Columnas obligatorias:</strong><br>
+                                Codigo_Carrera, Anio_Plan, Codigo_Clase, Nombre_Clase, UV
+                            </div>
+                            <a href="/api/catalogos/templates/pensum"
+                                class="mt-5 inline-flex items-center bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition">
+                                <i class="fas fa-download mr-2"></i> Descargar plantilla
+                            </a>
+                        </div>
+
+                        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-slate-800">Plantilla de Reglas de Equivalencia</h3>
+                                    <p class="text-sm text-slate-500 mt-1">
+                                        Descarga el formato oficial para reglas internas y externas.
+                                    </p>
+                                </div>
+                                <i class="fas fa-scale-balanced text-2xl text-[#B20000]"></i>
+                            </div>
+                            <div class="mt-4 text-xs text-slate-600 bg-slate-50 rounded-lg p-3">
+                                <strong>Columnas obligatorias:</strong><br>
+                                Tipo_Equivalencia, Universidad_Origen, Codigo_Origen, Codigo_Destino, Condicion
+                            </div>
+                            <a href="/api/catalogos/templates/reglas-equivalencia"
+                                class="mt-5 inline-flex items-center bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition">
+                                <i class="fas fa-download mr-2"></i> Descargar plantilla
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-5">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                            <div>
+                                <h3 class="text-base font-semibold text-slate-800">Prueba: convertir PDF de pensum a plantilla</h3>
+                                <p class="text-sm text-slate-500">
+                                    Sube un PDF de pensum y descarga un Excel listo para cargar en formato oficial.
+                                </p>
+                            </div>
+                            <button onclick="openModal('convertPdfModal')"
+                                class="inline-flex items-center bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-700 transition">
+                                <i class="fas fa-file-pdf mr-2"></i> Convertir PDF a XLSX
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -322,6 +493,67 @@
                     Importar y Procesar
                 </button>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal Convertir PDF de Pensum -->
+    <div id="convertPdfModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 transform transition-all">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-slate-800">Convertir PDF a plantilla</h3>
+                <button onclick="closeModal('convertPdfModal')" class="text-slate-400 hover:text-slate-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="convertPdfForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">PDF de Pensum</label>
+                    <input type="file" id="pensumPdfInput" accept=".pdf" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Codigo Carrera (opcional)</label>
+                        <input type="text" id="pdfCodigoCarrera" placeholder="Ej: I-09"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Anio Plan (opcional)</label>
+                        <input type="number" id="pdfAnioPlan" placeholder="Ej: 2018"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500">
+                    Si no llenas Carrera/Año, el sistema intenta detectarlos automáticamente desde el PDF.
+                </p>
+                <button type="submit" id="btnConvertPdf"
+                    class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition">
+                    Previsualizar
+                </button>
+            </form>
+
+            <div id="pdfPreviewSection" class="hidden mt-5 border border-slate-200 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="text-sm font-semibold text-slate-700">Previsualización editable</h4>
+                    <div class="space-x-2">
+                        <button type="button" id="btnAddPreviewRow" class="btn-min btn-min-primary">+ Fila</button>
+                        <button type="button" id="btnDownloadPreviewExcel" class="btn-min btn-min-success">Descargar Excel</button>
+                    </div>
+                </div>
+                <div class="max-h-72 overflow-auto border border-slate-200 rounded-lg">
+                    <table class="w-full text-xs text-left text-gray-600">
+                        <thead class="bg-slate-50 text-slate-700 sticky top-0">
+                            <tr>
+                                <th class="px-3 py-2">Código</th>
+                                <th class="px-3 py-2">Nombre Materia</th>
+                                <th class="px-3 py-2 text-center">UV</th>
+                                <th class="px-3 py-2 text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pdfPreviewBody"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -399,6 +631,10 @@
                     <p class="text-sm text-slate-500 mt-1" id="modalPlanSubtitulo"></p>
                 </div>
                 <div class="flex items-center space-x-3">
+                    <button type="button" id="btnModalEditData"
+                        class="btn-min btn-min-primary inline-flex items-center">
+                        <i class="fas fa-pen mr-1"></i> Editar datos
+                    </button>
                     <!-- Botón de Descargar Plan de Estudio -->
                     <a href="#" id="btnDescargarPlan" target="_blank" class="btn-descargar">
                         <i class="fas fa-download"></i>
@@ -412,6 +648,60 @@
             </div>
 
             <div class="overflow-y-auto flex-1 pr-2">
+                <div id="modalEditPlanBox" class="hidden mb-4 bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Código Carrera</label>
+                            <input id="modalEditCodigoCarrera" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Nombre Carrera</label>
+                            <input id="modalEditNombreCarrera" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Nombre Plan</label>
+                            <input id="modalEditNombrePlan" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Año Plan</label>
+                            <input id="modalEditAnioPlan" type="number" min="1"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                    </div>
+                    <div class="mt-3 flex justify-end gap-2">
+                        <button type="button" id="btnModalCancelEdit" class="btn-min btn-min-cancel">Cancelar</button>
+                        <button type="button" id="btnModalSaveEdit" class="btn-min btn-min-success">Guardar cambios</button>
+                    </div>
+                </div>
+
+                <div class="mb-4 bg-white border border-slate-200 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm font-semibold text-slate-700">Agregar materia a este plan</h4>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Materia</label>
+                            <select id="modalAddMateriaSelect"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                                <option value="">Selecciona una materia...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Semestre</label>
+                            <input id="modalAddSemestreInput" type="number" min="1" placeholder="Opcional"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div class="flex items-end">
+                            <button type="button" id="btnModalAddMateria" class="btn-min btn-min-primary w-full">
+                                <i class="fas fa-plus mr-1"></i> Agregar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="mb-4 flex space-x-4 text-sm">
                     <span class="badge-materias" id="modalTotalMaterias">0 materias</span>
                     <span class="badge-uv" id="modalTotalUVs">0 UVs</span>
@@ -424,6 +714,7 @@
                             <th class="px-4 py-3">Materia</th>
                             <th class="px-4 py-3 text-center">UVs</th>
                             <th class="px-4 py-3 text-center">Semestre</th>
+                            <th class="px-4 py-3 text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="modalPlanBody" class="divide-y divide-gray-100">
@@ -485,6 +776,26 @@
         let planesData = [];
         let usuarioActual = null;
         let usuarioPlan = null;
+        const editingCarreraCodes = new Set();
+        const editingMateriaCodes = new Set();
+        const editingPlanIds = new Set();
+        const editingModalMateriaCodes = new Set();
+        let modalPlanContext = null;
+        let modalPlanMaterias = [];
+        let pdfPreviewRows = [];
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function toDomSafe(value) {
+            return String(value ?? '').replace(/[^a-zA-Z0-9_-]/g, '_');
+        }
         // Mapa de URLs de descarga de pensums (escalable)
         const pensumUrls = {
             // Formato: 'codigoCarrera|nombrePlan|año': 'url'
@@ -500,7 +811,7 @@
 
         // Tabs
         function switchTab(tab) {
-            const tabs = ['carreras', 'materias', 'pensum'];
+            const tabs = ['carreras', 'materias', 'pensum', 'templates'];
             tabs.forEach(t => {
                 document.getElementById(`tab-${t}`).className = tab === t ? 'pb-3 tab-active transition' : 'pb-3 tab-inactive transition';
                 const panel = document.getElementById(`panel-${t}`);
@@ -519,6 +830,34 @@
             } catch (e) {
                 console.error('Error al obtener usuario:', e);
             }
+        }
+
+        function nombreRol(rol) {
+            if (rol === 1) return 'Administrador';
+            if (rol === 2) return 'Jefe de Carrera';
+            return 'Estudiante';
+        }
+
+        function inicializarProfileWidget() {
+            const profileDropdownBtn = document.getElementById('profileDropdownBtn');
+            const profileDropdown = document.getElementById('profileDropdown');
+            const dropdownUserName = document.getElementById('dropdownUserName');
+            const dropdownUserRole = document.getElementById('dropdownUserRole');
+            if (!profileDropdownBtn || !profileDropdown) return;
+
+            if (dropdownUserName) dropdownUserName.textContent = usuarioActual?.nombre || 'Usuario';
+            if (dropdownUserRole) dropdownUserRole.textContent = nombreRol(usuarioActual?.rol);
+
+            profileDropdownBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                profileDropdown.classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!profileDropdown.classList.contains('hidden') && !profileDropdown.contains(e.target) && e.target !== profileDropdownBtn) {
+                    profileDropdown.classList.add('hidden');
+                }
+            });
         }
 
         // Obtener el plan de estudio actual del usuario USANDO EL ENDPOINT DASHBOARD
@@ -629,7 +968,7 @@
             tbody.innerHTML = '';
 
             if (!carrerasData || carrerasData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center">No hay carreras registradas.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center">No hay carreras registradas.</td></tr>';
                 return;
             }
 
@@ -638,6 +977,8 @@
 
             // Agrupar planes por carrera
             carrerasData.forEach(carrera => {
+                const carreraCode = carrera.CodigoCarrera;
+                const isEditingCarrera = editingCarreraCodes.has(String(carreraCode));
                 const planesCarrera = planesData.filter(p => p.CodigoCarrera === carrera.CodigoCarrera);
 
                 if (planesCarrera.length === 0) {
@@ -645,11 +986,32 @@
                     tbody.innerHTML += `
                         <tr class="bg-white hover:bg-gray-50 carrera-row" data-codigo="${carrera.CodigoCarrera}">
                             <td class="px-6 py-4 font-medium text-gray-900">${carrera.CodigoCarrera}</td>
-                            <td class="px-6 py-4" colspan="4">
-                                ${carrera.NombreCarrera}
-                                - Sin planes registrados
+                            <td class="px-6 py-4" colspan="2">
+                                ${isEditingCarrera
+                            ? `<input type="text" class="js-carrera-nombre w-full px-2 py-1 border border-blue-300 rounded"
+                                        value="${escapeHtml(carrera.NombreCarrera)}">`
+                            : `${carrera.NombreCarrera} - Sin planes registrados`}
                             </td>
                             <td class="px-6 py-4 text-center">-</td>
+                            <td class="px-6 py-4 text-center">-</td>
+                            <td class="px-6 py-4 text-center">-</td>
+                            <td class="px-6 py-4 text-center">
+                                ${isEditingCarrera
+                            ? `<button class="btn-min btn-min-success btn-save-carrera" data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Guardar</button>
+                                       <button class="btn-min btn-min-cancel btn-cancel-carrera ml-1" data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Cancelar</button>`
+                            : `<div class="relative inline-block text-left">
+                                    <button class="btn-min btn-action-gear" data-menu-id="menu-carrera-${toDomSafe(carrera.CodigoCarrera)}" title="Acciones">
+                                        <i class="fas fa-cog"></i>
+                                    </button>
+                                    <div id="menu-carrera-${toDomSafe(carrera.CodigoCarrera)}" class="action-menu">
+                                        <button class="btn-min btn-min-primary btn-edit-carrera"
+                                            data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Editar carrera</button>
+                                        <button class="btn-min btn-min-danger btn-delete-carrera"
+                                            data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Eliminar carrera</button>
+                                    </div>
+                                </div>`
+                            }
+                            </td>
                         </tr>
                     `;
                 } else {
@@ -672,7 +1034,10 @@
                                 data-uvs="${plan.TotalUVS || 0}">
                                 <td class="px-6 py-4 font-medium text-gray-900">${carrera.CodigoCarrera}</td>
                                 <td class="px-6 py-4">
-                                    ${carrera.NombreCarrera}
+                                    ${isEditingCarrera
+                                ? `<input type="text" class="js-carrera-nombre w-full px-2 py-1 border border-blue-300 rounded"
+                                            value="${escapeHtml(carrera.NombreCarrera)}">`
+                                : `${carrera.NombreCarrera}`}
                                     ${esMiPlan ? '<span class="badge-mi-plan"><i class="fas fa-graduation-cap mr-1"></i>Mi Plan</span>' : ''}
                                 </td>
                                 <td class="px-6 py-4">
@@ -686,6 +1051,35 @@
                                     <span class="badge-uv">${plan.TotalUVS || 0} UVs</span>
                                 </td>
                                 <td class="px-6 py-4 text-center">${plan.AnioPlan}</td>
+                                <td class="px-6 py-4 text-center">
+                                    ${isEditingCarrera
+                                ? `<button class="btn-min btn-min-success btn-save-carrera"
+                                                data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Guardar</button>
+                                           <button class="btn-min btn-min-cancel btn-cancel-carrera ml-1"
+                                                data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Cancelar</button>`
+                                : `<div class="relative inline-block text-left">
+                                        <button class="btn-min btn-action-gear" data-menu-id="menu-plan-${plan.IdPlan}" title="Acciones">
+                                            <i class="fas fa-cog"></i>
+                                        </button>
+                                        <div id="menu-plan-${plan.IdPlan}" class="action-menu">
+                                            <button class="btn-min btn-min-primary btn-edit-carrera"
+                                                data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Editar carrera</button>
+                                            <button class="btn-min btn-min-danger btn-delete-carrera"
+                                                data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Eliminar carrera</button>
+                                            <button class="btn-min btn-min-primary btn-edit-plan"
+                                                data-id="${plan.IdPlan}"
+                                                data-codigo="${escapeHtml(plan.CodigoCarrera)}"
+                                                data-nombre="${escapeHtml(plan.NombrePlan)}"
+                                                data-anio="${plan.AnioPlan}">
+                                                Editar plan
+                                            </button>
+                                            <button class="btn-min btn-min-danger btn-delete-plan"
+                                                data-id="${plan.IdPlan}">
+                                                Eliminar plan
+                                            </button>
+                                        </div>
+                                   </div>`}
+                                </td>
                             </tr>
                         `;
                     });
@@ -702,21 +1096,107 @@
                             row.dataset.carrera,
                             row.dataset.plan,
                             row.dataset.anio,
-                            row.dataset.codigo
+                            row.dataset.codigo,
+                            idPlan
                         );
                     }
                 });
             });
+
+            document.querySelectorAll('.btn-edit-carrera').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    startEditCarreraRow(btn.dataset.codigo);
+                });
+            });
+
+            document.querySelectorAll('.btn-cancel-carrera').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    cancelEditCarreraRow(btn.dataset.codigo);
+                });
+            });
+
+            document.querySelectorAll('.btn-save-carrera').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const codigo = btn.dataset.codigo;
+                    const row = btn.closest('tr');
+                    const nombre = row.querySelector('.js-carrera-nombre')?.value?.trim();
+                    if (!nombre) return alert('Debes ingresar un nombre válido.');
+                    await saveCarreraInline(codigo, nombre);
+                });
+            });
+
+            document.querySelectorAll('.btn-delete-carrera').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await deleteCarrera(btn.dataset.codigo);
+                });
+            });
+
+            document.querySelectorAll('.btn-edit-plan').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    startEditPlanRow(btn.dataset.id);
+                });
+            });
+
+            document.querySelectorAll('.btn-delete-plan').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await deletePlan(btn.dataset.id);
+                });
+            });
+
+            initActionMenus();
+        }
+
+        function closeAllActionMenus() {
+            document.querySelectorAll('.action-menu.open').forEach(menu => menu.classList.remove('open'));
+        }
+
+        function initActionMenus() {
+            document.querySelectorAll('.btn-action-gear').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const menuId = btn.dataset.menuId;
+                    const menu = document.getElementById(menuId);
+                    if (!menu) return;
+                    const willOpen = !menu.classList.contains('open');
+                    closeAllActionMenus();
+                    if (willOpen) menu.classList.add('open');
+                });
+            });
+
+            document.querySelectorAll('.action-menu').forEach(menu => {
+                menu.addEventListener('click', (e) => e.stopPropagation());
+            });
         }
 
         // Ver detalle del plan
-        async function verDetallePlan(idPlan, nombreCarrera, nombrePlan, anio, codigoCarrera) {
+        async function verDetallePlan(idPlan, nombreCarrera, nombrePlan, anio, codigoCarrera, planIdRaw) {
             try {
                 const response = await fetch(`/api/catalogos/planes/${idPlan}/materias`);
                 const materias = await response.json();
+                modalPlanMaterias = Array.isArray(materias) ? materias : [];
+                editingModalMateriaCodes.clear();
+
+                modalPlanContext = {
+                    idPlan: Number(planIdRaw || idPlan),
+                    codigoCarrera: codigoCarrera,
+                    nombreCarrera: nombreCarrera,
+                    nombrePlan: nombrePlan,
+                    anioPlan: Number(anio)
+                };
 
                 document.getElementById('modalPlanTitulo').innerHTML = `${nombreCarrera} - ${nombrePlan} (${anio})`;
                 document.getElementById('modalPlanSubtitulo').innerHTML = `Plan de Estudio`;
+                document.getElementById('modalEditCodigoCarrera').value = codigoCarrera || '';
+                document.getElementById('modalEditNombreCarrera').value = nombreCarrera || '';
+                document.getElementById('modalEditNombrePlan').value = nombrePlan || '';
+                document.getElementById('modalEditAnioPlan').value = anio || '';
+                document.getElementById('modalEditPlanBox').classList.add('hidden');
 
                 const totalMaterias = materias.length;
                 const totalUVs = materias.reduce((sum, m) => sum + (m.UVS || 0), 0);
@@ -728,20 +1208,7 @@
                 const btnDescargar = document.getElementById('btnDescargarPlan');
                 const urlDescarga = getUrlDescargaPlan(codigoCarrera, nombrePlan, anio);
                 btnDescargar.href = urlDescarga;
-
-                const tbody = document.getElementById('modalPlanBody');
-                if (materias.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">Este plan no tiene materias asignadas.</td></tr>';
-                } else {
-                    tbody.innerHTML = materias.map(m => `
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-3 font-medium">${m.CodigoMateria}</td>
-                            <td class="px-4 py-3">${m.NombreMateria}</td>
-                            <td class="px-4 py-3 text-center">${m.UVS || 0}</td>
-                            <td class="px-4 py-3 text-center">${m.Semestre || '-'}</td>
-                        </tr>
-                    `).join('');
-                }
+                renderModalPlanMaterias();
 
                 openModal('planDetalleModal');
 
@@ -751,13 +1218,203 @@
             }
         }
 
+        function renderModalPlanMaterias() {
+            const tbody = document.getElementById('modalPlanBody');
+            if (!tbody) return;
+
+            if (!modalPlanMaterias || modalPlanMaterias.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">Este plan no tiene materias asignadas.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = modalPlanMaterias.map((m) => {
+                const code = String(m.CodigoMateria || '');
+                const safeCode = escapeHtml(code);
+                const isEditing = editingModalMateriaCodes.has(code);
+
+                if (isEditing) {
+                    return `
+                        <tr class="bg-blue-50">
+                            <td class="px-3 py-2">
+                                <input type="text" class="js-modal-mat-codigo w-full px-2 py-1 border border-blue-300 rounded text-sm"
+                                    value="${safeCode}" />
+                            </td>
+                            <td class="px-3 py-2">
+                                <input type="text" class="js-modal-mat-nombre w-full px-2 py-1 border border-blue-300 rounded text-sm"
+                                    value="${escapeHtml(m.NombreMateria || '')}" />
+                            </td>
+                            <td class="px-3 py-2 text-center">
+                                <input type="number" min="0" class="js-modal-mat-uv w-20 px-2 py-1 border border-blue-300 rounded text-sm"
+                                    value="${Number(m.UVS) || 0}" />
+                            </td>
+                            <td class="px-3 py-2 text-center">
+                                <input type="number" min="1" class="js-modal-mat-semestre w-20 px-2 py-1 border border-blue-300 rounded text-sm"
+                                    value="${m.Semestre ?? ''}" />
+                            </td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap">
+                                <button class="btn-min btn-min-success btn-save-modal-materia" data-codigo-original="${safeCode}">Guardar</button>
+                                <button class="btn-min btn-min-cancel btn-cancel-modal-materia ml-1" data-codigo-original="${safeCode}">Cancelar</button>
+                            </td>
+                        </tr>
+                    `;
+                }
+
+                return `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 font-medium">${safeCode}</td>
+                        <td class="px-4 py-3">${escapeHtml(m.NombreMateria || '')}</td>
+                        <td class="px-4 py-3 text-center">${Number(m.UVS) || 0}</td>
+                        <td class="px-4 py-3 text-center">${m.Semestre || '-'}</td>
+                        <td class="px-4 py-3 text-center">
+                            <div class="relative inline-block text-left">
+                                <button class="btn-min btn-action-gear" data-menu-id="menu-modal-materia-${toDomSafe(safeCode)}" title="Acciones">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                                <div id="menu-modal-materia-${toDomSafe(safeCode)}" class="action-menu">
+                                    <button class="btn-min btn-min-primary btn-edit-modal-materia" data-codigo="${safeCode}">Editar</button>
+                                    <button class="btn-min btn-min-danger btn-delete-modal-materia" data-codigo="${safeCode}">Quitar</button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.querySelectorAll('.btn-edit-modal-materia').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    editingModalMateriaCodes.add(btn.dataset.codigo);
+                    renderModalPlanMaterias();
+                });
+            });
+
+            document.querySelectorAll('.btn-cancel-modal-materia').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    editingModalMateriaCodes.delete(btn.dataset.codigoOriginal);
+                    renderModalPlanMaterias();
+                });
+            });
+
+            document.querySelectorAll('.btn-save-modal-materia').forEach((btn) => {
+                btn.addEventListener('click', async () => {
+                    const codigoOriginal = btn.dataset.codigoOriginal;
+                    const row = btn.closest('tr');
+                    const codigoNuevo = row.querySelector('.js-modal-mat-codigo')?.value?.trim()?.toUpperCase();
+                    const nombre = row.querySelector('.js-modal-mat-nombre')?.value?.trim();
+                    const uv = Number(row.querySelector('.js-modal-mat-uv')?.value);
+                    const semestreRaw = row.querySelector('.js-modal-mat-semestre')?.value?.trim();
+                    const semestre = semestreRaw === '' ? null : Number(semestreRaw);
+
+                    if (!codigoNuevo || !nombre || !Number.isInteger(uv) || uv < 0) {
+                        alert('Verifica código, nombre y UV (entero >= 0).');
+                        return;
+                    }
+                    if (!(semestre === null || (Number.isInteger(semestre) && semestre > 0))) {
+                        alert('Semestre debe ser entero positivo o vacío.');
+                        return;
+                    }
+                    await saveModalMateriaRow(codigoOriginal, codigoNuevo, nombre, uv, semestre);
+                });
+            });
+
+            document.querySelectorAll('.btn-delete-modal-materia').forEach((btn) => {
+                btn.addEventListener('click', async () => {
+                    const codigo = btn.dataset.codigo;
+                    if (!modalPlanContext) return;
+                    if (!confirm(`¿Quitar la materia ${codigo} de este plan?`)) return;
+                    try {
+                        const res = await fetch(`/api/catalogos/planes/${modalPlanContext.idPlan}/materias/${encodeURIComponent(codigo)}`, {
+                            method: 'DELETE'
+                        });
+                        const data = await res.json();
+                        if (!res.ok) return alert(data.error || 'No se pudo quitar la materia del plan.');
+
+                        await verDetallePlan(
+                            modalPlanContext.idPlan,
+                            modalPlanContext.nombreCarrera,
+                            modalPlanContext.nombrePlan,
+                            modalPlanContext.anioPlan,
+                            modalPlanContext.codigoCarrera,
+                            modalPlanContext.idPlan
+                        );
+                        await loadData();
+                    } catch (error) {
+                        alert('Error de red al quitar materia del plan.');
+                    }
+                });
+            });
+
+            initActionMenus();
+            populateModalMateriaSelect();
+        }
+
+        function populateModalMateriaSelect() {
+            const select = document.getElementById('modalAddMateriaSelect');
+            if (!select) return;
+
+            const inPlan = new Set((modalPlanMaterias || []).map((m) => String(m.CodigoMateria || '').toUpperCase()));
+            const uniqueMaterias = [];
+            const seen = new Set();
+
+            (materiasData || []).forEach((m) => {
+                const code = String(m.CodigoMateria || '').toUpperCase();
+                if (!code || seen.has(code) || inPlan.has(code)) return;
+                seen.add(code);
+                uniqueMaterias.push({
+                    codigo: code,
+                    nombre: m.NombreMateria || ''
+                });
+            });
+
+            uniqueMaterias.sort((a, b) => a.nombre.localeCompare(b.nombre));
+            select.innerHTML = '<option value="">Selecciona una materia...</option>' +
+                uniqueMaterias.map((m) =>
+                    `<option value="${escapeHtml(m.codigo)}">${escapeHtml(m.codigo)} - ${escapeHtml(m.nombre)}</option>`
+                ).join('');
+        }
+
+        async function saveModalMateriaRow(codigoOriginal, codigoNuevo, nombre, uvs, semestre) {
+            if (!modalPlanContext) return;
+            try {
+                const resMateria = await fetch(`/api/catalogos/materias/${encodeURIComponent(codigoOriginal)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigoNuevo, nombre, uvs })
+                });
+                const dataMateria = await resMateria.json();
+                if (!resMateria.ok) return alert(dataMateria.error || 'No se pudo actualizar materia.');
+
+                const resSem = await fetch(`/api/catalogos/planes/${modalPlanContext.idPlan}/materias/${encodeURIComponent(codigoNuevo)}/semestre`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ semestre })
+                });
+                const dataSem = await resSem.json();
+                if (!resSem.ok) return alert(dataSem.error || 'No se pudo actualizar semestre.');
+
+                editingModalMateriaCodes.delete(codigoOriginal);
+                editingModalMateriaCodes.delete(codigoNuevo);
+
+                await verDetallePlan(
+                    modalPlanContext.idPlan,
+                    modalPlanContext.nombreCarrera,
+                    modalPlanContext.nombrePlan,
+                    modalPlanContext.anioPlan,
+                    modalPlanContext.codigoCarrera,
+                    modalPlanContext.idPlan
+                );
+                await loadData();
+            } catch (error) {
+                alert('Error de red al guardar materia del plan.');
+            }
+        }
+
         // Renderizar tabla de materias
         function renderMaterias() {
             const tbody = document.getElementById('materiasBody');
             tbody.innerHTML = '';
 
             if (!materiasData || materiasData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center">No hay materias registradas.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center">No hay materias registradas.</td></tr>';
                 return;
             }
 
@@ -768,19 +1425,121 @@
                     : (m.NombreCarrera || m.CodigoCarrera || '');
                 const carreraDisplay = carreraText || '<span class="text-gray-400 italic">No asignada</span>';
                 const anioDisplay = m.AnioPlan || '<span class="text-gray-400 italic">N/A</span>';
+                const code = m.CodigoMateria;
+                const isEditing = editingMateriaCodes.has(code);
+                const rowId = `materia-row-${toDomSafe(code)}`;
+
+                if (isEditing) {
+                    tbody.innerHTML += `
+                        <tr id="${rowId}" class="bg-blue-50">
+                            <td class="px-4 py-3">
+                                <input type="text" class="js-materia-codigo w-full px-2 py-1 border border-blue-300 rounded"
+                                    value="${escapeHtml(code)}" />
+                            </td>
+                            <td class="px-4 py-3">
+                                <input type="text" class="js-materia-nombre w-full px-2 py-1 border border-blue-300 rounded"
+                                    value="${escapeHtml(m.NombreMateria)}" />
+                            </td>
+                            <td class="px-4 py-3">
+                                <input type="number" min="0" class="js-materia-uvs w-24 px-2 py-1 border border-blue-300 rounded"
+                                    value="${Number(m.UVS) || 0}" />
+                            </td>
+                            <td class="px-6 py-4 text-xs">${carreraDisplay}</td>
+                            <td class="px-6 py-4 text-xs">${anioDisplay}</td>
+                            <td class="px-4 py-3 text-center whitespace-nowrap">
+                                <button class="btn-min btn-min-success btn-save-materia"
+                                    data-codigo-original="${escapeHtml(code)}">Guardar</button>
+                                <button class="btn-min btn-min-cancel btn-cancel-materia ml-1"
+                                    data-codigo-original="${escapeHtml(code)}">Cancelar</button>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
 
                 tbody.innerHTML += `
                     <tr class="bg-white hover:bg-gray-50">
-                        <td class="px-6 py-4 font-medium text-gray-900">${m.CodigoMateria}</td>
+                        <td class="px-6 py-4 font-medium text-gray-900">${code}</td>
                         <td class="px-6 py-4">${m.NombreMateria}</td>
                         <td class="px-6 py-4">
                             <span class="badge-uv">${m.UVS} UVs</span>
                         </td>
                         <td class="px-6 py-4 text-xs">${carreraDisplay}</td>
                         <td class="px-6 py-4 text-xs">${anioDisplay}</td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="relative inline-block text-left">
+                                <button class="btn-min btn-action-gear" data-menu-id="menu-materia-${toDomSafe(code)}" title="Acciones">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                                <div id="menu-materia-${toDomSafe(code)}" class="action-menu">
+                                    <button class="btn-min btn-min-primary btn-edit-materia"
+                                        data-codigo="${escapeHtml(code)}"
+                                        data-nombre="${escapeHtml(m.NombreMateria)}"
+                                        data-uvs="${Number(m.UVS) || 0}">
+                                        Editar materia
+                                    </button>
+                                    <button class="btn-min btn-min-danger btn-delete-materia"
+                                        data-codigo="${escapeHtml(code)}">
+                                        Eliminar materia
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
                     </tr>
                 `;
             });
+
+            document.querySelectorAll('.btn-edit-materia').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    startEditMateriaRow(btn.dataset.codigo);
+                });
+            });
+
+            document.querySelectorAll('.btn-cancel-materia').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    cancelEditMateriaRow(btn.dataset.codigoOriginal);
+                });
+            });
+
+            document.querySelectorAll('.btn-save-materia').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const codigoOriginal = btn.dataset.codigoOriginal;
+                    const row = btn.closest('tr');
+                    const codigoNuevo = row.querySelector('.js-materia-codigo')?.value?.trim()?.toUpperCase();
+                    const nombre = row.querySelector('.js-materia-nombre')?.value?.trim();
+                    const uvs = Number(row.querySelector('.js-materia-uvs')?.value);
+
+                    if (!codigoNuevo || !nombre || !Number.isInteger(uvs) || uvs < 0) {
+                        alert('Verifica los campos: código, nombre y UVs (entero >= 0).');
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch(`/api/catalogos/materias/${encodeURIComponent(codigoOriginal)}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ codigoNuevo, nombre, uvs })
+                        });
+                        const data = await res.json();
+                        if (!res.ok) return alert(data.error || 'No se pudo actualizar la materia.');
+
+                        editingMateriaCodes.delete(codigoOriginal);
+                        editingMateriaCodes.delete(codigoNuevo);
+                        alert(data.message || 'Materia actualizada.');
+                        await loadData();
+                    } catch (error) {
+                        alert('Error de red al actualizar materia.');
+                    }
+                });
+            });
+
+            document.querySelectorAll('.btn-delete-materia').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    await deleteMateria(btn.dataset.codigo);
+                });
+            });
+
+            initActionMenus();
         }
 
         // Renderizar tabla de planes de estudio (pensum)
@@ -789,20 +1548,259 @@
             tbody.innerHTML = '';
 
             if (!planesData || planesData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center">No hay planes registrados.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center">No hay planes registrados.</td></tr>';
                 return;
             }
 
             planesData.forEach(p => {
+                const planId = String(p.IdPlan);
+                const isEditing = editingPlanIds.has(planId);
+
+                if (isEditing) {
+                    tbody.innerHTML += `
+                        <tr class="bg-indigo-50">
+                            <td class="px-4 py-3 font-medium text-gray-900">${p.IdPlan}</td>
+                            <td class="px-4 py-3">
+                                <input type="text" class="js-plan-codigo w-full px-2 py-1 border border-indigo-300 rounded"
+                                    value="${escapeHtml(p.CodigoCarrera)}" />
+                            </td>
+                            <td class="px-4 py-3">
+                                <input type="number" min="1" class="js-plan-anio w-28 px-2 py-1 border border-indigo-300 rounded"
+                                    value="${p.AnioPlan}" />
+                            </td>
+                            <td class="px-4 py-3">
+                                <input type="text" class="js-plan-nombre w-full px-2 py-1 border border-indigo-300 rounded"
+                                    value="${escapeHtml(p.NombrePlan)}" />
+                            </td>
+                            <td class="px-4 py-3 text-center whitespace-nowrap">
+                                <button class="btn-min btn-min-success btn-save-plan"
+                                    data-id="${p.IdPlan}">Guardar</button>
+                                <button class="btn-min btn-min-cancel btn-cancel-plan ml-1"
+                                    data-id="${p.IdPlan}">Cancelar</button>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
                 tbody.innerHTML += `
                     <tr class="bg-white hover:bg-gray-50">
                         <td class="px-6 py-4 font-medium text-gray-900">${p.IdPlan}</td>
                         <td class="px-6 py-4">${p.CodigoCarrera}</td>
                         <td class="px-6 py-4">${p.AnioPlan}</td>
                         <td class="px-6 py-4">${p.NombrePlan}</td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="relative inline-block text-left">
+                                <button class="btn-min btn-action-gear" data-menu-id="menu-pensum-${p.IdPlan}" title="Acciones">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                                <div id="menu-pensum-${p.IdPlan}" class="action-menu">
+                                    <button class="btn-min btn-min-primary btn-edit-plan"
+                                        data-id="${p.IdPlan}"
+                                        data-codigo="${escapeHtml(p.CodigoCarrera)}"
+                                        data-nombre="${escapeHtml(p.NombrePlan)}"
+                                        data-anio="${p.AnioPlan}">
+                                        Editar plan
+                                    </button>
+                                    <button class="btn-min btn-min-danger btn-delete-plan"
+                                        data-id="${p.IdPlan}">
+                                        Eliminar plan
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
                     </tr>
                 `;
             });
+
+            document.querySelectorAll('#pensumBody .btn-edit-plan').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    startEditPlanRow(btn.dataset.id);
+                });
+            });
+
+            document.querySelectorAll('#pensumBody .btn-cancel-plan').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    cancelEditPlanRow(btn.dataset.id);
+                });
+            });
+
+            document.querySelectorAll('#pensumBody .btn-save-plan').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const idPlan = btn.dataset.id;
+                    const row = btn.closest('tr');
+                    const codigoCarrera = row.querySelector('.js-plan-codigo')?.value?.trim()?.toUpperCase();
+                    const nombrePlan = row.querySelector('.js-plan-nombre')?.value?.trim();
+                    const anioPlan = Number(row.querySelector('.js-plan-anio')?.value);
+
+                    if (!codigoCarrera || !nombrePlan || !Number.isInteger(anioPlan) || anioPlan <= 0) {
+                        alert('Verifica Código Carrera, Nombre y Año del plan.');
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch(`/api/catalogos/planes/${idPlan}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ codigoCarrera, nombrePlan, anioPlan })
+                        });
+                        const data = await res.json();
+                        if (!res.ok) return alert(data.error || 'No se pudo actualizar el plan.');
+
+                        editingPlanIds.delete(String(idPlan));
+                        alert(data.message || 'Plan actualizado.');
+                        await loadData();
+                    } catch (error) {
+                        alert('Error de red al actualizar plan.');
+                    }
+                });
+            });
+
+            document.querySelectorAll('#pensumBody .btn-delete-plan').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    await deletePlan(btn.dataset.id);
+                });
+            });
+
+            initActionMenus();
+        }
+
+        function startEditMateriaRow(codigo) {
+            editingMateriaCodes.add(String(codigo));
+            renderMaterias();
+        }
+
+        function cancelEditMateriaRow(codigo) {
+            editingMateriaCodes.delete(String(codigo));
+            renderMaterias();
+        }
+
+        function startEditPlanRow(idPlan) {
+            editingPlanIds.add(String(idPlan));
+            switchTab('pensum');
+            renderPensum();
+        }
+
+        function cancelEditPlanRow(idPlan) {
+            editingPlanIds.delete(String(idPlan));
+            renderPensum();
+        }
+
+        function startEditCarreraRow(codigo) {
+            editingCarreraCodes.add(String(codigo));
+            renderCarreras();
+        }
+
+        function cancelEditCarreraRow(codigo) {
+            editingCarreraCodes.delete(String(codigo));
+            renderCarreras();
+        }
+
+        async function saveCarreraInline(codigo, nombre) {
+            if (!nombre || !nombre.trim()) return alert('Debes ingresar un nombre válido.');
+
+            try {
+                const res = await fetch(`/api/catalogos/carreras/${encodeURIComponent(codigo)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre })
+                });
+                const data = await res.json();
+                if (!res.ok) return alert(data.error || 'No se pudo actualizar la carrera.');
+                editingCarreraCodes.delete(String(codigo));
+                await loadData();
+            } catch (error) {
+                alert('Error de red al actualizar carrera.');
+            }
+        }
+
+        async function deleteCarrera(codigo) {
+            if (!confirm(`¿Eliminar la carrera ${codigo}? Esta acción no se puede deshacer.`)) return;
+            try {
+                const res = await fetch(`/api/catalogos/carreras/${encodeURIComponent(codigo)}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (!res.ok) return alert(data.error || 'No se pudo eliminar la carrera.');
+                await loadData();
+            } catch (error) {
+                alert('Error de red al eliminar carrera.');
+            }
+        }
+
+        async function deleteMateria(codigo) {
+            if (!confirm(`¿Eliminar la materia ${codigo}?`)) return;
+            try {
+                const res = await fetch(`/api/catalogos/materias/${encodeURIComponent(codigo)}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (!res.ok) return alert(data.error || 'No se pudo eliminar la materia.');
+                await loadData();
+            } catch (error) {
+                alert('Error de red al eliminar materia.');
+            }
+        }
+
+        async function deletePlan(idPlan) {
+            if (!confirm(`¿Eliminar el plan ${idPlan}?`)) return;
+            try {
+                const res = await fetch(`/api/catalogos/planes/${idPlan}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (!res.ok) return alert(data.error || 'No se pudo eliminar el plan.');
+                await loadData();
+            } catch (error) {
+                alert('Error de red al eliminar plan.');
+            }
+        }
+
+        function openModalPlanEdit() {
+            if (!modalPlanContext) return;
+            document.getElementById('modalEditPlanBox').classList.remove('hidden');
+        }
+
+        function closeModalPlanEdit() {
+            document.getElementById('modalEditPlanBox').classList.add('hidden');
+        }
+
+        async function saveModalPlanEdit() {
+            if (!modalPlanContext) return;
+            const codigoCarrera = document.getElementById('modalEditCodigoCarrera').value.trim().toUpperCase();
+            const nombreCarrera = document.getElementById('modalEditNombreCarrera').value.trim();
+            const nombrePlan = document.getElementById('modalEditNombrePlan').value.trim();
+            const anioPlan = Number(document.getElementById('modalEditAnioPlan').value);
+
+            if (!codigoCarrera || !nombreCarrera || !nombrePlan || !Number.isInteger(anioPlan) || anioPlan <= 0) {
+                alert('Completa todos los campos con valores válidos.');
+                return;
+            }
+
+            try {
+                const resCarrera = await fetch(`/api/catalogos/carreras/${encodeURIComponent(modalPlanContext.codigoCarrera)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre: nombreCarrera })
+                });
+                const dataCarrera = await resCarrera.json();
+                if (!resCarrera.ok) return alert(dataCarrera.error || 'No se pudo actualizar la carrera.');
+
+                const resPlan = await fetch(`/api/catalogos/planes/${modalPlanContext.idPlan}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigoCarrera, nombrePlan, anioPlan })
+                });
+                const dataPlan = await resPlan.json();
+                if (!resPlan.ok) return alert(dataPlan.error || 'No se pudo actualizar el plan.');
+
+                closeModalPlanEdit();
+                closeModal('planDetalleModal');
+                await loadData();
+                alert('Carrera y plan actualizados.');
+            } catch (error) {
+                alert('Error de red al guardar cambios del popup.');
+            }
         }
 
         // Poblar selects del modal Pensum
@@ -996,14 +1994,23 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    alert(`Éxito!\nCarreras Nuevas: ${data.carrerasNuevas}\nMaterias Nuevas: ${data.materiasNuevas}\nPlanes Nuevos: ${data.planesNuevos}\nMaterias Vinculadas: ${data.pensumNuevos}`);
+                    const filas = data.filasProcesadas ?? data.recordsProcessed ?? 0;
+                    const lote = data.idLote ? `\nLote: ${data.idLote}` : '';
+                    alert(`Éxito!\nFilas procesadas: ${filas}${lote}`);
                     closeModal('uploadModal');
                     fileInfo.classList.add('hidden');
                     dropZone.classList.remove('border-[#B20000]', 'bg-red-50');
                     e.target.reset();
                     loadData();
                 } else {
-                    alert('Error: ' + (data.error || 'Server error'));
+                    if (data.error === 'VALIDATION_FAILED' && Array.isArray(data.missingHeaders) && data.missingHeaders.length) {
+                        alert(`Error de plantilla.\nFaltan columnas obligatorias:\n- ${data.missingHeaders.join('\n- ')}`);
+                    } else if (data.error === 'VALIDATION_FAILED' && Array.isArray(data.errors) && data.errors.length) {
+                        const first = data.errors[0];
+                        alert(`Error de validación en fila ${first.rowNumber || '?'}: ${first.message || 'dato inválido'}`);
+                    } else {
+                        alert('Error: ' + (data.error || 'Server error'));
+                    }
                 }
             } catch (error) {
                 alert('Error de conexión con el servidor.');
@@ -1013,8 +2020,200 @@
             }
         });
 
+        function renderPdfPreviewRows() {
+            const tbody = document.getElementById('pdfPreviewBody');
+            if (!tbody) return;
+            if (!pdfPreviewRows.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-slate-400">Sin filas para mostrar.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = pdfPreviewRows.map((row, idx) => `
+                <tr class="border-t border-slate-100">
+                    <td class="px-2 py-2">
+                        <input type="text" class="js-preview-codigo w-full px-2 py-1 border border-slate-300 rounded"
+                            value="${escapeHtml(row.codigoClase || '')}" data-idx="${idx}">
+                    </td>
+                    <td class="px-2 py-2">
+                        <input type="text" class="js-preview-nombre w-full px-2 py-1 border border-slate-300 rounded"
+                            value="${escapeHtml(row.nombreClase || '')}" data-idx="${idx}">
+                    </td>
+                    <td class="px-2 py-2 text-center">
+                        <input type="number" min="0" class="js-preview-uv w-20 px-2 py-1 border border-slate-300 rounded text-center"
+                            value="${Number(row.uv) || 0}" data-idx="${idx}">
+                    </td>
+                    <td class="px-2 py-2 text-center">
+                        <button type="button" class="btn-min btn-min-danger btn-preview-remove" data-idx="${idx}">Quitar</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            document.querySelectorAll('.btn-preview-remove').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const idx = Number(btn.dataset.idx);
+                    pdfPreviewRows.splice(idx, 1);
+                    renderPdfPreviewRows();
+                });
+            });
+        }
+
+        function collectPdfPreviewRowsFromTable() {
+            const codigos = document.querySelectorAll('.js-preview-codigo');
+            const nombres = document.querySelectorAll('.js-preview-nombre');
+            const uvs = document.querySelectorAll('.js-preview-uv');
+            const rows = [];
+
+            for (let i = 0; i < codigos.length; i++) {
+                rows.push({
+                    codigoClase: codigos[i].value.trim().toUpperCase(),
+                    nombreClase: nombres[i].value.trim(),
+                    uv: Number(uvs[i].value)
+                });
+            }
+            return rows;
+        }
+
+        // Convertir PDF de pensum con previsualización editable
+        document.getElementById('convertPdfForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const pdfInput = document.getElementById('pensumPdfInput');
+            if (!pdfInput.files.length) return alert('Selecciona un PDF primero');
+
+            const btn = document.getElementById('btnConvertPdf');
+            btn.disabled = true;
+            btn.textContent = 'Previsualizando...';
+
+            const formData = new FormData();
+            formData.append('archivoPdf', pdfInput.files[0]);
+
+            const codigoCarrera = document.getElementById('pdfCodigoCarrera').value.trim();
+            const anioPlan = document.getElementById('pdfAnioPlan').value.trim();
+            if (codigoCarrera) formData.append('codigoCarrera', codigoCarrera);
+            if (anioPlan) formData.append('anioPlan', anioPlan);
+
+            try {
+                const response = await fetch('/api/catalogos/templates/preview-pdf-pensum', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (!response.ok) return alert(data.error || 'No se pudo previsualizar el PDF');
+
+                document.getElementById('pdfCodigoCarrera').value = data.codigoCarrera || codigoCarrera;
+                document.getElementById('pdfAnioPlan').value = data.anioPlan || anioPlan;
+
+                pdfPreviewRows = Array.isArray(data.materias) ? data.materias : [];
+                document.getElementById('pdfPreviewSection').classList.remove('hidden');
+                renderPdfPreviewRows();
+            } catch (error) {
+                alert('Error de conexión con el servidor.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Previsualizar';
+            }
+        });
+
+        document.getElementById('btnAddPreviewRow')?.addEventListener('click', () => {
+            pdfPreviewRows.push({ codigoClase: '', nombreClase: '', uv: 0 });
+            renderPdfPreviewRows();
+        });
+
+        document.getElementById('btnDownloadPreviewExcel')?.addEventListener('click', async () => {
+            const codigoCarrera = document.getElementById('pdfCodigoCarrera').value.trim().toUpperCase();
+            const anioPlan = Number(document.getElementById('pdfAnioPlan').value);
+            const materias = collectPdfPreviewRowsFromTable();
+
+            if (!codigoCarrera) return alert('Codigo de carrera requerido.');
+            if (!Number.isInteger(anioPlan) || anioPlan <= 0) return alert('Año de plan inválido.');
+            if (!materias.length) return alert('Agrega al menos una materia.');
+
+            try {
+                const response = await fetch('/api/catalogos/templates/generate-pensum-from-preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigoCarrera, anioPlan, materias })
+                });
+
+                const contentType = response.headers.get('content-type') || '';
+                if (!response.ok) {
+                    const errorData = contentType.includes('application/json')
+                        ? await response.json()
+                        : { error: 'No se pudo generar el Excel' };
+                    return alert(errorData.error || 'No se pudo generar el Excel');
+                }
+
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const disposition = response.headers.get('content-disposition') || '';
+                const filenameMatch = disposition.match(/filename="([^"]+)"/);
+                const filename = filenameMatch ? filenameMatch[1] : 'plantilla_pensum_convertida.xlsx';
+
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(downloadUrl);
+            } catch (error) {
+                alert('Error de conexión con el servidor.');
+            }
+        });
+
+        document.getElementById('btnModalEditData')?.addEventListener('click', openModalPlanEdit);
+        document.getElementById('btnModalCancelEdit')?.addEventListener('click', closeModalPlanEdit);
+        document.getElementById('btnModalSaveEdit')?.addEventListener('click', saveModalPlanEdit);
+        document.getElementById('btnModalAddMateria')?.addEventListener('click', async () => {
+            if (!modalPlanContext) return;
+
+            const select = document.getElementById('modalAddMateriaSelect');
+            const semestreInput = document.getElementById('modalAddSemestreInput');
+            const codigoMateria = select?.value?.trim()?.toUpperCase();
+            const semestreRaw = semestreInput?.value?.trim();
+            const semestre = semestreRaw === '' ? null : Number(semestreRaw);
+
+            if (!codigoMateria) {
+                alert('Selecciona una materia para agregar.');
+                return;
+            }
+            if (!(semestre === null || (Number.isInteger(semestre) && semestre > 0))) {
+                alert('Semestre debe ser entero positivo o vacío.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/catalogos/planes/${modalPlanContext.idPlan}/materias`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigoMateria, semestre })
+                });
+                const data = await res.json();
+                if (!res.ok) return alert(data.error || 'No se pudo agregar materia al plan.');
+
+                if (semestreInput) semestreInput.value = '';
+                await verDetallePlan(
+                    modalPlanContext.idPlan,
+                    modalPlanContext.nombreCarrera,
+                    modalPlanContext.nombrePlan,
+                    modalPlanContext.anioPlan,
+                    modalPlanContext.codigoCarrera,
+                    modalPlanContext.idPlan
+                );
+                await loadData();
+            } catch (error) {
+                alert('Error de red al agregar materia al plan.');
+            }
+        });
+
+        document.addEventListener('click', closeAllActionMenus);
+
         // Initialize
-        document.addEventListener('DOMContentLoaded', loadData);
+        document.addEventListener('DOMContentLoaded', () => {
+            getUsuarioActual();
+            inicializarProfileWidget();
+            loadData();
+        });
 
     </script>
 </body>

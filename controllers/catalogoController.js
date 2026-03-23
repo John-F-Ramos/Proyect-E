@@ -1,16 +1,29 @@
 const { poolPromise, sql } = require('../config/db');
-const excelProcessor = require('../services/excelProcessor');
 const fs = require('fs');
+const path = require('path');
+const { PDFParse } = require('pdf-parse');
+const excelProcessor = require('../services/excelProcessor');
+const { extractCarreraAndAnio, parsePensumPdfText } = require('../services/pensumPdfConverter');
+const {
+    TEMPLATE_TYPES,
+    TEMPLATE_DEFINITIONS,
+    detectTemplateType,
+    validateTemplateHeaders,
+    validatePensumRows,
+    validateReglasRows
+} = require('../services/uploadValidators');
 
-/**
- * Normaliza las llaves de un objeto para buscar independientemente de mayúsculas/espacios
- */
-function normalizeKeys(record) {
-    const normalizedRecord = {};
-    Object.keys(record).forEach(key => {
-        normalizedRecord[key.toLowerCase().trim()] = record[key];
-    });
-    return normalizedRecord;
+const TEMPLATE_FILES_DIR = path.join(__dirname, '..', 'public', 'templates');
+
+function resolveTemplatePath(filename) {
+    return path.join(TEMPLATE_FILES_DIR, filename);
+}
+
+function sendTemplateFileOrFallback({ res, templatePath, downloadName, fallbackBuilder }) {
+    if (fs.existsSync(templatePath)) {
+        return res.download(templatePath, downloadName);
+    }
+    return fallbackBuilder();
 }
 
 // -------------------------------------------------------------
@@ -185,152 +198,830 @@ exports.createMateria = async (req, res) => {
     }
 };
 
+exports.updateCarrera = async (req, res) => {
+    const { codigo } = req.params;
+    const { nombre } = req.body;
+
+    if (!nombre) {
+        return res.status(400).json({ error: 'El nombre de la carrera es requerido.' });
+    }
+
+    try {
+        const pool = await poolPromise;
+        const result = await pool.request()
+            .input('codigo', sql.VarChar(20), codigo)
+            .input('nombre', sql.VarChar(150), nombre)
+            .query(`
+                UPDATE Carreras
+                SET NombreCarrera = @nombre
+                WHERE CodigoCarrera = @codigo
+            `);
+
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ error: 'Carrera no encontrada.' });
+        }
+
+        return res.status(200).json({ message: 'Carrera actualizada exitosamente.' });
+    } catch (err) {
+        console.error('Error updating carrera:', err);
+        return res.status(500).json({ error: 'Error interno al actualizar carrera.' });
+    }
+};
+
+exports.updateMateria = async (req, res) => {
+    const { codigo } = req.params;
+    const { codigoNuevo, nombre, uvs } = req.body;
+
+    if (!nombre) {
+        return res.status(400).json({ error: 'El nombre de la materia es requerido.' });
+    }
+
+    const uvValue = Number(uvs);
+    if (!Number.isInteger(uvValue) || uvValue < 0) {
+        return res.status(400).json({ error: 'UVs debe ser un numero entero mayor o igual a 0.' });
+    }
+
+    const oldCode = (codigo || '').trim().toUpperCase();
+    const newCode = (codigoNuevo || codigo || '').toString().trim().toUpperCase();
+    if (!newCode) {
+        return res.status(400).json({ error: 'El codigo de materia es requerido.' });
+    }
+
+    try {
+        const pool = await poolPromise;
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
+
+        try {
+            const existsOld = await new sql.Request(transaction)
+                .input('codigo', sql.VarChar(20), oldCode)
+                .query('SELECT CodigoMateria, NombreMateria, UVS FROM Materias WHERE CodigoMateria = @codigo');
+
+            if (existsOld.recordset.length === 0) {
+                await transaction.rollback();
+                return res.status(404).json({ error: 'Materia no encontrada.' });
+            }
+
+            if (newCode !== oldCode) {
+                const existsNew = await new sql.Request(transaction)
+                    .input('nuevoCodigo', sql.VarChar(20), newCode)
+                    .query('SELECT 1 FROM Materias WHERE CodigoMateria = @nuevoCodigo');
+
+                if (existsNew.recordset.length > 0) {
+                    await transaction.rollback();
+                    return res.status(409).json({ error: 'El nuevo codigo de materia ya existe.' });
+                }
+
+                // Crear nueva materia con el nuevo codigo.
+                await new sql.Request(transaction)
+                    .input('nuevoCodigo', sql.VarChar(20), newCode)
+                    .input('nombre', sql.VarChar(150), nombre)
+                    .input('uvs', sql.Int, uvValue)
+                    .query(`
+                        INSERT INTO Materias (CodigoMateria, NombreMateria, UVS)
+                        VALUES (@nuevoCodigo, @nombre, @uvs)
+                    `);
+
+                // Reapuntar referencias FK.
+                await new sql.Request(transaction)
+                    .input('codigoOld', sql.VarChar(20), oldCode)
+                    .input('codigoNew', sql.VarChar(20), newCode)
+                    .query(`
+                        UPDATE Pensum_Materias SET CodigoMateria = @codigoNew WHERE CodigoMateria = @codigoOld;
+                        UPDATE Requisitos_Pensum SET CodigoMateria = @codigoNew WHERE CodigoMateria = @codigoOld;
+                        UPDATE Requisitos_Pensum SET CodigoRequisito = @codigoNew WHERE CodigoRequisito = @codigoOld;
+                        UPDATE Equivalencias_Internas SET CodigoMateriaPlan = @codigoNew WHERE CodigoMateriaPlan = @codigoOld;
+                        UPDATE Equivalencias_Internas SET CodigoMateriaCursada = @codigoNew WHERE CodigoMateriaCursada = @codigoOld;
+                        UPDATE Regla_MateriaDestino SET CodigoOtorgada = @codigoNew WHERE CodigoOtorgada = @codigoOld;
+                        UPDATE DetalleConsulta_Equivalencias SET CodigoMateriaOtorgada = @codigoNew WHERE CodigoMateriaOtorgada = @codigoOld;
+                    `);
+
+                // Actualizar tablas sin FK por consistencia funcional.
+                await new sql.Request(transaction)
+                    .input('codigoOld', sql.VarChar(20), oldCode)
+                    .input('codigoNew', sql.VarChar(20), newCode)
+                    .input('nombre', sql.VarChar(150), nombre)
+                    .query(`
+                        UPDATE Historial_Importado
+                        SET CodigoMateria = @codigoNew,
+                            NombreMateria = @nombre
+                        WHERE CodigoMateria = @codigoOld;
+                    `);
+
+                // Eliminar la materia antigua después de migrar referencias.
+                await new sql.Request(transaction)
+                    .input('codigoOld', sql.VarChar(20), oldCode)
+                    .query('DELETE FROM Materias WHERE CodigoMateria = @codigoOld');
+            } else {
+                await new sql.Request(transaction)
+                    .input('codigo', sql.VarChar(20), oldCode)
+                    .input('nombre', sql.VarChar(150), nombre)
+                    .input('uvs', sql.Int, uvValue)
+                    .query(`
+                        UPDATE Materias
+                        SET NombreMateria = @nombre,
+                            UVS = @uvs
+                        WHERE CodigoMateria = @codigo
+                    `);
+
+                await new sql.Request(transaction)
+                    .input('codigo', sql.VarChar(20), oldCode)
+                    .input('nombre', sql.VarChar(150), nombre)
+                    .query(`
+                        UPDATE Historial_Importado
+                        SET NombreMateria = @nombre
+                        WHERE CodigoMateria = @codigo
+                    `);
+            }
+
+            await transaction.commit();
+            return res.status(200).json({
+                message: 'Materia actualizada exitosamente.',
+                codigoAnterior: oldCode,
+                codigoActual: newCode
+            });
+        } catch (innerErr) {
+            try { await transaction.rollback(); } catch (_) {}
+            throw innerErr;
+        }
+    } catch (err) {
+        console.error('Error updating materia:', err);
+        return res.status(500).json({ error: 'Error interno al actualizar materia.' });
+    }
+};
+
+exports.updatePlan = async (req, res) => {
+    const { id } = req.params;
+    const { codigoCarrera, nombrePlan, anioPlan } = req.body;
+
+    if (!codigoCarrera || !nombrePlan || !anioPlan) {
+        return res.status(400).json({ error: 'Codigo de carrera, nombre del plan y anio son requeridos.' });
+    }
+
+    const anio = Number(anioPlan);
+    if (!Number.isInteger(anio) || anio <= 0) {
+        return res.status(400).json({ error: 'Anio de plan invalido.' });
+    }
+
+    try {
+        const pool = await poolPromise;
+
+        const carreraExists = await pool.request()
+            .input('codigoCarrera', sql.VarChar(20), codigoCarrera)
+            .query('SELECT 1 FROM Carreras WHERE CodigoCarrera = @codigoCarrera');
+
+        if (carreraExists.recordset.length === 0) {
+            return res.status(404).json({ error: 'La carrera indicada no existe.' });
+        }
+
+        const duplicatePlan = await pool.request()
+            .input('idPlan', sql.Int, Number(id))
+            .input('codigoCarrera', sql.VarChar(20), codigoCarrera)
+            .input('nombrePlan', sql.VarChar(100), nombrePlan)
+            .input('anioPlan', sql.Int, anio)
+            .query(`
+                SELECT 1
+                FROM PlanesEstudio
+                WHERE IdPlan <> @idPlan
+                  AND CodigoCarrera = @codigoCarrera
+                  AND NombrePlan = @nombrePlan
+                  AND AnioPlan = @anioPlan
+            `);
+
+        if (duplicatePlan.recordset.length > 0) {
+            return res.status(409).json({ error: 'Ya existe otro plan con esos mismos datos.' });
+        }
+
+        const result = await pool.request()
+            .input('idPlan', sql.Int, Number(id))
+            .input('codigoCarrera', sql.VarChar(20), codigoCarrera)
+            .input('nombrePlan', sql.VarChar(100), nombrePlan)
+            .input('anioPlan', sql.Int, anio)
+            .query(`
+                UPDATE PlanesEstudio
+                SET CodigoCarrera = @codigoCarrera,
+                    NombrePlan = @nombrePlan,
+                    AnioPlan = @anioPlan
+                WHERE IdPlan = @idPlan
+            `);
+
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ error: 'Plan no encontrado.' });
+        }
+
+        return res.status(200).json({ message: 'Plan de estudio actualizado exitosamente.' });
+    } catch (err) {
+        console.error('Error updating plan:', err);
+        return res.status(500).json({ error: 'Error interno al actualizar el plan.' });
+    }
+};
+
+exports.deleteCarrera = async (req, res) => {
+    const { codigo } = req.params;
+    try {
+        const pool = await poolPromise;
+        const plans = await pool.request()
+            .input('codigo', sql.VarChar(20), codigo)
+            .query('SELECT COUNT(*) AS total FROM PlanesEstudio WHERE CodigoCarrera = @codigo');
+
+        if (plans.recordset[0].total > 0) {
+            return res.status(409).json({
+                error: 'No se puede eliminar la carrera porque tiene planes de estudio asociados.'
+            });
+        }
+
+        const result = await pool.request()
+            .input('codigo', sql.VarChar(20), codigo)
+            .query('DELETE FROM Carreras WHERE CodigoCarrera = @codigo');
+
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ error: 'Carrera no encontrada.' });
+        }
+        return res.status(200).json({ message: 'Carrera eliminada exitosamente.' });
+    } catch (err) {
+        console.error('Error deleting carrera:', err);
+        return res.status(500).json({ error: 'Error interno al eliminar carrera.' });
+    }
+};
+
+exports.deleteMateria = async (req, res) => {
+    const { codigo } = req.params;
+    try {
+        const pool = await poolPromise;
+        const refs = await pool.request()
+            .input('codigo', sql.VarChar(20), codigo)
+            .query(`
+                SELECT 
+                    (SELECT COUNT(*) FROM Pensum_Materias WHERE CodigoMateria = @codigo) AS PensumRef,
+                    (SELECT COUNT(*) FROM Requisitos_Pensum WHERE CodigoMateria = @codigo OR CodigoRequisito = @codigo) AS RequisitoRef,
+                    (SELECT COUNT(*) FROM Equivalencias_Internas WHERE CodigoMateriaPlan = @codigo OR CodigoMateriaCursada = @codigo) AS EquivRef,
+                    (SELECT COUNT(*) FROM Regla_MateriaDestino WHERE CodigoOtorgada = @codigo) AS ReglaDestinoRef,
+                    (SELECT COUNT(*) FROM DetalleConsulta_Equivalencias WHERE CodigoMateriaOtorgada = @codigo) AS ConsultaRef
+            `);
+
+        const r = refs.recordset[0];
+        const totalRefs = Number(r.PensumRef) + Number(r.RequisitoRef) + Number(r.EquivRef) + Number(r.ReglaDestinoRef) + Number(r.ConsultaRef);
+        if (totalRefs > 0) {
+            return res.status(409).json({
+                error: 'No se puede eliminar la materia porque está siendo utilizada en planes, requisitos o equivalencias.'
+            });
+        }
+
+        const result = await pool.request()
+            .input('codigo', sql.VarChar(20), codigo)
+            .query('DELETE FROM Materias WHERE CodigoMateria = @codigo');
+
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ error: 'Materia no encontrada.' });
+        }
+        return res.status(200).json({ message: 'Materia eliminada exitosamente.' });
+    } catch (err) {
+        console.error('Error deleting materia:', err);
+        return res.status(500).json({ error: 'Error interno al eliminar materia.' });
+    }
+};
+
+exports.deletePlan = async (req, res) => {
+    const { id } = req.params;
+    const idPlan = Number(id);
+    if (!Number.isInteger(idPlan) || idPlan <= 0) {
+        return res.status(400).json({ error: 'IdPlan inválido.' });
+    }
+
+    try {
+        const pool = await poolPromise;
+        const blockers = await pool.request()
+            .input('idPlan', sql.Int, idPlan)
+            .query(`
+                SELECT 
+                    (SELECT COUNT(*) FROM Alumnos WHERE IdPlanActual = @idPlan) AS AlumnosRef,
+                    (SELECT COUNT(*) FROM RegistroConsultas WHERE IdPlanDestino = @idPlan) AS ConsultasRef
+            `);
+
+        const b = blockers.recordset[0];
+        if (Number(b.AlumnosRef) > 0 || Number(b.ConsultasRef) > 0) {
+            return res.status(409).json({
+                error: 'No se puede eliminar el plan porque está asignado a alumnos o consultas.'
+            });
+        }
+
+        const tx = new sql.Transaction(pool);
+        await tx.begin();
+        try {
+            await new sql.Request(tx)
+                .input('idPlan', sql.Int, idPlan)
+                .query(`
+                    DELETE FROM Requisitos_Pensum WHERE IdPlan = @idPlan;
+                    DELETE FROM Pensum_Materias WHERE IdPlan = @idPlan;
+                    DELETE FROM PlanesEstudio WHERE IdPlan = @idPlan;
+                `);
+            await tx.commit();
+        } catch (innerErr) {
+            try { await tx.rollback(); } catch (_) {}
+            throw innerErr;
+        }
+
+        return res.status(200).json({ message: 'Plan eliminado exitosamente.' });
+    } catch (err) {
+        console.error('Error deleting plan:', err);
+        return res.status(500).json({ error: 'Error interno al eliminar plan.' });
+    }
+};
+
+exports.deletePlanMateria = async (req, res) => {
+    const { id, codigo } = req.params;
+    const idPlan = Number(id);
+    if (!Number.isInteger(idPlan) || idPlan <= 0) {
+        return res.status(400).json({ error: 'IdPlan inválido.' });
+    }
+
+    try {
+        const pool = await poolPromise;
+        const tx = new sql.Transaction(pool);
+        await tx.begin();
+        try {
+            await new sql.Request(tx)
+                .input('idPlan', sql.Int, idPlan)
+                .input('codigo', sql.VarChar(20), codigo)
+                .query(`
+                    DELETE FROM Requisitos_Pensum
+                    WHERE IdPlan = @idPlan
+                      AND (CodigoMateria = @codigo OR CodigoRequisito = @codigo);
+
+                    DELETE FROM Pensum_Materias
+                    WHERE IdPlan = @idPlan
+                      AND CodigoMateria = @codigo;
+                `);
+            await tx.commit();
+        } catch (innerErr) {
+            try { await tx.rollback(); } catch (_) {}
+            throw innerErr;
+        }
+
+        return res.status(200).json({ message: 'Materia eliminada del plan exitosamente.' });
+    } catch (err) {
+        console.error('Error deleting plan materia:', err);
+        return res.status(500).json({ error: 'Error interno al eliminar materia del plan.' });
+    }
+};
+
 // -------------------------------------------------------------
 // POST / CATÁLOGOS UPLOAD (EXCEL)
 // -------------------------------------------------------------
 
-exports.uploadCatalogosExcel = async (req, res) => {
+function buildValidationResponse(templateType, missingHeaders, errors) {
+    return {
+        error: 'VALIDATION_FAILED',
+        templateType,
+        missingHeaders,
+        errorsCount: errors.length,
+        errors: errors.slice(0, 100)
+    };
+}
+
+function createLoteInsertRequest(request, { tipoCarga, nombreArchivo, filasLeidas }) {
+    return request
+        .input('TipoCarga', sql.VarChar(50), tipoCarga)
+        .input('NombreArchivo', sql.VarChar(255), nombreArchivo || 'archivo.xlsx')
+        .input('Estado', sql.VarChar(30), 'RECIBIDO')
+        .input('FilasLeidas', sql.Int, filasLeidas)
+        .query(`
+            INSERT INTO CargaLote (TipoCarga, NombreArchivo, Estado, FilasLeidas, FechaInicio)
+            OUTPUT INSERTED.IdLote
+            VALUES (@TipoCarga, @NombreArchivo, @Estado, @FilasLeidas, GETDATE())
+        `);
+}
+
+async function runPensumBulk(transaction, rows, idLote) {
+    const table = new sql.Table('stg_Pensum');
+    table.create = false;
+    table.columns.add('IdLote', sql.Int, { nullable: false });
+    table.columns.add('CodigoCarrera', sql.VarChar(20), { nullable: false });
+    table.columns.add('AnioPlan', sql.Int, { nullable: false });
+    table.columns.add('CodigoClase', sql.VarChar(20), { nullable: false });
+    table.columns.add('NombreClase', sql.VarChar(150), { nullable: false });
+    table.columns.add('UV', sql.Int, { nullable: false });
+
+    rows.forEach((row) => {
+        table.rows.add(
+            idLote,
+            row.codigoCarrera.substring(0, 20),
+            row.anioPlan,
+            row.codigoClase.substring(0, 20),
+            row.nombreClase.substring(0, 150),
+            row.uv
+        );
+    });
+
+    const bulkRequest = new sql.Request(transaction);
+    await bulkRequest.bulk(table);
+
+    const applyRequest = new sql.Request(transaction);
+    applyRequest.input('IdLote', sql.Int, idLote);
+    await applyRequest.execute('usp_AplicarCargaPensum');
+}
+
+async function runReglasBulk(transaction, rows, idLote) {
+    const table = new sql.Table('stg_ReglasEquivalencia');
+    table.create = false;
+    table.columns.add('IdLote', sql.Int, { nullable: false });
+    table.columns.add('TipoEquivalencia', sql.VarChar(20), { nullable: false });
+    table.columns.add('UniversidadOrigen', sql.VarChar(150), { nullable: true });
+    table.columns.add('CodigoOrigen', sql.VarChar(50), { nullable: false });
+    table.columns.add('CodigoDestino', sql.VarChar(20), { nullable: false });
+    table.columns.add('Condicion', sql.VarChar(255), { nullable: true });
+
+    rows.forEach((row) => {
+        table.rows.add(
+            idLote,
+            row.tipoEquivalencia.substring(0, 20),
+            (row.universidadOrigen || '').substring(0, 150) || null,
+            row.codigoOrigen.substring(0, 50),
+            row.codigoDestino.substring(0, 20),
+            (row.condicion || '').substring(0, 255) || null
+        );
+    });
+
+    const bulkRequest = new sql.Request(transaction);
+    await bulkRequest.bulk(table);
+
+    const applyRequest = new sql.Request(transaction);
+    applyRequest.input('IdLote', sql.Int, idLote);
+    await applyRequest.execute('usp_AplicarCargaReglasEquivalencia');
+}
+
+async function markLoteError(idLote, errorMessage) {
+    if (!idLote) return;
+    const pool = await poolPromise;
+    await pool.request()
+        .input('IdLote', sql.Int, idLote)
+        .input('Estado', sql.VarChar(30), 'ERROR')
+        .input('MensajeError', sql.VarChar(sql.MAX), errorMessage.substring(0, 4000))
+        .query(`
+            UPDATE CargaLote
+            SET Estado = @Estado,
+                MensajeError = @MensajeError,
+                FechaFin = GETDATE()
+            WHERE IdLote = @IdLote
+        `);
+}
+
+async function processMassiveUpload({ req, res, templateType, parsed }) {
     if (!req.file) {
-        return res.status(400).json({ error: 'No se subió ningún archivo' });
+        return res.status(400).json({ error: 'No se subio ningun archivo' });
     }
 
-    const filePath = req.file.path;
+    if (!parsed.rows || parsed.rows.length === 0) {
+        return res.status(400).json({
+            error: 'El archivo Excel esta vacio o no se pudo leer'
+        });
+    }
+
+    const { missingHeaders } = validateTemplateHeaders(templateType, parsed.headers || []);
+    if (missingHeaders.length > 0) {
+        return res.status(400).json(buildValidationResponse(templateType, missingHeaders, []));
+    }
+
+    const validator = templateType === TEMPLATE_TYPES.PENSUM
+        ? validatePensumRows
+        : validateReglasRows;
+
+    const { validRows, errors } = validator(parsed.rows);
+    if (errors.length > 0) {
+        return res.status(400).json(buildValidationResponse(templateType, [], errors));
+    }
+
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+    let idLote = null;
+    let transactionStarted = false;
 
     try {
-        const data = await excelProcessor.processExcel(filePath);
-        if (data.length === 0) {
-            return res.status(400).json({ error: 'El archivo Excel está vacío o no se pudo leer.' });
+        await transaction.begin();
+        transactionStarted = true;
+        const insertLoteResult = await createLoteInsertRequest(
+            new sql.Request(transaction),
+            {
+                tipoCarga: templateType,
+                nombreArchivo: req.file.originalname,
+                filasLeidas: validRows.length
+            }
+        );
+        idLote = insertLoteResult.recordset[0].IdLote;
+
+        if (templateType === TEMPLATE_TYPES.PENSUM) {
+            await runPensumBulk(transaction, validRows, idLote);
+        } else {
+            await runReglasBulk(transaction, validRows, idLote);
         }
 
-        const pool = await poolPromise;
+        await new sql.Request(transaction)
+            .input('IdLote', sql.Int, idLote)
+            .input('Estado', sql.VarChar(30), 'APLICADO')
+            .input('FilasInsertadas', sql.Int, validRows.length)
+            .input('FilasRechazadas', sql.Int, 0)
+            .query(`
+                UPDATE CargaLote
+                SET Estado = @Estado,
+                    FilasInsertadas = @FilasInsertadas,
+                    FilasRechazadas = @FilasRechazadas,
+                    FechaFin = GETDATE()
+                WHERE IdLote = @IdLote
+            `);
 
-        // Cachés para no re-insertar
-        const carrerasSet = new Map();
-        const materiasSet = new Map();
+        await transaction.commit();
+        transactionStarted = false;
 
-        // 1. Cargar existentes a memoria para comparar rápidamente
-        const resultCarreras = await pool.request().query('SELECT CodigoCarrera FROM Carreras');
-        resultCarreras.recordset.forEach(c => carrerasSet.set(c.CodigoCarrera, true));
-
-        const resultMaterias = await pool.request().query('SELECT CodigoMateria FROM Materias');
-        resultMaterias.recordset.forEach(m => materiasSet.set(m.CodigoMateria, true));
-
-        // Cache para PlanesEstudio (clave: codigoCarrera|nombrePlan)
-        const planesSet = new Map();
-        const resultPlanes = await pool.request().query('SELECT IdPlan, CodigoCarrera, NombrePlan FROM PlanesEstudio');
-        resultPlanes.recordset.forEach(p => {
-            if(p.CodigoCarrera && p.NombrePlan) {
-                planesSet.set(`${p.CodigoCarrera}|${p.NombrePlan.toLowerCase()}`, p.IdPlan);
-            }
+        return res.status(200).json({
+            message: 'Carga masiva aplicada correctamente',
+            templateType,
+            idLote,
+            filasProcesadas: validRows.length
         });
-
-        const pensumSet = new Map();
-        const resultPensum = await pool.request().query('SELECT IdPlan, CodigoMateria FROM Pensum_Materias');
-        resultPensum.recordset.forEach(pm => {
-            pensumSet.set(`${pm.IdPlan}|${pm.CodigoMateria}`, true);
-        });
-
-        let carrerasNuevas = 0;
-        let materiasNuevas = 0;
-        let planesNuevos = 0;
-        let pensumNuevos = 0;
-
-        // Procesar archivo
-        for (const row of data) {
-            const rawRow = normalizeKeys(row);
-            
-            // Posibles campos del excel para carreras
-            const codigoCarrera = (rawRow['codigo_carrera'] || rawRow['codigocarrera'] || '').toString().trim();
-            const nombreCarrera = (rawRow['nombre_carrera'] || rawRow['nombrecarrera'] || '').toString().trim();
-            const planValue = (rawRow['plan'] || '').toString().trim(); 
-
-            if (codigoCarrera && nombreCarrera && !carrerasSet.has(codigoCarrera)) {
-                await pool.request()
-                    .input('codigo', sql.VarChar, codigoCarrera.substring(0, 20))
-                    .input('nombre', sql.VarChar, nombreCarrera.substring(0, 150))
-                    .query('INSERT INTO Carreras (CodigoCarrera, NombreCarrera) VALUES (@codigo, @nombre)');
-                
-                carrerasSet.set(codigoCarrera, true);
-                carrerasNuevas++;
-            }
-
-            // Si hay "plan" lo guardamos en PlanesEstudio
-            let currentIdPlan = null;
-            if (codigoCarrera && planValue) {
-                const planKey = `${codigoCarrera}|${planValue.toLowerCase()}`;
-                if (!planesSet.has(planKey)) {
-                    const anioPlan = new Date().getFullYear();
-                    const resultNewPlan = await pool.request()
-                        .input('cod', sql.VarChar, codigoCarrera.substring(0, 20))
-                        .input('nom', sql.VarChar, planValue.substring(0, 100))
-                        .input('anio', sql.Int, anioPlan)
-                        .query(`INSERT INTO PlanesEstudio (CodigoCarrera, NombrePlan, AnioPlan) 
-                                OUTPUT INSERTED.IdPlan 
-                                VALUES (@cod, @nom, @anio)`);
-                    
-                    currentIdPlan = resultNewPlan.recordset[0].IdPlan;
-                    planesSet.set(planKey, currentIdPlan);
-                    planesNuevos++;
-                } else {
-                    currentIdPlan = planesSet.get(planKey);
-                }
-            }
-
-            // Procesamos posibles materias del excel.
-            const checksMaterias = [
-                {
-                    cod: (rawRow['codigo_materia_cursada'] || '').toString().trim(),
-                    nom: (rawRow['nombre_materia_cursada'] || '').toString().trim()
-                },
-                {
-                    cod: (rawRow['codigo_materia_otorgada'] || '').toString().trim(),
-                    nom: (rawRow['nombre_materia_otorgada'] || '').toString().trim()
-                }
-            ];
-
-            for (let mat of checksMaterias) {
-                if (mat.cod && mat.nom) {
-                    if (!materiasSet.has(mat.cod)) {
-                        await pool.request()
-                            .input('codigo', sql.VarChar, mat.cod.substring(0, 20))
-                            .input('nombre', sql.VarChar, mat.nom.substring(0, 150))
-                            .input('uvs', sql.Int, 0) // Default 0
-                            .query('INSERT INTO Materias (CodigoMateria, NombreMateria, UVS) VALUES (@codigo, @nombre, @uvs)');
-                        materiasSet.set(mat.cod, true);
-                        materiasNuevas++;
-                    }
-
-                    // Vincular al Plan en Pensum_Materias si tenemos un currentIdPlan
-                    if (currentIdPlan) {
-                        const pensumKey = `${currentIdPlan}|${mat.cod}`;
-                        if (!pensumSet.has(pensumKey)) {
-                            await pool.request()
-                                .input('idp', sql.Int, currentIdPlan)
-                                .input('codm', sql.VarChar, mat.cod.substring(0, 20))
-                                .query('INSERT INTO Pensum_Materias (IdPlan, CodigoMateria) VALUES (@idp, @codm)');
-                            pensumSet.set(pensumKey, true);
-                            pensumNuevos++;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Limpiar archivo local
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-
-        res.status(200).json({ 
-            message: 'Procesamiento de catálogo completado.',
-            carrerasNuevas,
-            materiasNuevas,
-            planesNuevos,
-            pensumNuevos
-        });
-
     } catch (error) {
-        console.error('Error procesando catálogo Excel:', error);
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        res.status(500).json({ error: 'Ocurrió un error al procesar el archivo Excel.' });
+        try {
+            if (transactionStarted) {
+                await transaction.rollback();
+            }
+        } catch (rollbackError) {
+            console.error('Error en rollback de carga masiva:', rollbackError);
+        }
+
+        await markLoteError(idLote, error.message || 'Error desconocido');
+        console.error('Error en carga masiva:', error);
+        return res.status(500).json({
+            error: 'Error al procesar la carga masiva',
+            detail: error.message
+        });
+    }
+}
+
+exports.downloadPensumTemplate = async (req, res) => {
+    const templatePath = resolveTemplatePath('plantilla_pensum.xlsx');
+    return sendTemplateFileOrFallback({
+        res,
+        templatePath,
+        downloadName: 'plantilla_pensum.xlsx',
+        fallbackBuilder: async () => {
+            const headers = TEMPLATE_DEFINITIONS[TEMPLATE_TYPES.PENSUM].requiredHeaders;
+            const sampleRows = [
+                ['I-06', 2023, 'CCC104', 'PROGRAMACION I', 4],
+                ['I-06', 2023, 'CCC105', 'PROGRAMACION II', 4]
+            ];
+            const buffer = await excelProcessor.buildTemplateWorkbookBuffer({ headers, sampleRows });
+
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', 'attachment; filename="plantilla_pensum.xlsx"');
+            return res.send(Buffer.from(buffer));
+        }
+    });
+};
+
+exports.downloadReglasTemplate = async (req, res) => {
+    const templatePath = resolveTemplatePath('plantilla_reglas_equivalencia.xlsx');
+    return sendTemplateFileOrFallback({
+        res,
+        templatePath,
+        downloadName: 'plantilla_reglas_equivalencia.xlsx',
+        fallbackBuilder: async () => {
+            const headers = TEMPLATE_DEFINITIONS[TEMPLATE_TYPES.REGLAS_EQUIVALENCIA].requiredHeaders;
+            const sampleRows = [
+                ['INTERNA', '', 'ING113', 'EIE1', '1:1'],
+                ['EXTERNA', 'UNAH', 'MAT-101', 'MAT101', '2:1']
+            ];
+            const buffer = await excelProcessor.buildTemplateWorkbookBuffer({ headers, sampleRows });
+
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', 'attachment; filename="plantilla_reglas_equivalencia.xlsx"');
+            return res.send(Buffer.from(buffer));
+        }
+    });
+};
+
+function extractFromFileName(originalFileName) {
+    const value = (originalFileName || '').toString().trim();
+    if (!value) return { codigoCarrera: null, anioPlan: null };
+
+    const normalized = value.replace(/[–—]/g, '-');
+    const codigoMatch = normalized.match(/\b([A-Z]{1,3})\s*-\s*(\d{2})\b/i);
+    const anioMatch = normalized.match(/\b(19|20)\d{2}\b/);
+
+    return {
+        codigoCarrera: codigoMatch ? `${codigoMatch[1].toUpperCase()}-${codigoMatch[2]}` : null,
+        anioPlan: anioMatch ? Number(anioMatch[0]) : null
+    };
+}
+
+async function extractPensumPreviewFromPdf({ pdfBuffer, originalFileName, codigoCarreraInput, anioPlanInput }) {
+    const parser = new PDFParse({ data: pdfBuffer });
+    let parsedPdf;
+    try {
+        parsedPdf = await parser.getText();
+    } finally {
+        await parser.destroy();
+    }
+
+    const text = parsedPdf?.text || '';
+    const detected = extractCarreraAndAnio(text);
+    const detectedFromFileName = extractFromFileName(originalFileName);
+
+    const codigoCarrera = (codigoCarreraInput || detected.codigoCarrera || detectedFromFileName.codigoCarrera || '')
+        .toString()
+        .trim()
+        .toUpperCase();
+    const anioPlanRaw = anioPlanInput || detected.anioPlan || detectedFromFileName.anioPlan;
+    const anioPlan = Number(anioPlanRaw);
+
+    if (!codigoCarrera) {
+        throw new Error('No se pudo identificar Codigo_Carrera. Indicalo manualmente en el formulario.');
+    }
+    if (!Number.isInteger(anioPlan) || anioPlan <= 0) {
+        throw new Error('No se pudo identificar Anio_Plan. Indicalo manualmente en el formulario.');
+    }
+
+    const materias = parsePensumPdfText(text);
+    if (materias.length === 0) {
+        throw new Error('No se pudieron extraer materias del PDF. Verifica que sea un pensum legible.');
+    }
+
+    return { codigoCarrera, anioPlan, materias };
+}
+
+function normalizePreviewMaterias(materias) {
+    const rows = Array.isArray(materias) ? materias : [];
+    const errors = [];
+    const normalized = [];
+    const seen = new Set();
+
+    rows.forEach((row, idx) => {
+        const codigoClase = (row.codigoClase || '').toString().trim().toUpperCase();
+        const nombreClase = (row.nombreClase || '').toString().trim();
+        const uv = Number(row.uv);
+        const rowNumber = idx + 1;
+
+        if (!codigoClase) errors.push(`Fila ${rowNumber}: Codigo_Clase es obligatorio.`);
+        if (!nombreClase) errors.push(`Fila ${rowNumber}: Nombre_Clase es obligatorio.`);
+        if (!Number.isInteger(uv) || uv < 0) errors.push(`Fila ${rowNumber}: UV debe ser entero >= 0.`);
+
+        const key = `${codigoClase}|${nombreClase}|${uv}`;
+        if (codigoClase && seen.has(key)) {
+            errors.push(`Fila ${rowNumber}: materia duplicada en previsualización.`);
+        } else {
+            seen.add(key);
+        }
+
+        normalized.push({ codigoClase, nombreClase, uv });
+    });
+
+    return { normalized, errors };
+}
+
+async function sendPensumWorkbook({ res, codigoCarrera, anioPlan, materias }) {
+    const headers = TEMPLATE_DEFINITIONS[TEMPLATE_TYPES.PENSUM].requiredHeaders;
+    const rows = materias.map((m) => [
+        codigoCarrera,
+        anioPlan,
+        m.codigoClase,
+        m.nombreClase,
+        m.uv
+    ]);
+    const buffer = await excelProcessor.buildTemplateWorkbookBuffer({ headers, sampleRows: rows });
+    const filename = `plantilla_pensum_convertida_${codigoCarrera}_${anioPlan}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(Buffer.from(buffer));
+}
+
+exports.previewPensumPdfTemplate = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se subio ningun PDF' });
+        }
+
+        const result = await extractPensumPreviewFromPdf({
+            pdfBuffer: req.file.buffer,
+            originalFileName: req.file.originalname,
+            codigoCarreraInput: req.body.codigoCarrera,
+            anioPlanInput: req.body.anioPlan
+        });
+
+        return res.status(200).json(result);
+    } catch (error) {
+        return res.status(400).json({ error: error.message || 'No se pudo previsualizar el PDF.' });
+    }
+};
+
+exports.convertPensumPdfTemplate = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se subio ningun PDF' });
+        }
+
+        const result = await extractPensumPreviewFromPdf({
+            pdfBuffer: req.file.buffer,
+            originalFileName: req.file.originalname,
+            codigoCarreraInput: req.body.codigoCarrera,
+            anioPlanInput: req.body.anioPlan
+        });
+
+        return sendPensumWorkbook({
+            res,
+            codigoCarrera: result.codigoCarrera,
+            anioPlan: result.anioPlan,
+            materias: result.materias
+        });
+    } catch (error) {
+        console.error('Error convirtiendo PDF a plantilla de pensum:', error);
+        return res.status(500).json({
+            error: 'Error interno al convertir PDF a plantilla'
+        });
+    }
+};
+
+exports.generatePensumFromPreview = async (req, res) => {
+    try {
+        const codigoCarrera = (req.body.codigoCarrera || '').toString().trim().toUpperCase();
+        const anioPlan = Number(req.body.anioPlan);
+        const materiasInput = req.body.materias;
+
+        if (!codigoCarrera) {
+            return res.status(400).json({ error: 'Codigo_Carrera es requerido.' });
+        }
+        if (!Number.isInteger(anioPlan) || anioPlan <= 0) {
+            return res.status(400).json({ error: 'Anio_Plan debe ser entero positivo.' });
+        }
+
+        const { normalized, errors } = normalizePreviewMaterias(materiasInput);
+        if (errors.length > 0) {
+            return res.status(400).json({ error: errors[0], errors });
+        }
+        if (normalized.length === 0) {
+            return res.status(400).json({ error: 'No hay materias para generar el Excel.' });
+        }
+
+        return sendPensumWorkbook({
+            res,
+            codigoCarrera,
+            anioPlan,
+            materias: normalized
+        });
+    } catch (error) {
+        console.error('Error generando Excel desde previsualización:', error);
+        return res.status(500).json({ error: 'Error interno al generar Excel.' });
+    }
+};
+
+exports.uploadPensumExcel = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se subio ningun archivo' });
+        }
+        const parsed = await excelProcessor.parseExcelBufferDetailed(req.file.buffer);
+        return processMassiveUpload({ req, res, templateType: TEMPLATE_TYPES.PENSUM, parsed });
+    } catch (error) {
+        console.error('Error en upload de pensum:', error);
+        return res.status(500).json({ error: 'Error interno procesando plantilla de pensum' });
+    }
+};
+
+exports.uploadReglasEquivalenciaExcel = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se subio ningun archivo' });
+        }
+        const parsed = await excelProcessor.parseExcelBufferDetailed(req.file.buffer);
+        return processMassiveUpload({
+            req,
+            res,
+            templateType: TEMPLATE_TYPES.REGLAS_EQUIVALENCIA,
+            parsed
+        });
+    } catch (error) {
+        console.error('Error en upload de reglas:', error);
+        return res.status(500).json({ error: 'Error interno procesando plantilla de reglas' });
+    }
+};
+
+exports.uploadCatalogosExcel = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se subio ningun archivo' });
+        }
+        const parsed = await excelProcessor.parseExcelBufferDetailed(req.file.buffer);
+        const detectedType = detectTemplateType(parsed.headers || []);
+
+        if (!detectedType) {
+            return res.status(400).json({
+                error: 'No se reconocio el tipo de plantilla',
+                supportedTemplates: Object.values(TEMPLATE_TYPES)
+            });
+        }
+
+        return processMassiveUpload({ req, res, templateType: detectedType, parsed });
+    } catch (error) {
+        console.error('Error en endpoint legacy de catalogo:', error);
+        return res.status(500).json({ error: 'Error al procesar el archivo Excel' });
     }
 };
 
@@ -398,6 +1089,119 @@ exports.getMateriasByPlan = async (req, res) => {
     } catch (err) {
         console.error('Error getting materias del plan:', err);
         res.status(500).json({ error: 'Error del servidor al obtener materias del plan' });
+    }
+};
+
+exports.updatePlanMateriaSemestre = async (req, res) => {
+    try {
+        const { id, codigo } = req.params;
+        const { semestre } = req.body;
+        const idPlan = Number(id);
+
+        if (!Number.isInteger(idPlan) || idPlan <= 0) {
+            return res.status(400).json({ error: 'IdPlan invalido.' });
+        }
+
+        let semestreValue = null;
+        if (semestre !== null && semestre !== undefined && semestre !== '') {
+            const parsed = Number(semestre);
+            if (!Number.isInteger(parsed) || parsed <= 0) {
+                return res.status(400).json({ error: 'Semestre debe ser entero positivo o vacio.' });
+            }
+            semestreValue = parsed;
+        }
+
+        const pool = await poolPromise;
+        const result = await pool.request()
+            .input('idPlan', sql.Int, idPlan)
+            .input('codigo', sql.VarChar(20), codigo)
+            .input('semestre', sql.Int, semestreValue)
+            .query(`
+                UPDATE Pensum_Materias
+                SET Semestre = @semestre
+                WHERE IdPlan = @idPlan
+                  AND CodigoMateria = @codigo
+            `);
+
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ error: 'Materia del plan no encontrada.' });
+        }
+
+        return res.status(200).json({ message: 'Semestre actualizado exitosamente.' });
+    } catch (err) {
+        console.error('Error updating plan materia semestre:', err);
+        return res.status(500).json({ error: 'Error interno al actualizar semestre.' });
+    }
+};
+
+exports.addPlanMateria = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { codigoMateria, semestre } = req.body;
+        const idPlan = Number(id);
+
+        if (!Number.isInteger(idPlan) || idPlan <= 0) {
+            return res.status(400).json({ error: 'IdPlan invalido.' });
+        }
+
+        const codigo = (codigoMateria || '').toString().trim().toUpperCase();
+        if (!codigo) {
+            return res.status(400).json({ error: 'Codigo de materia requerido.' });
+        }
+
+        let semestreValue = null;
+        if (semestre !== null && semestre !== undefined && semestre !== '') {
+            const parsed = Number(semestre);
+            if (!Number.isInteger(parsed) || parsed <= 0) {
+                return res.status(400).json({ error: 'Semestre debe ser entero positivo o vacio.' });
+            }
+            semestreValue = parsed;
+        }
+
+        const pool = await poolPromise;
+        const existsPlan = await pool.request()
+            .input('idPlan', sql.Int, idPlan)
+            .query('SELECT 1 FROM PlanesEstudio WHERE IdPlan = @idPlan');
+
+        if (existsPlan.recordset.length === 0) {
+            return res.status(404).json({ error: 'Plan no encontrado.' });
+        }
+
+        const existsMateria = await pool.request()
+            .input('codigo', sql.VarChar(20), codigo)
+            .query('SELECT 1 FROM Materias WHERE CodigoMateria = @codigo');
+
+        if (existsMateria.recordset.length === 0) {
+            return res.status(404).json({ error: 'La materia indicada no existe.' });
+        }
+
+        const existsInPlan = await pool.request()
+            .input('idPlan', sql.Int, idPlan)
+            .input('codigo', sql.VarChar(20), codigo)
+            .query(`
+                SELECT 1
+                FROM Pensum_Materias
+                WHERE IdPlan = @idPlan
+                  AND CodigoMateria = @codigo
+            `);
+
+        if (existsInPlan.recordset.length > 0) {
+            return res.status(409).json({ error: 'La materia ya existe en este plan.' });
+        }
+
+        await pool.request()
+            .input('idPlan', sql.Int, idPlan)
+            .input('codigo', sql.VarChar(20), codigo)
+            .input('semestre', sql.Int, semestreValue)
+            .query(`
+                INSERT INTO Pensum_Materias (IdPlan, CodigoMateria, Semestre)
+                VALUES (@idPlan, @codigo, @semestre)
+            `);
+
+        return res.status(201).json({ message: 'Materia agregada al plan exitosamente.' });
+    } catch (err) {
+        console.error('Error adding materia to plan:', err);
+        return res.status(500).json({ error: 'Error interno al agregar materia al plan.' });
     }
 };
 
