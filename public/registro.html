@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro | CEUTEC · Sistema de Equivalencias</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="./css/style.css" rel="stylesheet">
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-white to-slate-100 font-['Inter'] antialiased min-h-screen flex flex-col relative overflow-x-hidden">
+    <div class="particles-container fixed inset-0 -z-10 pointer-events-none">
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-100 via-transparent to-transparent"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-slate-100/50 via-transparent to-transparent"></div>
+    </div>
+
+    <nav class="bg-white/80 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-50 animate-slide-down">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3 group">
+                    <div class="relative">
+                        <img src="./assets/images/logo-ceutec.png" alt="CEUTEC" class="h-9 w-auto transition-all duration-500 group-hover:scale-110 group-hover:rotate-2">
+                        <div class="absolute -inset-2 bg-[#B20000]/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    </div>
+                    <div class="h-6 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent"></div>
+                    <span class="text-sm font-medium text-gray-700 tracking-wide">Sistema de Equivalencias</span>
+                </div>
+                <span class="px-3 py-1 bg-gradient-to-r from-gray-100 to-gray-50 text-gray-600 text-xs font-medium rounded-full border border-gray-200/50">
+                    <i class="far fa-circle-check mr-1 text-[#B20000]"></i>
+                    MVP v1.0
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div class="w-full max-w-md mx-auto">
+            <div class="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200/50 p-8 animate-scale-in">
+                <div class="text-center mb-8">
+                    <h1 class="text-2xl font-semibold text-slate-800 mb-1">Crear cuenta</h1>
+                    <p class="text-sm text-slate-500">Completa tus datos para registrarte</p>
+                </div>
+
+                <form id="register-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Nombre completo</label>
+                        <input type="text" id="regNombre" required
+                               class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#B20000]/20 focus:border-[#B20000]"
+                               placeholder="Tu nombre completo">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Correo institucional</label>
+                        <input type="email" id="regEmail" required
+                               class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#B20000]/20 focus:border-[#B20000]"
+                               placeholder="usuario@unitec.edu">
+                        <p class="text-xs text-slate-400 mt-1">Debe terminar en <span class="font-semibold">@unitec.edu</span></p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Número de cuenta</label>
+                        <input type="text" id="regCuenta" required
+                               class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#B20000]/20 focus:border-[#B20000]"
+                               placeholder="Ej: 62241019">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Contraseña</label>
+                        <input type="password" id="regPassword" required minlength="8"
+                               class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#B20000]/20 focus:border-[#B20000]"
+                               placeholder="Mínimo 8 caracteres">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Confirmar contraseña</label>
+                        <input type="password" id="regConfirmPassword" required minlength="8"
+                               class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#B20000]/20 focus:border-[#B20000]"
+                               placeholder="Repite tu contraseña">
+                    </div>
+
+                    <div id="register-message" class="hidden text-sm rounded-lg p-3"></div>
+
+                    <button type="submit" id="btnRegister"
+                            class="w-full bg-[#B20000] hover:bg-[#8B0000] text-white font-medium py-2.5 rounded-lg transition-all duration-200">
+                        Crear cuenta
+                    </button>
+                </form>
+
+                <div class="text-center mt-5">
+                    <a href="/" class="text-sm text-slate-500 hover:text-[#B20000] transition-colors duration-200">
+                        <i class="fas fa-arrow-left mr-1"></i> Volver a iniciar sesión
+                    </a>
+                </div>
+            </div>
+
+            <p class="text-center text-xs text-slate-400 mt-6 animate-fade-in">
+                <i class="far fa-copyright mr-1"></i>
+                2026 CEUTEC · Acceso restringido
+            </p>
+        </div>
+    </main>
+
+    <script src="./js/register.js"></script>
+</body>
+</html>

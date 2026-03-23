@@ -1,5 +1,15 @@
 const sql = require('mssql');
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction) {
+    const requiredVars = ['DB_USER', 'DB_PASSWORD', 'DB_SERVER', 'DB_DATABASE'];
+    const missing = requiredVars.filter((key) => !process.env[key]);
+    if (missing.length > 0) {
+        throw new Error(`Missing required DB env vars in production: ${missing.join(', ')}`);
+    }
+}
+
 const dbConfig = {
     user: process.env.DB_USER || 'UsuariosDB',
     password: process.env.DB_PASSWORD || 'Temporal2025',
@@ -7,7 +17,7 @@ const dbConfig = {
     database: process.env.DB_DATABASE || 'AppEquivalenciasDB',
     options: {
         encrypt: process.env.DB_ENCRYPT === 'true',
-        trustServerCertificate: true
+        trustServerCertificate: isProduction ? process.env.DB_TRUST_SERVER_CERT === 'true' : true
     },
     pool: {
         max: 10,

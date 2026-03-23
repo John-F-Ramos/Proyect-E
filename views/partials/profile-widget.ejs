@@ -1,0 +1,24 @@
+<div class="relative inline-block text-left" id="profileWidget">
+    <button type="button"
+        class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000] hover:bg-red-200 transition focus:outline-none"
+        id="profileDropdownBtn">
+        <i class="fas fa-user"></i>
+    </button>
+    <div id="profileDropdown"
+        class="hidden absolute right-0 mt-2 w-56 origin-top-right rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none z-[100] border border-gray-100">
+        <div class="p-4 border-b border-gray-100">
+            <p class="text-sm font-bold text-slate-800 truncate" id="dropdownUserName">Nombre Usuario</p>
+            <p class="text-xs text-slate-500 mt-0.5" id="dropdownUserRole">Rol Usuario</p>
+        </div>
+        <div class="py-2">
+            <a href="/perfil"
+                class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition group">
+                <i class="fas fa-user-circle mr-3 text-slate-400 group-hover:text-[#B20000]"></i> Mi Perfil
+            </a>
+            <button onclick="localStorage.removeItem('user'); window.location.href='/';"
+                class="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition group">
+                <i class="fas fa-sign-out-alt mr-3 text-red-400 group-hover:text-red-600"></i> Cerrar Sesión
+            </button>
+        </div>
+    </div>
+</div>

@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="/js/auth-guard.js"></script>
+    <script src="/js/profile-widget.js"></script>
     <script src="/js/student-search-combobox.js"></script>
     <style>
         body {
@@ -20,80 +21,21 @@
 
 <body class="flex min-h-screen">
 
-    <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
-        <div class="p-6">
-            <img src="/assets/images/logo-ceutec.png" alt="CEUTEC" class="h-10 mb-8">
-            <nav class="space-y-1">
-                <a href="/dashboard"
-                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition group">
-                    <i class="fas fa-home mr-3 text-gray-400 group-hover:text-[#B20000]"></i> Dashboard
-                </a>
-                <a href="/equivalencias"
-                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
-                    <i class="fas fa-exchange-alt mr-3 text-gray-400"></i> Equivalencias
-                </a>
-                <a href="/plan-estudio"
-                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
-                    <i class="fas fa-book mr-3 text-gray-400"></i> Catálogos Académicos
-                </a>
-                <a href="/reportes"
-                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
-                    <i class="fas fa-file-alt mr-3 text-gray-400"></i> Reportes
-                </a>
-                <a href="/perfil"
-                    class="flex items-center px-4 py-3 text-gray-600 hover:bg-slate-50 rounded-lg transition">
-                    <i class="fas fa-user mr-3 text-gray-400"></i> Mi Perfil
-                </a>
-            </nav>
-        </div>
-        <div class="mt-auto p-6 border-t border-gray-200">
-            <button onclick="localStorage.removeItem('user'); window.location.href='/';"
-                class="flex items-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
-                <i class="fas fa-sign-out-alt mr-3"></i> Cerrar Sesión
-            </button>
-        </div>
-    </aside>
+    <%- include('partials/sidebar', { active: 'dashboard', noPrint: false, extraAsideClasses: '' }) %>
 
     <main class="flex-1 p-8 overflow-y-auto">
-        <header class="flex justify-between items-center mb-8">
+        <header class="flex justify-between items-center mb-8 gap-4">
             <h1 id="welcomeTitle" class="text-2xl font-bold text-slate-800">Estudiante: Cargando...</h1>
-            <div class="flex items-center space-x-4">
+            <div class="ml-auto flex items-center gap-3">
                 <div class="student-search-wrap relative min-w-[250px]">
                     <input type="text" id="alumnoInput" placeholder="Buscar alumno..." autocomplete="off"
                         class="bg-white border text-sm rounded-lg border-gray-300 focus:ring-[#B20000] focus:border-[#B20000] block p-2.5 text-slate-600 shadow-sm w-full placeholder-gray-400">
                 </div>
-            </div>
-
-            <button id="btnOpenModal"
-                class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center">
-                <i class="fas fa-file-excel mr-2"></i> Importar Historial
-            </button>
-            <!-- Profile Widget -->
-            <div class="relative inline-block text-left" id="profileWidget">
-                <button type="button"
-                    class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-[#B20000] hover:bg-red-200 transition focus:outline-none"
-                    id="profileDropdownBtn">
-                    <i class="fas fa-user"></i>
+                <button id="btnOpenModal"
+                    class="bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center whitespace-nowrap">
+                    <i class="fas fa-file-excel mr-2"></i> Importar Historial
                 </button>
-                <!-- Dropdown Menu -->
-                <div id="profileDropdown"
-                    class="hidden absolute right-0 mt-2 w-56 origin-top-right rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none z-[100] border border-gray-100">
-                    <div class="p-4 border-b border-gray-100">
-                        <p class="text-sm font-bold text-slate-800 truncate" id="dropdownUserName">Nombre Usuario</p>
-                        <p class="text-xs text-slate-500 mt-0.5" id="dropdownUserRole">Rol Usuario</p>
-                    </div>
-                    <div class="py-2">
-                        <a href="/perfil"
-                            class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition group">
-                            <i class="fas fa-user-circle mr-3 text-slate-400 group-hover:text-[#B20000]"></i> Mi Perfil
-                        </a>
-                        <button onclick="localStorage.removeItem('user'); window.location.href='/';"
-                            class="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition group">
-                            <i class="fas fa-sign-out-alt mr-3 text-red-400 group-hover:text-red-600"></i> Cerrar Sesión
-                        </button>
-                    </div>
-                </div>
-            </div>
+                <%- include('partials/profile-widget') %>
             </div>
         </header>
 
@@ -405,28 +347,6 @@
                 return 'ADMIN_IMPORT';
             }
             return userAccount;
-        }
-
-        // --- LÓGICA DEL WIDGET DE PERFIL ---
-        const profileDropdownBtn = document.getElementById('profileDropdownBtn');
-        const profileDropdown = document.getElementById('profileDropdown');
-        const dropdownUserName = document.getElementById('dropdownUserName');
-        const dropdownUserRole = document.getElementById('dropdownUserRole');
-
-        if (profileDropdownBtn && profileDropdown) {
-            dropdownUserName.textContent = userFromStorage.nombre || 'Usuario';
-            dropdownUserRole.textContent = userFromStorage.rolNombre || (userFromStorage.rol === 1 ? 'Administrador' : userFromStorage.rol === 2 ? 'Jefe de Carrera' : 'Estudiante');
-
-            profileDropdownBtn.onclick = (e) => {
-                e.stopPropagation();
-                profileDropdown.classList.toggle('hidden');
-            };
-
-            window.onclick = () => {
-                if (!profileDropdown.classList.contains('hidden')) {
-                    profileDropdown.classList.add('hidden');
-                }
-            };
         }
 
         // --- RESTRICCIONES DE IMPORTACIÓN POR ROL ---

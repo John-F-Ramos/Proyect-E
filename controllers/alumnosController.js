@@ -23,6 +23,18 @@ function normalizeText(value) {
         .trim();
 }
 
+function canAccessCuenta(reqUser, cuentaObjetivo) {
+    if (!reqUser) return false;
+    const cuenta = (cuentaObjetivo || '').toString().trim();
+    // Admin y Jefe de Carrera tienen acceso a consultas de alumnos.
+    if (reqUser.rol === 1 || reqUser.rol === 2) return true;
+    // Alumno solo puede consultar su propia cuenta.
+    if (reqUser.rol === 3) {
+        return (reqUser.numeroCuenta || '').toString().trim() === cuenta;
+    }
+    return false;
+}
+
 // Obtener lista ligera de alumnos para el dropdown
 exports.getAllAlumnos = async (req, res) => {
     try {
@@ -43,11 +55,11 @@ exports.getAllAlumnos = async (req, res) => {
 // Obtener alumnos visibles por perfil de usuario (admin/jefe/alumno)
 exports.getVisibleAlumnos = async (req, res) => {
     try {
-        const { idUsuario } = req.params;
+        const requesterId = Number(req?.user?.id);
         const pool = await poolPromise;
 
         const userResult = await pool.request()
-            .input('idUsuario', sql.Int, Number(idUsuario))
+            .input('idUsuario', sql.Int, requesterId)
             .query(`
                 SELECT IdUsuario, IdRol, NumeroCuenta, CorreoInstitucional
                 FROM Usuarios
@@ -138,6 +150,9 @@ async function registrarEquivalencia(pool, cuenta, codigoPlan, codigoCursada) {
 exports.getAlumnoDashboard = async (req, res) => {
     try {
         const { cuenta } = req.params;
+        if (!canAccessCuenta(req.user, cuenta)) {
+            return res.status(403).json({ error: 'FORBIDDEN' });
+        }
         const pool = await poolPromise;
 
         // 1. Datos Generales del Alumno y su Plan
@@ -507,6 +522,9 @@ exports.getAlumnoDashboard = async (req, res) => {
 exports.getEquivalencias = async (req, res) => {
     try {
         const { cuenta } = req.params;
+        if (!canAccessCuenta(req.user, cuenta)) {
+            return res.status(403).json({ error: 'FORBIDDEN' });
+        }
         const pool = await poolPromise;
 
         const equivalenciasResult = await pool.request()
@@ -539,6 +557,9 @@ exports.getEquivalencias = async (req, res) => {
 exports.getHistorialCompleto = async (req, res) => {
     try {
         const { cuenta } = req.params;
+        if (!canAccessCuenta(req.user, cuenta)) {
+            return res.status(403).json({ error: 'FORBIDDEN' });
+        }
         const pool = await poolPromise;
 
         const historialResult = await pool.request()
@@ -575,6 +596,9 @@ exports.getHistorialCompleto = async (req, res) => {
 exports.getMateriasPendientes = async (req, res) => {
     try {
         const { cuenta } = req.params;
+        if (!canAccessCuenta(req.user, cuenta)) {
+            return res.status(403).json({ error: 'FORBIDDEN' });
+        }
         const pool = await poolPromise;
 
         const alumnoResult = await pool.request()
@@ -637,6 +661,9 @@ exports.getMateriasPendientes = async (req, res) => {
 exports.getResumenEstados = async (req, res) => {
     try {
         const { cuenta } = req.params;
+        if (!canAccessCuenta(req.user, cuenta)) {
+            return res.status(403).json({ error: 'FORBIDDEN' });
+        }
         const pool = await poolPromise;
 
         const resumenResult = await pool.request()
@@ -670,6 +697,9 @@ exports.getResumenEstados = async (req, res) => {
 exports.getAlumnoCarrera = async (req, res) => {
     try {
         const { cuenta } = req.params;
+        if (!canAccessCuenta(req.user, cuenta)) {
+            return res.status(403).json({ error: 'FORBIDDEN' });
+        }
         const pool = await poolPromise;
 
         const result = await pool.request()

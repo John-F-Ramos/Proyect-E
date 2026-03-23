@@ -17,6 +17,20 @@ const ELECTIVAS_MAP = {
 exports.calcularSimulacion = async (req, res) => {
     try {
         const { cuenta, carreraDestino, idPlanDestino } = req.body;
+        const requester = req.user;
+        const cuentaObjetivo = (cuenta || '').toString().trim();
+        const requesterCuenta = (requester?.numeroCuenta || '').toString().trim();
+
+        if (!requester) {
+            return res.status(401).json({ error: 'UNAUTHORIZED' });
+        }
+        if (requester.rol === 3 && requesterCuenta !== cuentaObjetivo) {
+            return res.status(403).json({ error: 'FORBIDDEN' });
+        }
+        if (!cuentaObjetivo) {
+            return res.status(400).json({ error: 'Cuenta objetivo requerida.' });
+        }
+
         const pool = await poolPromise;
 
         // 1. Obtener el plan destino (por IdPlan seleccionado o carrera legacy)
@@ -27,30 +41,58 @@ exports.calcularSimulacion = async (req, res) => {
                 .input('idPlan', sql.Int, planId)
                 .query(`
                     SELECT 
-                        p.IdPlan, p.NombrePlan, p.AnioPlan, p.CodigoCarrera, c.NombreCarrera,
-                        COUNT(pm.CodigoMateria) AS TotalMaterias,
-                        ISNULL(SUM(m.UVS), 0) AS TotalUVS
+                        p.IdPlan,
+                        p.NombrePlan,
+                        p.AnioPlan,
+                        p.CodigoCarrera,
+                        c.NombreCarrera,
+                        (
+                            SELECT COUNT(*)
+                            FROM Pensum_Materias pm2
+                            WHERE pm2.IdPlan = p.IdPlan
+                        ) AS TotalMaterias,
+                        (
+                            SELECT ISNULL(SUM(ISNULL(m2.UVS, 0)), 0)
+                            FROM Pensum_Materias pm2
+                            LEFT JOIN (
+                                SELECT CodigoMateria, MAX(UVS) AS UVS
+                                FROM Materias
+                                GROUP BY CodigoMateria
+                            ) m2 ON pm2.CodigoMateria = m2.CodigoMateria
+                            WHERE pm2.IdPlan = p.IdPlan
+                        ) AS TotalUVS
                     FROM PlanesEstudio p
                     LEFT JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
-                    LEFT JOIN Pensum_Materias pm ON p.IdPlan = pm.IdPlan
-                    LEFT JOIN Materias m ON pm.CodigoMateria = m.CodigoMateria
                     WHERE p.IdPlan = @idPlan
-                    GROUP BY p.IdPlan, p.NombrePlan, p.AnioPlan, p.CodigoCarrera, c.NombreCarrera
                 `);
         } else {
             planDestinoResult = await pool.request()
                 .input('codigoCarrera', sql.VarChar, carreraDestino)
                 .query(`
                     SELECT TOP 1 
-                        p.IdPlan, p.NombrePlan, p.AnioPlan, p.CodigoCarrera, c.NombreCarrera,
-                        COUNT(pm.CodigoMateria) AS TotalMaterias,
-                        ISNULL(SUM(m.UVS), 0) AS TotalUVS
+                        p.IdPlan,
+                        p.NombrePlan,
+                        p.AnioPlan,
+                        p.CodigoCarrera,
+                        c.NombreCarrera,
+                        (
+                            SELECT COUNT(*)
+                            FROM Pensum_Materias pm2
+                            WHERE pm2.IdPlan = p.IdPlan
+                        ) AS TotalMaterias,
+                        (
+                            SELECT ISNULL(SUM(ISNULL(m2.UVS, 0)), 0)
+                            FROM Pensum_Materias pm2
+                            LEFT JOIN (
+                                SELECT CodigoMateria, MAX(UVS) AS UVS
+                                FROM Materias
+                                GROUP BY CodigoMateria
+                            ) m2 ON pm2.CodigoMateria = m2.CodigoMateria
+                            WHERE pm2.IdPlan = p.IdPlan
+                        ) AS TotalUVS
                     FROM PlanesEstudio p
                     LEFT JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
-                    LEFT JOIN Pensum_Materias pm ON p.IdPlan = pm.IdPlan
-                    LEFT JOIN Materias m ON pm.CodigoMateria = m.CodigoMateria
                     WHERE p.CodigoCarrera = @codigoCarrera
-                    GROUP BY p.IdPlan, p.NombrePlan, p.AnioPlan, p.CodigoCarrera, c.NombreCarrera
                     ORDER BY p.AnioPlan DESC
                 `);
         }
@@ -65,9 +107,20 @@ exports.calcularSimulacion = async (req, res) => {
         const materiasDestinoResult = await pool.request()
             .input('idPlan', sql.Int, planDestino.IdPlan)
             .query(`
-                SELECT pm.CodigoMateria, m.NombreMateria, m.UVS, pm.Semestre
+                SELECT
+                    pm.CodigoMateria,
+                    ISNULL(m.NombreMateria, pm.CodigoMateria) AS NombreMateria,
+                    ISNULL(m.UVS, 0) AS UVS,
+                    pm.Semestre
                 FROM Pensum_Materias pm
-                INNER JOIN Materias m ON pm.CodigoMateria = m.CodigoMateria
+                LEFT JOIN (
+                    SELECT
+                        CodigoMateria,
+                        MAX(NombreMateria) AS NombreMateria,
+                        MAX(UVS) AS UVS
+                    FROM Materias
+                    GROUP BY CodigoMateria
+                ) m ON pm.CodigoMateria = m.CodigoMateria
                 WHERE pm.IdPlan = @idPlan
                 ORDER BY pm.Semestre, pm.CodigoMateria
             `);
@@ -76,7 +129,7 @@ exports.calcularSimulacion = async (req, res) => {
 
         // 3. Obtener el HISTORIAL DEL ALUMNO (materias aprobadas)
         const historialResult = await pool.request()
-            .input('cuenta', sql.VarChar, cuenta)
+            .input('cuenta', sql.VarChar, cuentaObjetivo)
             .query(`
                 SELECT DISTINCT h.CodigoMateria, h.NombreMateria, h.Estado
                 FROM Historial_Importado h
@@ -189,9 +242,19 @@ exports.calcularSimulacion = async (req, res) => {
             }
         });
 
-        // 6. Calcular estadísticas finales
+        // 6. Construir detalle de materias faltantes (las del plan destino no cubiertas por equivalencia)
+        const materiasFaltantesDetalle = materiasDestino
+            .filter((materiaDestino) => !materiasEquivalentesSet.has(materiaDestino.CodigoMateria))
+            .map((materiaDestino) => ({
+                codigoMateria: materiaDestino.CodigoMateria,
+                nombreMateria: materiaDestino.NombreMateria,
+                uvs: materiaDestino.UVS || 0,
+                semestre: materiaDestino.Semestre || null
+            }));
+
+        // 7. Calcular estadísticas finales
         const materiasEquivalentes = materiasEquivalentesSet.size;
-        const materiasFaltantes = planDestino.TotalMaterias - materiasEquivalentes;
+        const materiasFaltantes = materiasFaltantesDetalle.length;
         const uvsFaltantes = planDestino.TotalUVS - uvsEquivalentes;
 
         console.log(`[Simulación] Resultado: ${materiasEquivalentes} materias equivalentes, ${uvsEquivalentes} UVs`);
@@ -210,6 +273,7 @@ exports.calcularSimulacion = async (req, res) => {
             uvsEquivalentes: uvsEquivalentes,
             materiasFaltantes: materiasFaltantes,
             uvsFaltantes: uvsFaltantes,
+            materiasFaltantesDetalle: materiasFaltantesDetalle,
             equivalencias: equivalencias // Primeras 20 para no saturar
         });
 

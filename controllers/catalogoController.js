@@ -750,8 +750,7 @@ async function processMassiveUpload({ req, res, templateType, parsed }) {
         await markLoteError(idLote, error.message || 'Error desconocido');
         console.error('Error en carga masiva:', error);
         return res.status(500).json({
-            error: 'Error al procesar la carga masiva',
-            detail: error.message
+            error: 'Error al procesar la carga masiva'
         });
     }
 }

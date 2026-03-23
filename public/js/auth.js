@@ -2,6 +2,13 @@
 const loginForm = document.getElementById('login-form');
 const errorMessage = document.getElementById('error-message');
 const errorText = document.querySelector('.error-text');
+const btnGoRegister = document.getElementById('btnGoRegister');
+
+if (btnGoRegister) {
+    btnGoRegister.addEventListener('click', () => {
+        window.location.href = '/registro';
+    });
+}
 
 if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
@@ -44,7 +51,11 @@ if (loginForm) {
             console.log("Número de cuenta:", data.user.numeroCuenta); // Debug
             
             // Guardar info del usuario si es necesario
-            localStorage.setItem('user', JSON.stringify(data.user));
+            const userPayload = {
+                ...data.user,
+                token: data.token
+            };
+            localStorage.setItem('user', JSON.stringify(userPayload));
 
             // Redirección al Dashboard
             UI.showLoginSuccess();

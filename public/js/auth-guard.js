@@ -1,11 +1,45 @@
 // public/js/auth-guard.js
 (function() {
-    const user = JSON.parse(localStorage.getItem('user'));
+    function getStoredUser() {
+        try {
+            const raw = localStorage.getItem('user');
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            localStorage.removeItem('user');
+            return null;
+        }
+    }
+
+    const user = getStoredUser();
     
     // Si no hay usuario, redirigir al login
     if (!user) {
         window.location.href = '/';
         return;
+    }
+
+    // Adjuntar token a llamadas /api automáticamente.
+    const token = user.token || null;
+    if (token && typeof window.fetch === 'function') {
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = (input, init = {}) => {
+            try {
+                const url = typeof input === 'string' ? input : (input && input.url) || '';
+                const isApiCall = url.startsWith('/api/');
+                if (!isApiCall) {
+                    return originalFetch(input, init);
+                }
+
+                const headers = new Headers(init.headers || (input && input.headers) || {});
+                if (!headers.has('Authorization')) {
+                    headers.set('Authorization', `Bearer ${token}`);
+                }
+
+                return originalFetch(input, { ...init, headers });
+            } catch (e) {
+                return originalFetch(input, init);
+            }
+        };
     }
 
     const currentPath = window.location.pathname;
