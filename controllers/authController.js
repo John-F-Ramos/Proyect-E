@@ -35,6 +35,11 @@ async function login(req, res) {
             return res.status(401).json({ message: 'Credenciales inválidas' });
         }
 
+        if (!user.Activo) {
+            console.log(`[Login] Cuenta inactiva: ${email}`);
+            return res.status(403).json({ message: 'Cuenta inactiva. Contacta a un administrador.' });
+        }
+
         console.log(`[Login] Usuario encontrado. Validando contraseña...`);
         
         const isHash = user.PasswordHash && user.PasswordHash.startsWith('$2');

@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { poolPromise, sql } = require('../config/db');
 
 function getJwtSecret() {
     const secret = process.env.JWT_SECRET;
@@ -14,7 +15,7 @@ function extractToken(req) {
     return authHeader.slice(7).trim();
 }
 
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
     try {
         const token = extractToken(req);
         if (!token) {
@@ -22,10 +23,28 @@ function requireAuth(req, res, next) {
         }
 
         const payload = jwt.verify(token, getJwtSecret());
+
+        const pool = await poolPromise;
+        const result = await pool.request()
+            .input('idUsuario', sql.Int, Number(payload.id))
+            .query(`
+                SELECT IdUsuario, IdRol, NumeroCuenta, Activo
+                FROM Usuarios
+                WHERE IdUsuario = @idUsuario
+            `);
+
+        const dbUser = result.recordset[0];
+        if (!dbUser) {
+            return res.status(401).json({ error: 'UNAUTHORIZED' });
+        }
+        if (!dbUser.Activo) {
+            return res.status(403).json({ error: 'ACCOUNT_INACTIVE' });
+        }
+
         req.user = {
-            id: payload.id,
-            rol: payload.rol,
-            numeroCuenta: payload.numeroCuenta || null
+            id: dbUser.IdUsuario,
+            rol: dbUser.IdRol,
+            numeroCuenta: dbUser.NumeroCuenta || null
         };
 
         return next();

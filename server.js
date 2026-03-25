@@ -70,9 +70,14 @@ app.get('/perfil', (req, res) => {
     res.render('perfil');
 });
 
+app.get('/administracion', (req, res) => {
+    res.render('administracion');
+});
+
 // Import variables
 const ingestRoutes = require('./routes/ingest.routes');
 const authRoutes = require('./routes/auth.routes');
+const adminRoutes = require('./routes/admin.routes');
 const alumnosRoutes = require('./routes/alumnos.routes');
 const catologosRoutes = require('./routes/catalogo.routes');
 // Agrega esta línea con las demás importaciones
@@ -84,6 +89,7 @@ app.use('/api/simulacion', simulacionRoutes);
 // Definir rutas base
 app.use('/api/ingest', ingestRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/alumnos', alumnosRoutes);
 app.use('/api/catalogos', catologosRoutes);
 

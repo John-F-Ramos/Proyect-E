@@ -25,9 +25,12 @@
 
     <main class="flex-1 p-8 overflow-y-auto">
         <header class="flex justify-between items-center mb-8 gap-4">
-            <h1 id="welcomeTitle" class="text-2xl font-bold text-slate-800">Estudiante: Cargando...</h1>
+            <div>
+                <h1 id="welcomeTitle" class="text-2xl font-bold text-slate-800">Estudiante: Cargando...</h1>
+                <p id="adminSubtitle" class="hidden text-sm text-slate-500 mt-1">Indicadores operativos de la plataforma.</p>
+            </div>
             <div class="ml-auto flex items-center gap-3">
-                <div class="student-search-wrap relative min-w-[250px]">
+                <div id="studentSearchWrap" class="student-search-wrap relative min-w-[250px]">
                     <input type="text" id="alumnoInput" placeholder="Buscar alumno..." autocomplete="off"
                         class="bg-white border text-sm rounded-lg border-gray-300 focus:ring-[#B20000] focus:border-[#B20000] block p-2.5 text-slate-600 shadow-sm w-full placeholder-gray-400">
                 </div>
@@ -159,6 +162,86 @@
             </div>
         </div>
 
+        <!-- Dashboard de Administrador -->
+        <div id="adminDashboard" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <p class="text-xs text-slate-500 mb-1">Usuarios Totales</p>
+                    <p id="adminTotalUsuarios" class="text-3xl font-bold text-slate-800">0</p>
+                    <p class="text-xs text-slate-400 mt-2">Base total de usuarios registrados.</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <p class="text-xs text-slate-500 mb-1">Usuarios Activos</p>
+                    <p id="adminUsuariosActivos" class="text-3xl font-bold text-green-600">0</p>
+                    <p class="text-xs text-slate-400 mt-2">Cuentas habilitadas para ingresar.</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <p class="text-xs text-slate-500 mb-1">Usuarios Inactivos</p>
+                    <p id="adminUsuariosInactivos" class="text-3xl font-bold text-red-600">0</p>
+                    <p class="text-xs text-slate-400 mt-2">Cuentas suspendidas o desactivadas.</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <p class="text-xs text-slate-500 mb-1">Altas (últimos 7 días)</p>
+                    <p id="adminAltasUltimos7Dias" class="text-3xl font-bold text-[#B20000]">0</p>
+                    <p class="text-xs text-slate-400 mt-2">Nuevos usuarios creados recientemente.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <h3 class="text-sm font-semibold text-slate-700 mb-4">Distribución por Rol</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-500 mb-1">
+                                <span>Administradores</span>
+                                <span id="adminRolAdminCount">0</span>
+                            </div>
+                            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div id="adminRolAdminBar" class="h-2 bg-[#B20000] rounded-full" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-500 mb-1">
+                                <span>Jefes de Carrera</span>
+                                <span id="adminRolJefeCount">0</span>
+                            </div>
+                            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div id="adminRolJefeBar" class="h-2 bg-blue-500 rounded-full" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-500 mb-1">
+                                <span>Estudiantes</span>
+                                <span id="adminRolEstudianteCount">0</span>
+                            </div>
+                            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div id="adminRolEstudianteBar" class="h-2 bg-green-500 rounded-full" style="width:0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2">
+                    <h3 class="text-sm font-semibold text-slate-700 mb-4">Resumen de Plataforma</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-slate-50 rounded-xl p-4">
+                            <p class="text-xs text-slate-500 mb-1">Tasa de activación</p>
+                            <p id="adminActivationRate" class="text-2xl font-bold text-slate-800">0%</p>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-4">
+                            <p class="text-xs text-slate-500 mb-1">Relación admins/jefes</p>
+                            <p id="adminAdminJefeRatio" class="text-2xl font-bold text-slate-800">0:0</p>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-4 sm:col-span-2">
+                            <p class="text-xs text-slate-500 mb-1">Estado general</p>
+                            <p id="adminPlatformHealth" class="text-sm text-slate-700">Cargando métricas...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="academicDashboard">
         <!-- Cards del Dashboard -->
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
             <!-- Card 1: Progreso Curricular -->
@@ -274,6 +357,7 @@
                 </tbody>
             </table>
         </div>
+        </div>
     </main>
 
     <script>
@@ -311,8 +395,13 @@
         const btnAcceptPreview = document.getElementById('btnAcceptPreview');
 
         // Elementos del dashboard
+        const IS_ADMIN = userFromStorage.rol === 1;
         const ALUMNO_INPUT = document.getElementById('alumnoInput');
+        const STUDENT_SEARCH_WRAP = document.getElementById('studentSearchWrap');
         const WELCOME_TITLE = document.getElementById('welcomeTitle');
+        const ADMIN_SUBTITLE = document.getElementById('adminSubtitle');
+        const ADMIN_DASHBOARD = document.getElementById('adminDashboard');
+        const ACADEMIC_DASHBOARD = document.getElementById('academicDashboard');
         const CIRCLE = document.getElementById('progressCircle');
         const PERC_TEXT = document.getElementById('progressPercentageText');
         const TOTAL_UVS = document.getElementById('totalUvsText');
@@ -325,6 +414,66 @@
         // Ocultar buscador de alumnos para estudiantes (rol 3)
         if (userFromStorage.rol === 3 && ALUMNO_INPUT) {
             ALUMNO_INPUT.parentElement.style.display = 'none';
+        }
+
+        function updateRoleBar(elementId, count, total) {
+            const bar = document.getElementById(elementId);
+            if (!bar) return;
+            const pct = total > 0 ? Math.max(0, Math.min(100, Math.round((count / total) * 100))) : 0;
+            bar.style.width = `${pct}%`;
+        }
+
+        function actualizarDashboardAdmin(metrics) {
+            const total = Number(metrics.totalUsuarios || 0);
+            const activos = Number(metrics.usuariosActivos || 0);
+            const inactivos = Number(metrics.usuariosInactivos || 0);
+            const admins = Number(metrics.totalAdmins || 0);
+            const jefes = Number(metrics.totalJefes || 0);
+            const estudiantes = Number(metrics.totalEstudiantes || 0);
+            const altas7 = Number(metrics.altasUltimos7Dias || 0);
+
+            document.getElementById('adminTotalUsuarios').textContent = total;
+            document.getElementById('adminUsuariosActivos').textContent = activos;
+            document.getElementById('adminUsuariosInactivos').textContent = inactivos;
+            document.getElementById('adminAltasUltimos7Dias').textContent = altas7;
+
+            document.getElementById('adminRolAdminCount').textContent = admins;
+            document.getElementById('adminRolJefeCount').textContent = jefes;
+            document.getElementById('adminRolEstudianteCount').textContent = estudiantes;
+
+            updateRoleBar('adminRolAdminBar', admins, total);
+            updateRoleBar('adminRolJefeBar', jefes, total);
+            updateRoleBar('adminRolEstudianteBar', estudiantes, total);
+
+            const activationRate = total > 0 ? Math.round((activos / total) * 100) : 0;
+            document.getElementById('adminActivationRate').textContent = `${activationRate}%`;
+            document.getElementById('adminAdminJefeRatio').textContent = `${admins}:${jefes}`;
+
+            const healthText = activationRate >= 90
+                ? 'Plataforma estable: alta disponibilidad de cuentas activas.'
+                : activationRate >= 70
+                    ? 'Plataforma en estado moderado: revisar cuentas inactivas.'
+                    : 'Plataforma con riesgo: alto porcentaje de cuentas inactivas.';
+            document.getElementById('adminPlatformHealth').textContent = healthText;
+        }
+
+        async function cargarDashboardAdmin() {
+            try {
+                WELCOME_TITLE.textContent = 'Dashboard de Plataforma';
+                if (ADMIN_SUBTITLE) ADMIN_SUBTITLE.classList.remove('hidden');
+                if (STUDENT_SEARCH_WRAP) STUDENT_SEARCH_WRAP.style.display = 'none';
+                if (btnOpen) btnOpen.style.display = 'none';
+                if (ADMIN_DASHBOARD) ADMIN_DASHBOARD.classList.remove('hidden');
+                if (ACADEMIC_DASHBOARD) ACADEMIC_DASHBOARD.classList.add('hidden');
+
+                const res = await fetch('/api/admin/metrics/users');
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Error cargando métricas de plataforma');
+                actualizarDashboardAdmin(data);
+            } catch (error) {
+                console.error('Error en dashboard admin:', error);
+                document.getElementById('adminPlatformHealth').textContent = 'No se pudieron cargar las métricas de plataforma.';
+            }
         }
 
         // Función para obtener la cuenta a la que se importarán los datos
@@ -781,8 +930,12 @@
         }
 
         // Inicialización
-        fetchAlumnos();
-        cargarDashboardAlumnoActual();
+        if (IS_ADMIN) {
+            cargarDashboardAdmin();
+        } else {
+            fetchAlumnos();
+            cargarDashboardAlumnoActual();
+        }
 
         // Configuración de Drag & Drop para el DropZone
         const externalDropZone = document.getElementById('dropZone');
