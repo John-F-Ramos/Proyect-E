@@ -283,6 +283,40 @@
             </div>
         </div>
 
+        <!-- Panel de Solicitudes de Cambio (solo Admin/Jefe) -->
+        <div id="panelSolicitudesCambio" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 mb-8 hidden">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
+                <h2 class="text-lg font-bold text-slate-800 flex items-center">
+                    <i class="fas fa-clipboard-check text-[#B20000] mr-2"></i>
+                    Solicitudes de Cambio de Carrera
+                </h2>
+                <button id="btnRefrescarSolicitudesCambio"
+                    class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition">
+                    <i class="fas fa-rotate mr-2"></i> Refrescar
+                </button>
+            </div>
+
+            <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Alumno</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Actual</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Destino</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Creada</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaSolicitudesCambioBody" class="bg-white divide-y divide-gray-200 text-sm">
+                        <tr>
+                            <td colspan="5" class="px-4 py-6 text-center text-slate-400 italic">Cargando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-3">Aprobar actualiza el plan actual del alumno automáticamente.</p>
+        </div>
+
         <!-- Gráficos y Resumen -->
         <div id="graficosContainer" class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
             <div class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -504,6 +538,9 @@
         const btnCalcular = document.getElementById('btnCalcularSimulacion');
         const resultadosSimulacion = document.getElementById('resultadosSimulacion');
         const btnDescargarSimulacion = document.getElementById('btnDescargarSimulacion');
+        const panelSolicitudesCambio = document.getElementById('panelSolicitudesCambio');
+        const tablaSolicitudesCambioBody = document.getElementById('tablaSolicitudesCambioBody');
+        const btnRefrescarSolicitudesCambio = document.getElementById('btnRefrescarSolicitudesCambio');
 
         let equivalenciasData = [];
         let chart = null;
@@ -523,6 +560,7 @@
             // Modo Admin/Jefe: Mostrar simulador, ocultar el resto
             if (document.getElementById('simAlumnoSelector')) document.getElementById('simAlumnoSelector').classList.remove('hidden');
             if (panelSimulacion) panelSimulacion.classList.remove('hidden');
+            if (panelSolicitudesCambio) panelSolicitudesCambio.classList.remove('hidden');
             
             if (btnSolicitar) btnSolicitar.style.display = 'none';
             if (document.getElementById('statsCardsContainer')) document.getElementById('statsCardsContainer').style.display = 'none';
@@ -532,11 +570,95 @@
             // Modo Alumno: Ocultar simulador, mostrar el resto
             if (document.getElementById('simAlumnoSelector')) document.getElementById('simAlumnoSelector').classList.add('hidden');
             if (panelSimulacion) panelSimulacion.classList.add('hidden');
+            if (panelSolicitudesCambio) panelSolicitudesCambio.classList.add('hidden');
             
             if (btnSolicitar) btnSolicitar.style.display = 'flex';
             if (document.getElementById('statsCardsContainer')) document.getElementById('statsCardsContainer').style.display = 'grid';
             if (document.getElementById('graficosContainer')) document.getElementById('graficosContainer').style.display = 'grid';
             if (document.getElementById('tabsContainer')) document.getElementById('tabsContainer').style.display = 'block';
+        }
+
+        function renderSolicitudesCambio(rows) {
+            if (!tablaSolicitudesCambioBody) return;
+            if (!Array.isArray(rows) || rows.length === 0) {
+                tablaSolicitudesCambioBody.innerHTML = '<tr><td colspan=\"5\" class=\"px-4 py-6 text-center text-slate-400 italic\">No hay solicitudes pendientes.</td></tr>';
+                return;
+            }
+
+            tablaSolicitudesCambioBody.innerHTML = rows.map((s) => {
+                const alumno = `${s.NumeroCuenta || ''} - ${s.AlumnoNombre || ''}`.trim();
+                const actual = `${s.CarreraActualNombre || ''} • ${s.PlanActualNombre || ''} (${s.PlanActualAnio || ''})`.trim();
+                const destino = `${s.CarreraDestinoNombre || ''} • ${s.PlanDestinoNombre || ''} (${s.PlanDestinoAnio || ''})`.trim();
+                const creado = s.FechaCreacion ? new Date(s.FechaCreacion).toLocaleString() : '-';
+                const motivo = (s.Motivo || '').toString().trim();
+
+                const motivoHtml = motivo ? `<p class=\"text-[11px] text-slate-500 mt-1 line-clamp-2\">${motivo}</p>` : '';
+
+                return `
+                    <tr>
+                        <td class=\"px-4 py-3 text-slate-700\">
+                            <div class=\"font-semibold\">${alumno || '-'}</div>
+                            ${motivoHtml}
+                        </td>
+                        <td class=\"px-4 py-3 text-slate-700\">${actual || '-'}</td>
+                        <td class=\"px-4 py-3 text-slate-700\">${destino || '-'}</td>
+                        <td class=\"px-4 py-3 text-slate-600\">${creado}</td>
+                        <td class=\"px-4 py-3\">
+                            <div class=\"flex flex-col sm:flex-row gap-2\">
+                                <button data-action=\"aprobar\" data-id=\"${s.IdSolicitud}\" class=\"px-3 py-2 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition\">
+                                    Aprobar
+                                </button>
+                                <button data-action=\"rechazar\" data-id=\"${s.IdSolicitud}\" class=\"px-3 py-2 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 transition\">
+                                    Rechazar
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function cargarSolicitudesCambioPendientes() {
+            if (userRol !== 1 && userRol !== 2) return;
+            if (!tablaSolicitudesCambioBody) return;
+
+            tablaSolicitudesCambioBody.innerHTML = '<tr><td colspan=\"5\" class=\"px-4 py-6 text-center text-slate-400 italic\">Cargando...</td></tr>';
+
+            const res = await fetch('/api/solicitudes-cambio?estado=PENDIENTE');
+            const data = await res.json();
+            if (!res.ok) {
+                tablaSolicitudesCambioBody.innerHTML = '<tr><td colspan=\"5\" class=\"px-4 py-6 text-center text-red-500 italic\">No se pudieron cargar solicitudes.</td></tr>';
+                return;
+            }
+            renderSolicitudesCambio(data);
+        }
+
+        async function resolverSolicitudCambio({ idSolicitud, accion }) {
+            const motivoResolucion = (accion === 'APROBAR')
+                ? prompt('Motivo de aprobación (opcional):', '')
+                : prompt('Motivo de rechazo (requerido):', '');
+
+            if (accion === 'RECHAZAR' && !(motivoResolucion || '').trim()) {
+                alert('Debes indicar un motivo de rechazo.');
+                return;
+            }
+
+            const res = await fetch(`/api/solicitudes-cambio/${idSolicitud}/resolver`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    accion: accion === 'APROBAR' ? 'APROBAR' : 'RECHAZAR',
+                    motivoResolucion: (motivoResolucion || '').trim()
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.error || 'No se pudo resolver la solicitud.');
+                return;
+            }
+
+            await cargarSolicitudesCambioPendientes();
         }
 
         // Cargar datos iniciales
@@ -946,7 +1068,32 @@
         }
 
         // Inicialización
+        if (btnRefrescarSolicitudesCambio) {
+            btnRefrescarSolicitudesCambio.addEventListener('click', () => cargarSolicitudesCambioPendientes());
+        }
+
+        if (tablaSolicitudesCambioBody) {
+            tablaSolicitudesCambioBody.addEventListener('click', async (e) => {
+                const btn = e.target.closest('button[data-action][data-id]');
+                if (!btn) return;
+                const idSolicitud = Number(btn.getAttribute('data-id'));
+                const action = (btn.getAttribute('data-action') || '').toLowerCase();
+                if (!Number.isInteger(idSolicitud) || idSolicitud <= 0) return;
+
+                if (action === 'aprobar') {
+                    const ok = confirm('¿Aprobar esta solicitud? Esto actualizará el plan actual del alumno.');
+                    if (!ok) return;
+                    await resolverSolicitudCambio({ idSolicitud, accion: 'APROBAR' });
+                } else if (action === 'rechazar') {
+                    const ok = confirm('¿Rechazar esta solicitud?');
+                    if (!ok) return;
+                    await resolverSolicitudCambio({ idSolicitud, accion: 'RECHAZAR' });
+                }
+            });
+        }
+
         cargarDatosIniciales();
+        cargarSolicitudesCambioPendientes();
     </script>
 </body>
 

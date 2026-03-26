@@ -80,6 +80,15 @@
             }
         });
 
+        const studentOnlyElements = document.querySelectorAll('[data-student-only="true"]');
+        studentOnlyElements.forEach((el) => {
+            if (isStudent) {
+                el.classList.remove('hidden');
+            } else {
+                el.classList.add('hidden');
+            }
+        });
+
         if (isStudent) {
             const navElements = document.querySelectorAll('a[href="/plan-estudio"]');
             navElements.forEach(el => el.style.display = 'none');

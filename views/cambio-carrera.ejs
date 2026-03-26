@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cambio de Carrera | CEUTEC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="/js/auth-guard.js"></script>
+    <script src="/js/profile-widget.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            overflow-x: hidden;
+        }
+    </style>
+</head>
+
+<body class="flex min-h-screen overflow-x-hidden">
+    <%- include('partials/sidebar', { active: 'cambio-carrera', noPrint: false, extraAsideClasses: 'flex-shrink-0' }) %>
+
+    <main class="flex-1 p-4 md:p-8 overflow-y-auto w-full max-w-full">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800">Solicitud de Cambio de Carrera</h1>
+                <p class="text-sm text-slate-500 mt-1">Tu carrera actual se detecta automáticamente. Solo eliges el plan destino.</p>
+            </div>
+            <div class="flex items-center gap-3 w-full md:w-auto">
+                <%- include('partials/profile-widget') %>
+            </div>
+        </header>
+
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 lg:col-span-2">
+                <h2 class="text-lg font-bold text-slate-800 flex items-center mb-4">
+                    <i class="fas fa-graduation-cap text-[#B20000] mr-2"></i>
+                    Crear solicitud
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Carrera actual</label>
+                        <input id="ccCarreraActual" type="text"
+                            class="w-full border border-gray-300 rounded-lg p-2 h-10 text-sm bg-slate-50 text-slate-700 font-medium"
+                            readonly>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Plan actual</label>
+                        <input id="ccPlanActual" type="text"
+                            class="w-full border border-gray-300 rounded-lg p-2 h-10 text-sm bg-slate-50 text-slate-700 font-medium"
+                            readonly>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mb-4 items-end">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Plan destino</label>
+                        <select id="ccPlanDestino"
+                            class="w-full border border-gray-300 rounded-lg p-2 h-10 text-sm focus:ring-[#B20000] focus:border-[#B20000]">
+                            <option value="">Cargando planes...</option>
+                        </select>
+                        <p class="text-[10px] text-slate-400 mt-1">Selecciona a cuál carrera/plan deseas cambiar.</p>
+                    </div>
+                    <div>
+                        <button id="ccEnviar"
+                            class="w-full h-10 bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center justify-center">
+                            <i class="fas fa-paper-plane mr-2"></i> Enviar solicitud
+                        </button>
+                        <p class="text-[10px] text-transparent mt-1 h-4 select-none">.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Motivo (opcional)</label>
+                    <textarea id="ccMotivo" rows="3"
+                        class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-[#B20000] focus:border-[#B20000]"
+                        placeholder="Explica por qué deseas el cambio de carrera..."></textarea>
+                </div>
+
+                <div id="ccStatus" class="mt-4 text-sm font-semibold hidden"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+                <h2 class="text-lg font-bold text-slate-800 flex items-center mb-4">
+                    <i class="fas fa-info-circle text-[#B20000] mr-2"></i>
+                    Reglas
+                </h2>
+                <ul class="text-sm text-slate-600 space-y-2">
+                    <li><span class="font-semibold">1 solicitud pendiente:</span> el sistema solo permite una solicitud activa.</li>
+                    <li><span class="font-semibold">Aprobación:</span> el jefe de carrera debe aprobar o rechazar.</li>
+                    <li><span class="font-semibold">Si se aprueba:</span> tu plan actual se actualiza automáticamente.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                <h2 class="text-lg font-bold text-slate-800 flex items-center">
+                    <i class="fas fa-list-check text-[#B20000] mr-2"></i>
+                    Mis solicitudes
+                </h2>
+                <button id="ccRefrescar"
+                    class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition">
+                    <i class="fas fa-rotate mr-2"></i> Refrescar
+                </button>
+            </div>
+
+            <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Estado</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Plan actual</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Plan destino</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Creada</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Resolución</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ccTablaSolicitudes" class="bg-white divide-y divide-gray-200 text-sm">
+                        <tr>
+                            <td colspan="5" class="px-4 py-6 text-center text-slate-400 italic">Cargando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (!user || user.rol !== 3) {
+            window.location.href = '/dashboard';
+        }
+
+        const cuenta = user.numeroCuenta || '';
+        const statusEl = document.getElementById('ccStatus');
+        const carreraActualEl = document.getElementById('ccCarreraActual');
+        const planActualEl = document.getElementById('ccPlanActual');
+        const planDestinoEl = document.getElementById('ccPlanDestino');
+        const motivoEl = document.getElementById('ccMotivo');
+        const btnEnviar = document.getElementById('ccEnviar');
+        const tablaBody = document.getElementById('ccTablaSolicitudes');
+
+        let idPlanActual = null;
+
+        function showStatus(text, klass) {
+            statusEl.textContent = text;
+            statusEl.className = `mt-4 text-sm font-semibold ${klass}`;
+            statusEl.classList.remove('hidden');
+        }
+
+        function badgeEstado(estado) {
+            const e = (estado || '').toUpperCase();
+            if (e === 'PENDIENTE') return '<span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-[11px] font-semibold">Pendiente</span>';
+            if (e === 'APROBADA') return '<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[11px] font-semibold">Aprobada</span>';
+            if (e === 'RECHAZADA') return '<span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-[11px] font-semibold">Rechazada</span>';
+            return `<span class="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-[11px] font-semibold">${estado || '-'}</span>`;
+        }
+
+        async function cargarAlumno() {
+            if (!cuenta) {
+                showStatus('No se encontró tu número de cuenta.', 'text-red-600');
+                return;
+            }
+            const res = await fetch(`/api/alumnos/${cuenta}/dashboard`);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'No se pudo cargar tu información.');
+
+            idPlanActual = data?.alumno?.IdPlanActual || null;
+            carreraActualEl.value = data?.alumno?.NombreCarrera || 'Sin carrera';
+            planActualEl.value = `${data?.alumno?.NombrePlan || 'Sin plan'} (${data?.alumno?.AnioPlan || ''})`.trim();
+        }
+
+        async function cargarPlanes() {
+            const res = await fetch('/api/catalogos/planes');
+            const planes = await res.json();
+            if (!res.ok) throw new Error(planes.error || 'No se pudieron cargar planes.');
+
+            const filtered = Array.isArray(planes) ? planes.filter(p => Number(p.IdPlan) !== Number(idPlanActual)) : [];
+
+            planDestinoEl.innerHTML = '<option value=\"\">Selecciona un plan</option>';
+            filtered.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.IdPlan;
+                opt.textContent = `${p.CodigoCarrera} - ${p.NombreCarrera} - ${p.AnioPlan}`;
+                planDestinoEl.appendChild(opt);
+            });
+        }
+
+        async function cargarMisSolicitudes() {
+            const res = await fetch('/api/solicitudes-cambio/mis-solicitudes');
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'No se pudo cargar el historial de solicitudes.');
+
+            if (!Array.isArray(data) || data.length === 0) {
+                tablaBody.innerHTML = '<tr><td colspan=\"5\" class=\"px-4 py-6 text-center text-slate-400 italic\">Aún no has creado solicitudes.</td></tr>';
+                return;
+            }
+
+            tablaBody.innerHTML = data.map(s => {
+                const creado = s.FechaCreacion ? new Date(s.FechaCreacion).toLocaleString() : '-';
+                const resuelto = s.FechaResolucion ? new Date(s.FechaResolucion).toLocaleString() : '-';
+                const actual = `${s.CarreraActualNombre || ''} • ${s.PlanActualNombre || ''} (${s.PlanActualAnio || ''})`.trim();
+                const destino = `${s.CarreraDestinoNombre || ''} • ${s.PlanDestinoNombre || ''} (${s.PlanDestinoAnio || ''})`.trim();
+
+                const detalleResolucion = s.MotivoResolucion
+                    ? `<p class=\"text-[11px] text-slate-500 mt-1\">${s.MotivoResolucion}</p>`
+                    : '';
+
+                return `
+                    <tr>
+                        <td class=\"px-4 py-3\">${badgeEstado(s.Estado)}</td>
+                        <td class=\"px-4 py-3 text-slate-700\">${actual || '-'}</td>
+                        <td class=\"px-4 py-3 text-slate-700\">${destino || '-'}</td>
+                        <td class=\"px-4 py-3 text-slate-600\">${creado}</td>
+                        <td class=\"px-4 py-3 text-slate-600\">${resuelto}${detalleResolucion}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function enviarSolicitud() {
+            const idPlanDestino = Number(planDestinoEl.value);
+            if (!Number.isInteger(idPlanDestino) || idPlanDestino <= 0) {
+                showStatus('Selecciona un plan destino.', 'text-red-600');
+                return;
+            }
+
+            btnEnviar.disabled = true;
+            btnEnviar.classList.add('opacity-70', 'cursor-not-allowed');
+            showStatus('Enviando solicitud...', 'text-blue-600');
+
+            try {
+                const res = await fetch('/api/solicitudes-cambio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        idPlanDestino,
+                        motivo: (motivoEl.value || '').trim()
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'No se pudo crear la solicitud.');
+
+                showStatus('Solicitud enviada correctamente. Queda pendiente de aprobación.', 'text-green-600');
+                motivoEl.value = '';
+                planDestinoEl.value = '';
+                await cargarMisSolicitudes();
+            } catch (err) {
+                showStatus(err.message || 'Error al enviar solicitud.', 'text-red-600');
+            } finally {
+                btnEnviar.disabled = false;
+                btnEnviar.classList.remove('opacity-70', 'cursor-not-allowed');
+            }
+        }
+
+        document.getElementById('ccRefrescar').addEventListener('click', () => cargarMisSolicitudes().catch(e => showStatus(e.message, 'text-red-600')));
+        btnEnviar.addEventListener('click', () => enviarSolicitud());
+
+        (async function init() {
+            try {
+                await cargarAlumno();
+                await cargarPlanes();
+                await cargarMisSolicitudes();
+            } catch (e) {
+                showStatus(e.message || 'Error inicializando pantalla.', 'text-red-600');
+            }
+        })();
+    </script>
+</body>
+
+</html>
+

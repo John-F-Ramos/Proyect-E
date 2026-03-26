@@ -20,6 +20,11 @@
                 class="flex items-center px-4 py-3 rounded-lg transition <%= active === 'reportes' ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-gray-600 hover:bg-slate-50' %>">
                 <i class="fas fa-file-alt mr-3 <%= active === 'reportes' ? 'text-[#B20000]' : 'text-gray-400' %>"></i> Reportes
             </a>
+            <a href="/cambio-carrera"
+                data-student-only="true"
+                class="flex items-center px-4 py-3 rounded-lg transition <%= active === 'cambio-carrera' ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-gray-600 hover:bg-slate-50' %>">
+                <i class="fas fa-right-left mr-3 <%= active === 'cambio-carrera' ? 'text-[#B20000]' : 'text-gray-400' %>"></i> Cambio de Carrera
+            </a>
             <a href="/administracion"
                 data-admin-only="true"
                 class="hidden flex items-center px-4 py-3 rounded-lg transition <%= active === 'administracion' ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-gray-600 hover:bg-slate-50' %>">

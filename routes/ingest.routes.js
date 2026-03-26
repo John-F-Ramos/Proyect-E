@@ -26,10 +26,11 @@ const upload = multer({
 });
 
 // Endpoint existente para subir Excel
-router.post('/upload', requireAuth, requireRoles(1, 2), upload.single('archivo'), ingestController.processUpload);
+router.post('/upload', requireAuth, requireRoles(1, 2, 3), upload.single('archivo'), ingestController.processUpload);
 
 // Nuevos endpoints para texto plano
-router.post('/preview', requireAuth, requireRoles(1, 2), ingestController.previewText);
-router.post('/import', requireAuth, requireRoles(1, 2), ingestController.importData);
+router.post('/preview', requireAuth, requireRoles(1, 2, 3), ingestController.previewTextCEUTEC);
+router.post('/preview-text', requireAuth, requireRoles(1, 2, 3), ingestController.previewTextCEUTEC);
+router.post('/import', requireAuth, requireRoles(1, 2, 3), ingestController.importData);
 
 module.exports = router;

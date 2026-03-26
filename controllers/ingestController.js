@@ -305,10 +305,20 @@ exports.processUpload = async (req, res) => {
             return res.status(400).json({ error: 'No se subió ningún archivo' });
         }
 
-        const { numeroCuenta } = req.body;
+        let { numeroCuenta } = req.body;
         
         if (!numeroCuenta) {
             return res.status(400).json({ error: 'Número de cuenta requerido' });
+        }
+
+        // Si es estudiante, solo puede importar a su propia cuenta.
+        if (req.user?.rol === 3) {
+            const ownAccount = (req.user.numeroCuenta || '').toString().trim();
+            const targetAccount = (numeroCuenta || '').toString().trim();
+            if (!ownAccount || ownAccount !== targetAccount) {
+                return res.status(403).json({ error: 'FORBIDDEN' });
+            }
+            numeroCuenta = ownAccount;
         }
 
         const rawData = await excelProcessor.parseExcelBuffer(req.file.buffer);
@@ -331,8 +341,8 @@ exports.processUpload = async (req, res) => {
     }
 };
 
-// Endpoint para previsualizar texto
-exports.previewText = async (req, res) => {
+// Endpoint para previsualizar texto formato CEUTEC
+exports.previewTextCEUTEC = async (req, res) => {
     try {
         const { text } = req.body;
         
@@ -340,7 +350,12 @@ exports.previewText = async (req, res) => {
             return res.status(400).json({ error: 'No se proporcionó texto' });
         }
 
-        const rawData = textParser.parsePlainText(text);
+        const rawData = textParser.parseCEUTECFormat(text);
+        if (!rawData || rawData.length === 0) {
+            return res.status(400).json({
+                error: 'No se pudieron extraer registros del texto. Verifica el formato CEUTEC.'
+            });
+        }
         
         // Devolver todos los registros para la vista previa
         const previewData = rawData.map(row => ({
@@ -363,11 +378,14 @@ exports.previewText = async (req, res) => {
     }
 };
 
+// Compatibilidad con endpoint anterior
+exports.previewText = exports.previewTextCEUTEC;
+
 // Endpoint para importar datos (recibe JSON)
 exports.importData = async (req, res) => {
     try {
         const { data, cuenta, bypassPlanValidation } = req.body;
-        const targetAccount = cuenta || req.body.numeroCuenta;
+        let targetAccount = cuenta || req.body.numeroCuenta;
         
         if (!data || !Array.isArray(data)) {
             return res.status(400).json({ error: 'Datos inválidos' });
@@ -375,6 +393,16 @@ exports.importData = async (req, res) => {
 
         if (!targetAccount) {
             return res.status(400).json({ error: 'Número de cuenta requerido' });
+        }
+
+        // Si es estudiante, solo puede importar a su propia cuenta.
+        if (req.user?.rol === 3) {
+            const ownAccount = (req.user.numeroCuenta || '').toString().trim();
+            const requestedAccount = (targetAccount || '').toString().trim();
+            if (!ownAccount || ownAccount !== requestedAccount) {
+                return res.status(403).json({ error: 'FORBIDDEN' });
+            }
+            targetAccount = ownAccount;
         }
 
         console.log(`[Ingest] Importando ${data.length} registros para cuenta ${targetAccount}. BypassPlan: ${bypassPlanValidation}`);

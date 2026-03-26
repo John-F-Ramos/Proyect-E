@@ -5,22 +5,42 @@ const TEMPLATE_TYPES = {
 
 const TEMPLATE_DEFINITIONS = {
     [TEMPLATE_TYPES.PENSUM]: {
-        requiredHeaders: [
-            'CODIGO_CARRERA',
-            'ANIO_PLAN',
-            'CODIGO_CLASE',
-            'NOMBRE_CLASE',
-            'UV'
+        // Se soportan 2 formatos:
+        // 1) Plantilla interna clásica (ANIO_PLAN, CODIGO_CLASE, NOMBRE_CLASE, UV)
+        // 2) Detalle CEUTEC (PLAN_VIGENTE, CODIGO_MATERIA, NOMBRE_MATERIA, UNIDADES_VALORATIVAS)
+        requiredHeaderSets: [
+            [
+                'CODIGO_CARRERA',
+                'ANIO_PLAN',
+                'CODIGO_CLASE',
+                'NOMBRE_CLASE',
+                'UV'
+            ],
+            [
+                'CODIGO_CARRERA',
+                'PLAN_VIGENTE',
+                'CODIGO_MATERIA',
+                'NOMBRE_MATERIA',
+                'UNIDADES_VALORATIVAS'
+            ],
+            [
+                // Variación reportada por usuario: PLAN_VIGETE
+                'CODIGO_CARRERA',
+                'PLAN_VIGETE',
+                'CODIGO_MATERIA',
+                'NOMBRE_MATERIA',
+                'UNIDADES_VALORATIVAS'
+            ]
         ]
     },
     [TEMPLATE_TYPES.REGLAS_EQUIVALENCIA]: {
-        requiredHeaders: [
+        requiredHeaderSets: [[
             'TIPO_EQUIVALENCIA',
             'UNIVERSIDAD_ORIGEN',
             'CODIGO_ORIGEN',
             'CODIGO_DESTINO',
             'CONDICION'
-        ]
+        ]]
     }
 };
 
@@ -54,6 +74,19 @@ function isNonNegativeInt(value) {
     return Number.isInteger(n) && n >= 0;
 }
 
+function normalizePlanYear(rawValue) {
+    const raw = (rawValue || '').toString().trim();
+    if (!raw) return NaN;
+    const year = Number(raw);
+    if (!Number.isInteger(year)) return NaN;
+
+    // Convención solicitada: 21 -> 2021
+    if (year >= 0 && year <= 99) {
+        return 2000 + year;
+    }
+    return year;
+}
+
 function validatePensumRows(rawRows) {
     const errors = [];
     const validRows = [];
@@ -65,14 +98,34 @@ function validatePensumRows(rawRows) {
         Object.keys(rawRow).forEach((key) => {
             normalized[normalizeHeader(key)] = normalizeCell(rawRow[key]);
         });
+        const isDetalleCeutec = Boolean(
+            normalized.CAMPUS ||
+            normalized.NIVEL ||
+            normalized.PLAN_VIGENTE ||
+            normalized.PLAN_VIGETE
+        );
+
+        const normalizedAnioPlan = normalizePlanYear(
+            normalized.ANIO_PLAN || normalized.PLAN_VIGENTE || normalized.PLAN_VIGETE
+        );
 
         const row = {
             codigoCarrera: normalized.CODIGO_CARRERA,
-            anioPlan: normalized.ANIO_PLAN,
-            codigoClase: normalized.CODIGO_CLASE,
-            nombreClase: normalized.NOMBRE_CLASE,
-            uv: normalized.UV
+            anioPlan: normalizedAnioPlan,
+            codigoClase: normalized.CODIGO_CLASE || normalized.CODIGO_MATERIA,
+            nombreClase: normalized.NOMBRE_CLASE || normalized.NOMBRE_MATERIA,
+            uv: normalized.UV || normalized.UNIDADES_VALORATIVAS
         };
+
+        // En el detalle CEUTEC pueden venir filas auxiliares sin materia real.
+        // Se ignoran silenciosamente para no bloquear la carga.
+        if (isDetalleCeutec) {
+            const hasCodigo = Boolean((row.codigoClase || '').toString().trim());
+            const hasNombre = Boolean((row.nombreClase || '').toString().trim());
+            if (!hasCodigo || !hasNombre) {
+                return;
+            }
+        }
 
         if (!row.codigoCarrera) {
             errors.push({
@@ -122,16 +175,19 @@ function validatePensumRows(rawRows) {
 
         const key = `${row.codigoCarrera}|${row.anioPlan}|${row.codigoClase}`;
         if (row.codigoCarrera && row.anioPlan && row.codigoClase && dedupe.has(key)) {
-            errors.push({
-                rowNumber,
-                field: 'Codigo_Clase',
-                code: 'DUPLICATE_IN_FILE',
-                message: 'Registro duplicado en plantilla de pensum',
-                value: row.codigoClase
-            });
-        } else {
-            dedupe.add(key);
+            if (!isDetalleCeutec) {
+                errors.push({
+                    rowNumber,
+                    field: 'Codigo_Clase',
+                    code: 'DUPLICATE_IN_FILE',
+                    message: 'Registro duplicado en plantilla de pensum',
+                    value: row.codigoClase
+                });
+            }
+            // Para detalle CEUTEC, ignoramos duplicados por campus/seccion.
+            return;
         }
+        dedupe.add(key);
 
         validRows.push({
             codigoCarrera: row.codigoCarrera,
@@ -238,10 +294,12 @@ function validateReglasRows(rawRows) {
 
 function detectTemplateType(headers) {
     const normalizedHeaders = headers.map(normalizeHeader);
-    const hasPensum = TEMPLATE_DEFINITIONS[TEMPLATE_TYPES.PENSUM].requiredHeaders
-        .every((header) => normalizedHeaders.includes(header));
-    const hasReglas = TEMPLATE_DEFINITIONS[TEMPLATE_TYPES.REGLAS_EQUIVALENCIA].requiredHeaders
-        .every((header) => normalizedHeaders.includes(header));
+    const hasHeaderSet = (requiredSet) => requiredSet.every((header) => normalizedHeaders.includes(header));
+
+    const hasPensum = TEMPLATE_DEFINITIONS[TEMPLATE_TYPES.PENSUM].requiredHeaderSets
+        .some((set) => hasHeaderSet(set));
+    const hasReglas = TEMPLATE_DEFINITIONS[TEMPLATE_TYPES.REGLAS_EQUIVALENCIA].requiredHeaderSets
+        .some((set) => hasHeaderSet(set));
 
     if (hasPensum) return TEMPLATE_TYPES.PENSUM;
     if (hasReglas) return TEMPLATE_TYPES.REGLAS_EQUIVALENCIA;
@@ -254,8 +312,15 @@ function validateTemplateHeaders(templateType, headers) {
         return { missingHeaders: ['UNSUPPORTED_TEMPLATE_TYPE'] };
     }
 
-    const missingHeaders = buildMissingHeaders(definition.requiredHeaders, headers);
-    return { missingHeaders };
+    const requiredSets = definition.requiredHeaderSets || [];
+    if (!requiredSets.length) {
+        return { missingHeaders: ['UNSUPPORTED_TEMPLATE_TYPE'] };
+    }
+
+    const missingBySet = requiredSets.map((set) => buildMissingHeaders(set, headers));
+    const best = missingBySet.reduce((acc, curr) => (curr.length < acc.length ? curr : acc), missingBySet[0]);
+
+    return { missingHeaders: best };
 }
 
 module.exports = {

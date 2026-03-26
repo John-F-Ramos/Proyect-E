@@ -58,6 +58,10 @@ app.get('/equivalencias', (req, res) => {
     res.render('equivalencias');
 });
 
+app.get('/cambio-carrera', (req, res) => {
+    res.render('cambio-carrera');
+});
+
 app.get('/plan-estudio', (req, res) => {
     res.render('plan-estudio');
 });
@@ -82,9 +86,11 @@ const alumnosRoutes = require('./routes/alumnos.routes');
 const catologosRoutes = require('./routes/catalogo.routes');
 // Agrega esta línea con las demás importaciones
 const simulacionRoutes = require('./routes/simulacion.routes');
+const solicitudCambioRoutes = require('./routes/solicitudCambio.routes');
 
 // Y agrega esta línea con las demás rutas
 app.use('/api/simulacion', simulacionRoutes);
+app.use('/api/solicitudes-cambio', solicitudCambioRoutes);
 
 // Definir rutas base
 app.use('/api/ingest', ingestRoutes);
