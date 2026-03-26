@@ -103,7 +103,7 @@ exports.createCarrera = async (req, res) => {
 };
 
 exports.createPlan = async (req, res) => {
-    const { codigoCarrera, nombrePlan, anioPlan } = req.body;
+    const { codigoCarrera, nombrePlan, anioPlan, nombreCarreraPlan } = req.body;
     if (!codigoCarrera || !nombrePlan || !anioPlan) {
         return res.status(400).json({ error: 'Código de Carrera, Nombre del Plan y Año son requeridos.' });
     }
@@ -120,15 +120,22 @@ exports.createPlan = async (req, res) => {
             return res.status(404).json({ error: `No existe ninguna carrera con el código: ${codigoCarrera}. Créela primero.` });
         }
 
+        const nombreCarreraPlanValue = (nombreCarreraPlan || carreraCheck.recordset[0].NombreCarrera || '')
+            .toString()
+            .trim();
+
         // Verificar si el plan ya existe
         const planCheck = await pool.request()
             .input('codigo', sql.VarChar, codigoCarrera)
             .input('nombrePlan', sql.VarChar, nombrePlan)
+            .input('anio', sql.Int, anioPlan)
             .query(`
                 SELECT p.IdPlan, c.NombreCarrera, p.NombrePlan 
                 FROM PlanesEstudio p
                 JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
-                WHERE p.CodigoCarrera = @codigo AND p.NombrePlan = @nombrePlan
+                WHERE p.CodigoCarrera = @codigo
+                  AND p.NombrePlan = @nombrePlan
+                  AND p.AnioPlan = @anio
             `);
         
         if (planCheck.recordset.length > 0) {
@@ -142,7 +149,12 @@ exports.createPlan = async (req, res) => {
             .input('codigo', sql.VarChar, codigoCarrera)
             .input('nombrePlan', sql.VarChar, nombrePlan)
             .input('anio', sql.Int, anioPlan)
-            .query('INSERT INTO PlanesEstudio (CodigoCarrera, NombrePlan, AnioPlan) OUTPUT INSERTED.IdPlan VALUES (@codigo, @nombrePlan, @anio)');
+            .input('nombreCarreraPlan', sql.VarChar(150), nombreCarreraPlanValue)
+            .query(`
+                INSERT INTO PlanesEstudio (CodigoCarrera, NombrePlan, AnioPlan, NombreCarreraPlan)
+                OUTPUT INSERTED.IdPlan
+                VALUES (@codigo, @nombrePlan, @anio, @nombreCarreraPlan)
+            `);
         
         const newPlanId = planInsert.recordset[0].IdPlan;
 
@@ -352,7 +364,7 @@ exports.updateMateria = async (req, res) => {
 
 exports.updatePlan = async (req, res) => {
     const { id } = req.params;
-    const { codigoCarrera, nombrePlan, anioPlan } = req.body;
+    const { codigoCarrera, nombrePlan, anioPlan, nombreCarreraPlan } = req.body;
 
     if (!codigoCarrera || !nombrePlan || !anioPlan) {
         return res.status(400).json({ error: 'Codigo de carrera, nombre del plan y anio son requeridos.' });
@@ -392,16 +404,21 @@ exports.updatePlan = async (req, res) => {
             return res.status(409).json({ error: 'Ya existe otro plan con esos mismos datos.' });
         }
 
+        const nombreCarreraPlanValue = (nombreCarreraPlan || '').toString().trim();
+        const finalNombreCarreraPlan = nombreCarreraPlanValue || null;
+
         const result = await pool.request()
             .input('idPlan', sql.Int, Number(id))
             .input('codigoCarrera', sql.VarChar(20), codigoCarrera)
             .input('nombrePlan', sql.VarChar(100), nombrePlan)
             .input('anioPlan', sql.Int, anio)
+            .input('nombreCarreraPlan', sql.VarChar(150), finalNombreCarreraPlan)
             .query(`
                 UPDATE PlanesEstudio
                 SET CodigoCarrera = @codigoCarrera,
                     NombrePlan = @nombrePlan,
-                    AnioPlan = @anioPlan
+                    AnioPlan = @anioPlan,
+                    NombreCarreraPlan = COALESCE(@nombreCarreraPlan, NombreCarreraPlan)
                 WHERE IdPlan = @idPlan
             `);
 
@@ -490,24 +507,99 @@ exports.deletePlan = async (req, res) => {
 
     try {
         const pool = await poolPromise;
-        const blockers = await pool.request()
+        const planInfoResult = await pool.request()
             .input('idPlan', sql.Int, idPlan)
             .query(`
-                SELECT 
+                SELECT
+                    p.IdPlan,
+                    p.CodigoCarrera,
+                    p.NombrePlan,
+                    p.AnioPlan,
+                    (SELECT COUNT(*) FROM Pensum_Materias WHERE IdPlan = @idPlan) AS MateriasPlan,
                     (SELECT COUNT(*) FROM Alumnos WHERE IdPlanActual = @idPlan) AS AlumnosRef,
                     (SELECT COUNT(*) FROM RegistroConsultas WHERE IdPlanDestino = @idPlan) AS ConsultasRef
+                FROM PlanesEstudio p
+                WHERE p.IdPlan = @idPlan
             `);
 
-        const b = blockers.recordset[0];
-        if (Number(b.AlumnosRef) > 0 || Number(b.ConsultasRef) > 0) {
+        if (planInfoResult.recordset.length === 0) {
+            return res.status(404).json({ error: 'Plan no encontrado.' });
+        }
+
+        const planInfo = planInfoResult.recordset[0];
+        const materiasPlan = Number(planInfo.MateriasPlan || 0);
+        const alumnosRef = Number(planInfo.AlumnosRef || 0);
+        const consultasRef = Number(planInfo.ConsultasRef || 0);
+        const hasRefs = alumnosRef > 0 || consultasRef > 0;
+
+        if (materiasPlan > 0 && hasRefs) {
             return res.status(409).json({
                 error: 'No se puede eliminar el plan porque está asignado a alumnos o consultas.'
             });
         }
 
+        let idPlanDestino = null;
+        if (materiasPlan === 0 && hasRefs) {
+            const destinoResult = await pool.request()
+                .input('idPlan', sql.Int, idPlan)
+                .input('codigoCarrera', sql.VarChar(20), planInfo.CodigoCarrera)
+                .input('nombrePlan', sql.VarChar(100), planInfo.NombrePlan)
+                .input('anioPlan', sql.Int, Number(planInfo.AnioPlan))
+                .query(`
+                    SELECT TOP 1 p.IdPlan
+                    FROM PlanesEstudio p
+                    WHERE p.IdPlan <> @idPlan
+                      AND p.CodigoCarrera = @codigoCarrera
+                      AND EXISTS (
+                          SELECT 1
+                          FROM Pensum_Materias pm
+                          WHERE pm.IdPlan = p.IdPlan
+                      )
+                    ORDER BY
+                      CASE WHEN p.AnioPlan = @anioPlan THEN 0 ELSE 1 END,
+                      CASE WHEN p.NombrePlan = @nombrePlan THEN 0 ELSE 1 END,
+                      p.AnioPlan DESC,
+                      p.IdPlan ASC
+                `);
+
+            if (destinoResult.recordset.length === 0) {
+                return res.status(409).json({
+                    error: 'No se puede eliminar el plan vacío porque no existe otro plan de la misma carrera con materias para reasignar alumnos/consultas.',
+                    code: 'NO_DESTINO_VALIDO'
+                });
+            }
+
+            idPlanDestino = Number(destinoResult.recordset[0].IdPlan);
+        }
+
         const tx = new sql.Transaction(pool);
         await tx.begin();
         try {
+            let alumnosReasignados = 0;
+            let consultasReasignadas = 0;
+
+            if (idPlanDestino) {
+                const alumnosUpdate = await new sql.Request(tx)
+                    .input('idPlan', sql.Int, idPlan)
+                    .input('idPlanDestino', sql.Int, idPlanDestino)
+                    .query(`
+                        UPDATE Alumnos
+                        SET IdPlanActual = @idPlanDestino
+                        WHERE IdPlanActual = @idPlan
+                    `);
+                alumnosReasignados = Number((alumnosUpdate.rowsAffected && alumnosUpdate.rowsAffected[0]) || 0);
+
+                const consultasUpdate = await new sql.Request(tx)
+                    .input('idPlan', sql.Int, idPlan)
+                    .input('idPlanDestino', sql.Int, idPlanDestino)
+                    .query(`
+                        UPDATE RegistroConsultas
+                        SET IdPlanDestino = @idPlanDestino
+                        WHERE IdPlanDestino = @idPlan
+                    `);
+                consultasReasignadas = Number((consultasUpdate.rowsAffected && consultasUpdate.rowsAffected[0]) || 0);
+            }
+
             await new sql.Request(tx)
                 .input('idPlan', sql.Int, idPlan)
                 .query(`
@@ -516,6 +608,16 @@ exports.deletePlan = async (req, res) => {
                     DELETE FROM PlanesEstudio WHERE IdPlan = @idPlan;
                 `);
             await tx.commit();
+
+            if (idPlanDestino) {
+                return res.status(200).json({
+                    message: 'Plan vacío eliminado con reasignación automática.',
+                    idPlanEliminado: idPlan,
+                    idPlanDestino,
+                    alumnosReasignados,
+                    consultasReasignadas
+                });
+            }
         } catch (innerErr) {
             try { await tx.rollback(); } catch (_) {}
             throw innerErr;
@@ -797,6 +899,27 @@ exports.downloadReglasTemplate = async (req, res) => {
     });
 };
 
+exports.downloadStatusAlumnoTemplate = async (req, res) => {
+    const templatePath = resolveTemplatePath('plantilla_status_alumno.xlsx');
+    return sendTemplateFileOrFallback({
+        res,
+        templatePath,
+        downloadName: 'plantilla_status_alumno.xlsx',
+        fallbackBuilder: async () => {
+            const headers = ['Numero_Cuenta', 'Estado_Alumno'];
+            const sampleRows = [
+                ['20240001', 'ACTIVO'],
+                ['20240002', 'INACTIVO']
+            ];
+            const buffer = await excelProcessor.buildTemplateWorkbookBuffer({ headers, sampleRows });
+
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', 'attachment; filename="plantilla_status_alumno.xlsx"');
+            return res.send(Buffer.from(buffer));
+        }
+    });
+};
+
 function extractFromFileName(originalFileName) {
     const value = (originalFileName || '').toString().trim();
     if (!value) return { codigoCarrera: null, anioPlan: null };
@@ -1043,12 +1166,14 @@ exports.getCarrerasConPlanes = async (req, res) => {
                 p.NombrePlan,
                 p.AnioPlan,
                 p.CodigoCarrera,
+                ISNULL(p.NombreCarreraPlan, c.NombreCarrera) AS NombreCarreraPlan,
                 COUNT(pm.CodigoMateria) AS TotalMaterias,
                 ISNULL(SUM(m.UVS), 0) AS TotalUVS
             FROM PlanesEstudio p
+            LEFT JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
             LEFT JOIN Pensum_Materias pm ON p.IdPlan = pm.IdPlan
             LEFT JOIN Materias m ON pm.CodigoMateria = m.CodigoMateria
-            GROUP BY p.IdPlan, p.NombrePlan, p.AnioPlan, p.CodigoCarrera
+            GROUP BY p.IdPlan, p.NombrePlan, p.AnioPlan, p.CodigoCarrera, p.NombreCarreraPlan, c.NombreCarrera
             ORDER BY p.CodigoCarrera, p.AnioPlan DESC
         `);
 
@@ -1215,10 +1340,10 @@ exports.getAllPlanes = async (req, res) => {
                 p.NombrePlan,
                 p.AnioPlan,
                 p.CodigoCarrera,
-                c.NombreCarrera
+                ISNULL(p.NombreCarreraPlan, c.NombreCarrera) AS NombreCarrera
             FROM PlanesEstudio p
             INNER JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
-            ORDER BY c.NombreCarrera, p.AnioPlan DESC
+            ORDER BY ISNULL(p.NombreCarreraPlan, c.NombreCarrera), p.AnioPlan DESC
         `);
 
         res.status(200).json(result.recordset);

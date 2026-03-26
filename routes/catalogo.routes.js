@@ -67,8 +67,9 @@ router.delete('/planes/:id', requireAuth, requireRoles(1, 2), catalogoController
 router.post('/upload', requireAuth, requireRoles(1, 2), uploadExcel.single('archivoCatalogo'), catalogoController.uploadCatalogosExcel);
 router.post('/upload/pensum', requireAuth, requireRoles(1, 2), uploadExcel.single('archivoCatalogo'), catalogoController.uploadPensumExcel);
 router.post('/upload/reglas-equivalencia', requireAuth, requireRoles(1, 2), uploadExcel.single('archivoCatalogo'), catalogoController.uploadReglasEquivalenciaExcel);
-router.get('/templates/pensum', requireAuth, catalogoController.downloadPensumTemplate);
-router.get('/templates/reglas-equivalencia', requireAuth, catalogoController.downloadReglasTemplate);
+router.get('/templates/pensum', requireAuth, requireRoles(1, 2), catalogoController.downloadPensumTemplate);
+router.get('/templates/reglas-equivalencia', requireAuth, requireRoles(1, 2), catalogoController.downloadReglasTemplate);
+router.get('/templates/status-alumno', requireAuth, requireRoles(1, 2), catalogoController.downloadStatusAlumnoTemplate);
 router.post('/templates/preview-pdf-pensum', requireAuth, requireRoles(1, 2), uploadPdf.single('archivoPdf'), catalogoController.previewPensumPdfTemplate);
 router.post('/templates/convert-pdf-pensum', requireAuth, requireRoles(1, 2), uploadPdf.single('archivoPdf'), catalogoController.convertPensumPdfTemplate);
 router.post('/templates/generate-pensum-from-preview', requireAuth, requireRoles(1, 2), catalogoController.generatePensumFromPreview);

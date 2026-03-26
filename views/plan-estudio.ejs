@@ -328,12 +328,13 @@
                                     <th scope="col" class="px-6 py-4">Código Carrera</th>
                                     <th scope="col" class="px-6 py-4">Año Plan</th>
                                     <th scope="col" class="px-6 py-4">Nombre Plan</th>
+                                    <th scope="col" class="px-6 py-4 text-center">Total Materias</th>
                                     <th scope="col" class="px-6 py-4 text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="pensumBody" class="divide-y divide-gray-100">
                                 <tr>
-                                    <td colspan="5" class="px-6 py-4 text-center">Cargando planes...</td>
+                                    <td colspan="6" class="px-6 py-4 text-center">Cargando planes...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -346,9 +347,9 @@
                         <i class="fas fa-folder-open mr-2"></i>
                         Ruta en servidor para plantillas personalizadas:
                         <code class="font-semibold">public/templates/</code>
-                        (nombres esperados: <code>plantilla_pensum.xlsx</code> y <code>plantilla_reglas_equivalencia.xlsx</code>).
+                        (nombres esperados: <code>plantilla_pensum.xlsx</code>, <code>plantilla_reglas_equivalencia.xlsx</code> y <code>plantilla_status_alumno.xlsx</code>).
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div id="templateDownloadCards" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                             <div class="flex items-start justify-between">
                                 <div>
@@ -363,10 +364,12 @@
                                 <strong>Columnas obligatorias:</strong><br>
                                 Codigo_Carrera, Anio_Plan, Codigo_Clase, Nombre_Clase, UV
                             </div>
-                            <a href="/api/catalogos/templates/pensum"
-                                class="mt-5 inline-flex items-center bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition">
+                            <button type="button"
+                                class="mt-5 inline-flex items-center bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition btn-download-template"
+                                data-endpoint="/api/catalogos/templates/pensum"
+                                data-filename="plantilla_pensum.xlsx">
                                 <i class="fas fa-download mr-2"></i> Descargar plantilla
-                            </a>
+                            </button>
                         </div>
 
                         <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
@@ -383,11 +386,41 @@
                                 <strong>Columnas obligatorias:</strong><br>
                                 Tipo_Equivalencia, Universidad_Origen, Codigo_Origen, Codigo_Destino, Condicion
                             </div>
-                            <a href="/api/catalogos/templates/reglas-equivalencia"
-                                class="mt-5 inline-flex items-center bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition">
+                            <button type="button"
+                                class="mt-5 inline-flex items-center bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition btn-download-template"
+                                data-endpoint="/api/catalogos/templates/reglas-equivalencia"
+                                data-filename="plantilla_reglas_equivalencia.xlsx">
                                 <i class="fas fa-download mr-2"></i> Descargar plantilla
-                            </a>
+                            </button>
                         </div>
+
+                        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-slate-800">Plantilla de Estado de Alumno</h3>
+                                    <p class="text-sm text-slate-500 mt-1">
+                                        Descarga el formato oficial para actualización masiva de estado de alumnos.
+                                    </p>
+                                </div>
+                                <i class="fas fa-user-check text-2xl text-[#B20000]"></i>
+                            </div>
+                            <div class="mt-4 text-xs text-slate-600 bg-slate-50 rounded-lg p-3">
+                                <strong>Archivo esperado:</strong><br>
+                                plantilla_status_alumno.xlsx
+                            </div>
+                            <button type="button"
+                                class="mt-5 inline-flex items-center bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition btn-download-template"
+                                data-endpoint="/api/catalogos/templates/status-alumno"
+                                data-filename="plantilla_status_alumno.xlsx">
+                                <i class="fas fa-download mr-2"></i> Descargar plantilla
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="templateNoPermissionNotice"
+                        class="hidden mt-5 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 text-sm">
+                        <i class="fas fa-circle-info mr-2"></i>
+                        Tu perfil no tiene permiso para descargar plantillas de carga.
                     </div>
 
                     <div class="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-5">
@@ -723,6 +756,7 @@
         let usuarioActual = null;
         let usuarioPlan = null;
         const editingCarreraCodes = new Set();
+        const editingCarreraPlanIds = new Set();
         const editingMateriaCodes = new Set();
         const editingPlanIds = new Set();
         const editingModalMateriaCodes = new Set();
@@ -741,6 +775,47 @@
 
         function toDomSafe(value) {
             return String(value ?? '').replace(/[^a-zA-Z0-9_-]/g, '_');
+        }
+
+        async function downloadTemplateAuthenticated(endpoint, fallbackFilename) {
+            try {
+                const response = await fetch(endpoint, { method: 'GET' });
+                const contentType = response.headers.get('content-type') || '';
+
+                if (!response.ok) {
+                    let errorCode = '';
+                    if (contentType.includes('application/json')) {
+                        const data = await response.json();
+                        errorCode = data?.error || '';
+                    }
+
+                    if (response.status === 401 || errorCode === 'UNAUTHORIZED') {
+                        alert('Tu sesión no es válida. Inicia sesión nuevamente para descargar la plantilla.');
+                        return;
+                    }
+                    if (response.status === 403 || errorCode === 'FORBIDDEN') {
+                        alert('Tu perfil no tiene permisos para descargar esta plantilla.');
+                        return;
+                    }
+                    alert('No se pudo descargar la plantilla. Inténtalo de nuevo.');
+                    return;
+                }
+
+                const blob = await response.blob();
+                const disposition = response.headers.get('content-disposition') || '';
+                const filenameMatch = disposition.match(/filename="([^"]+)"/);
+                const filename = filenameMatch ? filenameMatch[1] : fallbackFilename;
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(downloadUrl);
+            } catch (error) {
+                alert('Error de conexión con el servidor.');
+            }
         }
         // Mapa de URLs de descarga de pensums (escalable)
         const pensumUrls = {
@@ -776,6 +851,16 @@
             } catch (e) {
                 console.error('Error al obtener usuario:', e);
             }
+        }
+
+        function applyTemplateVisibilityByRole() {
+            const role = Number(usuarioActual?.rol);
+            const cards = document.getElementById('templateDownloadCards');
+            const noPermissionNotice = document.getElementById('templateNoPermissionNotice');
+            const isAllowed = role === 1 || role === 2;
+
+            if (cards) cards.style.display = isAllowed ? 'grid' : 'none';
+            if (noPermissionNotice) noPermissionNotice.classList.toggle('hidden', isAllowed);
         }
 
         // Obtener el plan de estudio actual del usuario USANDO EL ENDPOINT DASHBOARD
@@ -938,13 +1023,15 @@
 
                     planesCarrera.forEach((plan, index) => {
                         const esPrimero = index === 0;
+                        const isEditingCarreraPlan = editingCarreraPlanIds.has(String(plan.IdPlan));
                         const esMiPlan = esPlanDelUsuario(plan.IdPlan);
                         const claseAdicional = esMiPlan ? 'usuario-plan' : '';
+                        const nombreCarreraFila = plan.NombreCarreraPlan || carrera.NombreCarrera;
 
                         tbody.innerHTML += `
                             <tr class="bg-white hover:bg-gray-50 carrera-row ${claseAdicional}" 
                                 data-idplan="${plan.IdPlan}" 
-                                data-carrera="${carrera.NombreCarrera}"
+                                data-carrera="${escapeHtml(nombreCarreraFila)}"
                                 data-codigo="${carrera.CodigoCarrera}"
                                 data-plan="${plan.NombrePlan}"
                                 data-anio="${plan.AnioPlan}"
@@ -952,10 +1039,10 @@
                                 data-uvs="${plan.TotalUVS || 0}">
                                 <td class="px-6 py-4 font-medium text-gray-900">${carrera.CodigoCarrera}</td>
                                 <td class="px-6 py-4">
-                                    ${isEditingCarrera
+                                    ${isEditingCarreraPlan
                                 ? `<input type="text" class="js-carrera-nombre w-full px-2 py-1 border border-blue-300 rounded"
-                                            value="${escapeHtml(carrera.NombreCarrera)}">`
-                                : `${carrera.NombreCarrera}`}
+                                            value="${escapeHtml(nombreCarreraFila)}">`
+                                : `${nombreCarreraFila}`}
                                     ${esMiPlan ? '<span class="badge-mi-plan"><i class="fas fa-graduation-cap mr-1"></i>Mi Plan</span>' : ''}
                                 </td>
                                 <td class="px-6 py-4">
@@ -970,18 +1057,18 @@
                                 </td>
                                 <td class="px-6 py-4 text-center">${plan.AnioPlan}</td>
                                 <td class="px-6 py-4 text-center">
-                                    ${isEditingCarrera
-                                ? `<button class="btn-min btn-min-success btn-save-carrera"
-                                                data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Guardar</button>
-                                           <button class="btn-min btn-min-cancel btn-cancel-carrera ml-1"
-                                                data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Cancelar</button>`
+                                    ${isEditingCarreraPlan
+                                ? `<button class="btn-min btn-min-success btn-save-carrera-plan"
+                                                data-idplan="${plan.IdPlan}">Guardar</button>
+                                           <button class="btn-min btn-min-cancel btn-cancel-carrera-plan ml-1"
+                                                data-idplan="${plan.IdPlan}">Cancelar</button>`
                                 : `<div class="relative inline-block text-left">
                                         <button class="btn-min btn-action-gear" data-menu-id="menu-plan-${plan.IdPlan}" title="Acciones">
                                             <i class="fas fa-cog"></i>
                                         </button>
                                         <div id="menu-plan-${plan.IdPlan}" class="action-menu">
-                                            <button class="btn-min btn-min-primary btn-edit-carrera"
-                                                data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Editar carrera</button>
+                                            <button class="btn-min btn-min-primary btn-edit-carrera-plan"
+                                                data-idplan="${plan.IdPlan}">Editar carrera</button>
                                             <button class="btn-min btn-min-danger btn-delete-carrera"
                                                 data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Eliminar carrera</button>
                                             <button class="btn-min btn-min-primary btn-edit-plan"
@@ -1021,21 +1108,21 @@
                 });
             });
 
-            document.querySelectorAll('.btn-edit-carrera').forEach(btn => {
+            document.querySelectorAll('#carrerasBody .btn-edit-carrera').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     startEditCarreraRow(btn.dataset.codigo);
                 });
             });
 
-            document.querySelectorAll('.btn-cancel-carrera').forEach(btn => {
+            document.querySelectorAll('#carrerasBody .btn-cancel-carrera').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     cancelEditCarreraRow(btn.dataset.codigo);
                 });
             });
 
-            document.querySelectorAll('.btn-save-carrera').forEach(btn => {
+            document.querySelectorAll('#carrerasBody .btn-save-carrera').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const codigo = btn.dataset.codigo;
@@ -1046,21 +1133,42 @@
                 });
             });
 
-            document.querySelectorAll('.btn-delete-carrera').forEach(btn => {
+            document.querySelectorAll('#carrerasBody .btn-edit-carrera-plan').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    startEditCarreraPlanRow(btn.dataset.idplan);
+                });
+            });
+
+            document.querySelectorAll('#carrerasBody .btn-cancel-carrera-plan').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    cancelEditCarreraPlanRow(btn.dataset.idplan);
+                });
+            });
+
+            document.querySelectorAll('#carrerasBody .btn-save-carrera-plan').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await saveCarreraPlanInline(btn.dataset.idplan, btn.closest('tr'));
+                });
+            });
+
+            document.querySelectorAll('#carrerasBody .btn-delete-carrera').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     await deleteCarrera(btn.dataset.codigo);
                 });
             });
 
-            document.querySelectorAll('.btn-edit-plan').forEach(btn => {
+            document.querySelectorAll('#carrerasBody .btn-edit-plan').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     startEditPlanRow(btn.dataset.id);
                 });
             });
 
-            document.querySelectorAll('.btn-delete-plan').forEach(btn => {
+            document.querySelectorAll('#carrerasBody .btn-delete-plan').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     await deletePlan(btn.dataset.id);
@@ -1076,6 +1184,7 @@
 
         function initActionMenus() {
             document.querySelectorAll('.btn-action-gear').forEach(btn => {
+                if (btn.dataset.menuBound === 'true') return;
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const menuId = btn.dataset.menuId;
@@ -1085,10 +1194,13 @@
                     closeAllActionMenus();
                     if (willOpen) menu.classList.add('open');
                 });
+                btn.dataset.menuBound = 'true';
             });
 
             document.querySelectorAll('.action-menu').forEach(menu => {
+                if (menu.dataset.menuClickBound === 'true') return;
                 menu.addEventListener('click', (e) => e.stopPropagation());
+                menu.dataset.menuClickBound = 'true';
             });
         }
 
@@ -1466,7 +1578,7 @@
             tbody.innerHTML = '';
 
             if (!planesData || planesData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center">No hay planes registrados.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center">No hay planes registrados.</td></tr>';
                 return;
             }
 
@@ -1490,6 +1602,9 @@
                                 <input type="text" class="js-plan-nombre w-full px-2 py-1 border border-indigo-300 rounded"
                                     value="${escapeHtml(p.NombrePlan)}" />
                             </td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="badge-materias">${Number(p.TotalMaterias) || 0}</span>
+                            </td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">
                                 <button class="btn-min btn-min-success btn-save-plan"
                                     data-id="${p.IdPlan}">Guardar</button>
@@ -1507,6 +1622,9 @@
                         <td class="px-6 py-4">${p.CodigoCarrera}</td>
                         <td class="px-6 py-4">${p.AnioPlan}</td>
                         <td class="px-6 py-4">${p.NombrePlan}</td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="badge-materias">${Number(p.TotalMaterias) || 0}</span>
+                        </td>
                         <td class="px-6 py-4 text-center">
                             <div class="relative inline-block text-left">
                                 <button class="btn-min btn-action-gear" data-menu-id="menu-pensum-${p.IdPlan}" title="Acciones">
@@ -1614,6 +1732,16 @@
             renderCarreras();
         }
 
+        function startEditCarreraPlanRow(idPlan) {
+            editingCarreraPlanIds.add(String(idPlan));
+            renderCarreras();
+        }
+
+        function cancelEditCarreraPlanRow(idPlan) {
+            editingCarreraPlanIds.delete(String(idPlan));
+            renderCarreras();
+        }
+
         async function saveCarreraInline(codigo, nombre) {
             if (!nombre || !nombre.trim()) return alert('Debes ingresar un nombre válido.');
 
@@ -1629,6 +1757,36 @@
                 await loadData();
             } catch (error) {
                 alert('Error de red al actualizar carrera.');
+            }
+        }
+
+        async function saveCarreraPlanInline(idPlan, row) {
+            const idPlanValue = Number(idPlan);
+            const nombreCarreraPlan = row?.querySelector('.js-carrera-nombre')?.value?.trim();
+            const codigoCarrera = row?.dataset?.codigo?.trim()?.toUpperCase();
+            const nombrePlan = row?.dataset?.plan?.trim();
+            const anioPlan = Number(row?.dataset?.anio);
+
+            if (!Number.isInteger(idPlanValue) || idPlanValue <= 0) {
+                return alert('IdPlan inválido.');
+            }
+            if (!nombreCarreraPlan || !codigoCarrera || !nombrePlan || !Number.isInteger(anioPlan) || anioPlan <= 0) {
+                return alert('Completa los datos de carrera y plan para guardar.');
+            }
+
+            try {
+                const res = await fetch(`/api/catalogos/planes/${idPlanValue}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigoCarrera, nombreCarreraPlan, nombrePlan, anioPlan })
+                });
+                const data = await res.json();
+                if (!res.ok) return alert(data.error || 'No se pudo actualizar la fila del plan.');
+
+                editingCarreraPlanIds.delete(String(idPlanValue));
+                await loadData();
+            } catch (error) {
+                alert('Error de red al actualizar la carrera del plan.');
             }
         }
 
@@ -1667,7 +1825,21 @@
                     method: 'DELETE'
                 });
                 const data = await res.json();
-                if (!res.ok) return alert(data.error || 'No se pudo eliminar el plan.');
+                if (!res.ok) {
+                    if (data.code === 'NO_DESTINO_VALIDO') {
+                        return alert(data.error || 'No existe otro plan de la misma carrera con materias para reasignar.');
+                    }
+                    return alert(data.error || 'No se pudo eliminar el plan.');
+                }
+
+                if (Number(data.idPlanDestino) > 0) {
+                    alert(
+                        `${data.message || 'Plan eliminado con reasignación automática.'}\n` +
+                        `Plan destino: ${data.idPlanDestino}\n` +
+                        `Alumnos reasignados: ${data.alumnosReasignados || 0}\n` +
+                        `Consultas reasignadas: ${data.consultasReasignadas || 0}`
+                    );
+                }
                 await loadData();
             } catch (error) {
                 alert('Error de red al eliminar plan.');
@@ -1696,18 +1868,10 @@
             }
 
             try {
-                const resCarrera = await fetch(`/api/catalogos/carreras/${encodeURIComponent(modalPlanContext.codigoCarrera)}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nombre: nombreCarrera })
-                });
-                const dataCarrera = await resCarrera.json();
-                if (!resCarrera.ok) return alert(dataCarrera.error || 'No se pudo actualizar la carrera.');
-
                 const resPlan = await fetch(`/api/catalogos/planes/${modalPlanContext.idPlan}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ codigoCarrera, nombrePlan, anioPlan })
+                    body: JSON.stringify({ codigoCarrera, nombreCarreraPlan: nombreCarrera, nombrePlan, anioPlan })
                 });
                 const dataPlan = await resPlan.json();
                 if (!resPlan.ok) return alert(dataPlan.error || 'No se pudo actualizar el plan.');
@@ -1715,7 +1879,7 @@
                 closeModalPlanEdit();
                 closeModal('planDetalleModal');
                 await loadData();
-                alert('Carrera y plan actualizados.');
+                alert('Plan actualizado.');
             } catch (error) {
                 alert('Error de red al guardar cambios del popup.');
             }
@@ -2129,6 +2293,12 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             getUsuarioActual();
+            applyTemplateVisibilityByRole();
+            document.querySelectorAll('.btn-download-template').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    downloadTemplateAuthenticated(btn.dataset.endpoint, btn.dataset.filename || 'plantilla.xlsx');
+                });
+            });
             loadData();
         });
 
