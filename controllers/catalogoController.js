@@ -44,19 +44,99 @@ exports.getAllCarreras = async (req, res) => {
 exports.getAllMaterias = async (req, res) => {
     try {
         const pool = await poolPromise;
+        const search = (req.query.search || '').toString().trim();
+        const page = Number(req.query.page || 0);
+        const pageSize = Number(req.query.pageSize || 0);
+        const usePagination = Number.isInteger(page) && page > 0 && Number.isInteger(pageSize) && pageSize > 0;
+
+        if (usePagination) {
+            const offset = (page - 1) * pageSize;
+            const request = pool.request();
+            const whereClause = search
+                ? `WHERE m.CodigoMateria LIKE @search OR m.NombreMateria LIKE @search`
+                : '';
+
+            if (search) {
+                request.input('search', sql.VarChar(200), `%${search}%`);
+            }
+            request
+                .input('offset', sql.Int, offset)
+                .input('pageSize', sql.Int, pageSize);
+
+            const countResult = await request.query(`
+                SELECT COUNT(*) AS Total
+                FROM Materias m
+                ${whereClause}
+            `);
+            const total = Number(countResult.recordset[0]?.Total || 0);
+
+            // recrear request para evitar conflicto de parámetros en mssql
+            const requestItems = pool.request();
+            if (search) {
+                requestItems.input('search', sql.VarChar(200), `%${search}%`);
+            }
+            requestItems
+                .input('offset', sql.Int, offset)
+                .input('pageSize', sql.Int, pageSize);
+
+            const itemsResult = await requestItems.query(`
+                SELECT
+                    m.CodigoMateria,
+                    m.NombreMateria,
+                    m.UVS,
+                    planTop.CodigoCarrera,
+                    planTop.NombreCarrera,
+                    planTop.NombrePlan,
+                    planTop.AnioPlan
+                FROM Materias m
+                OUTER APPLY (
+                    SELECT TOP 1
+                        p.CodigoCarrera,
+                        c.NombreCarrera,
+                        p.NombrePlan,
+                        p.AnioPlan
+                    FROM Pensum_Materias pm
+                    INNER JOIN PlanesEstudio p ON pm.IdPlan = p.IdPlan
+                    LEFT JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
+                    WHERE pm.CodigoMateria = m.CodigoMateria
+                    ORDER BY p.AnioPlan DESC, p.IdPlan DESC
+                ) planTop
+                ${whereClause}
+                ORDER BY m.NombreMateria
+                OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
+            `);
+
+            return res.status(200).json({
+                items: itemsResult.recordset,
+                total,
+                page,
+                pageSize,
+                totalPages: Math.max(1, Math.ceil(total / pageSize))
+            });
+        }
+
         const result = await pool.request().query(`
-            SELECT 
-                m.CodigoMateria, 
-                m.NombreMateria, 
-                m.UVS, 
-                c.CodigoCarrera,
-                c.NombreCarrera, 
-                p.NombrePlan,
-                p.AnioPlan
+            SELECT
+                m.CodigoMateria,
+                m.NombreMateria,
+                m.UVS,
+                planTop.CodigoCarrera,
+                planTop.NombreCarrera,
+                planTop.NombrePlan,
+                planTop.AnioPlan
             FROM Materias m
-            LEFT JOIN Pensum_Materias pm ON m.CodigoMateria = pm.CodigoMateria
-            LEFT JOIN PlanesEstudio p ON pm.IdPlan = p.IdPlan
-            LEFT JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
+            OUTER APPLY (
+                SELECT TOP 1
+                    p.CodigoCarrera,
+                    c.NombreCarrera,
+                    p.NombrePlan,
+                    p.AnioPlan
+                FROM Pensum_Materias pm
+                INNER JOIN PlanesEstudio p ON pm.IdPlan = p.IdPlan
+                LEFT JOIN Carreras c ON p.CodigoCarrera = c.CodigoCarrera
+                WHERE pm.CodigoMateria = m.CodigoMateria
+                ORDER BY p.AnioPlan DESC, p.IdPlan DESC
+            ) planTop
             ORDER BY m.NombreMateria
         `);
         res.status(200).json(result.recordset);

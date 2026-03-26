@@ -297,6 +297,18 @@
 
                 <!-- PANEL MATERIAS -->
                 <div id="panel-materias" class="hidden">
+                    <div class="p-4 border-b border-gray-100 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+                        <div class="flex items-center gap-2">
+                            <input id="materiasSearchInput" type="text" placeholder="Buscar por código o nombre..."
+                                class="w-72 max-w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#B20000] focus:border-[#B20000]">
+                            <span id="materiasTotalLabel" class="text-xs text-slate-500">0 materias</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="btnPrevMaterias" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Anterior</button>
+                            <span id="materiasPageInfo" class="text-xs text-slate-600 min-w-[90px] text-center">1 / 1</span>
+                            <button id="btnNextMaterias" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Siguiente</button>
+                        </div>
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left text-gray-500">
                             <thead class="text-xs text-gray-700 uppercase bg-gray-50">
@@ -733,6 +745,8 @@
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1 uppercase tracking-wider">Seleccionar
                         Materias</label>
+                    <input id="pensumMateriasSearch" type="text" placeholder="Buscar materia por código o nombre..."
+                        class="w-full mb-2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#B20000] focus:border-[#B20000]">
                     <div id="pensumMateriasList"
                         class="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2 bg-slate-50">
                         <!-- Materias se cargarán aquí dinámicamente -->
@@ -763,6 +777,14 @@
         let modalPlanContext = null;
         let modalPlanMaterias = [];
         let pdfPreviewRows = [];
+        let activeCatalogTab = 'carreras';
+        let materiasLoaded = false;
+        let materiasPage = 1;
+        let materiasPageSize = 80;
+        let materiasTotal = 0;
+        let materiasTotalPages = 1;
+        let materiasSearchTerm = '';
+        let pensumMateriasData = [];
 
         function escapeHtml(value) {
             return String(value ?? '')
@@ -827,17 +849,29 @@
         };
 
         // Modal Handlers
-        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+            if (id === 'pensumModal') {
+                const searchInput = document.getElementById('pensumMateriasSearch');
+                if (searchInput) searchInput.value = '';
+                loadPensumPickerMaterias('');
+            }
+        }
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
         // Tabs
         function switchTab(tab) {
+            activeCatalogTab = tab;
             const tabs = ['carreras', 'materias', 'pensum', 'templates'];
             tabs.forEach(t => {
                 document.getElementById(`tab-${t}`).className = tab === t ? 'pb-3 tab-active transition' : 'pb-3 tab-inactive transition';
                 const panel = document.getElementById(`panel-${t}`);
                 if (panel) panel.style.display = tab === t ? 'block' : 'none';
             });
+
+            if (tab === 'materias' && !materiasLoaded) {
+                ensureMateriasLoaded();
+            }
         }
 
         // Obtener usuario actual del localStorage
@@ -937,6 +971,55 @@
             return `/pensums/${codigoCarrera}-${anio}.pdf`;
         }
 
+        async function fetchMateriasPage(page = 1, search = materiasSearchTerm) {
+            try {
+                const params = new URLSearchParams({
+                    page: String(page),
+                    pageSize: String(materiasPageSize),
+                    search: search || ''
+                });
+                const resM = await fetch(`/api/catalogos/materias?${params.toString()}`);
+                const payload = await resM.json();
+                if (!resM.ok) throw new Error(payload.error || 'No se pudo cargar materias');
+
+                materiasData = Array.isArray(payload.items) ? payload.items : [];
+                materiasTotal = Number(payload.total || 0);
+                materiasPage = Number(payload.page || 1);
+                materiasTotalPages = Number(payload.totalPages || 1);
+                materiasSearchTerm = search || '';
+                materiasLoaded = true;
+                renderMaterias();
+            } catch (error) {
+                console.error('Error loading materias', error);
+            }
+        }
+
+        async function ensureMateriasLoaded() {
+            if (materiasLoaded) return;
+            await fetchMateriasPage(1, materiasSearchTerm);
+        }
+
+        async function loadPensumPickerMaterias(search = '') {
+            const list = document.getElementById('pensumMateriasList');
+            if (list) list.innerHTML = '<p class="text-xs text-slate-400 italic">Cargando materias...</p>';
+
+            try {
+                const params = new URLSearchParams({
+                    page: '1',
+                    pageSize: '300',
+                    search: search || ''
+                });
+                const res = await fetch(`/api/catalogos/materias?${params.toString()}`);
+                const payload = await res.json();
+                if (!res.ok) throw new Error(payload.error || 'No se pudo cargar materias');
+                pensumMateriasData = Array.isArray(payload.items) ? payload.items : [];
+                populatePensumMaterias();
+            } catch (error) {
+                console.error('Error loading pensum materias', error);
+                if (list) list.innerHTML = '<p class="text-xs text-red-500 italic">Error al cargar materias.</p>';
+            }
+        }
+
         // Cargar datos
         async function loadData() {
             try {
@@ -954,15 +1037,27 @@
                 populatePensumSelects(); // Nueva función
                 renderPensum();
 
-                // Fetch Materias
-                const resM = await fetch('/api/catalogos/materias');
-                materiasData = await resM.json();
-                renderMaterias();
-                populatePensumMaterias(); // Nueva función
+                // Cargar materias solo en pestaña Materias para evitar cuelgues.
+                if (activeCatalogTab === 'materias') {
+                    materiasLoaded = false;
+                    await ensureMateriasLoaded();
+                }
 
             } catch (err) {
                 console.error("Error loading data", err);
             }
+        }
+
+        function updateMateriasPaginationUI() {
+            const totalLabel = document.getElementById('materiasTotalLabel');
+            const pageInfo = document.getElementById('materiasPageInfo');
+            const btnPrev = document.getElementById('btnPrevMaterias');
+            const btnNext = document.getElementById('btnNextMaterias');
+
+            if (totalLabel) totalLabel.textContent = `${materiasTotal} materias`;
+            if (pageInfo) pageInfo.textContent = `${materiasPage} / ${Math.max(1, materiasTotalPages)}`;
+            if (btnPrev) btnPrev.disabled = materiasPage <= 1;
+            if (btnNext) btnNext.disabled = materiasPage >= materiasTotalPages;
         }
 
         // Renderizar tabla de carreras con planes
@@ -1444,7 +1539,8 @@
             tbody.innerHTML = '';
 
             if (!materiasData || materiasData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center">No hay materias registradas.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center">No hay materias para este criterio.</td></tr>';
+                updateMateriasPaginationUI();
                 return;
             }
 
@@ -1570,6 +1666,7 @@
             });
 
             initActionMenus();
+            updateMateriasPaginationUI();
         }
 
         // Renderizar tabla de planes de estudio (pensum)
@@ -1904,7 +2001,7 @@
             if (!list) return;
             list.innerHTML = '';
 
-            if (materiasData.length === 0) {
+            if (!pensumMateriasData || pensumMateriasData.length === 0) {
                 list.innerHTML = '<p class="text-xs text-slate-400 italic">No hay materias registradas.</p>';
                 return;
             }
@@ -1912,7 +2009,7 @@
             // Usar un Set para evitar duplicados visuales si una materia está en varios planes
             const uniqueMaterias = [];
             const codes = new Set();
-            materiasData.forEach(m => {
+            pensumMateriasData.forEach(m => {
                 if (!codes.has(m.CodigoMateria)) {
                     codes.add(m.CodigoMateria);
                     uniqueMaterias.push(m);
@@ -1930,6 +2027,11 @@
                 `;
                 list.appendChild(div);
             });
+
+            const hint = document.createElement('p');
+            hint.className = 'text-[10px] text-slate-400 italic mt-2';
+            hint.textContent = 'Mostrando hasta 300 resultados. Usa el buscador para afinar.';
+            list.appendChild(hint);
         }
 
         // Filtrar planes según la carrera seleccionada
@@ -2294,6 +2396,48 @@
         document.addEventListener('DOMContentLoaded', () => {
             getUsuarioActual();
             applyTemplateVisibilityByRole();
+            const materiasSearchInput = document.getElementById('materiasSearchInput');
+            const btnPrevMaterias = document.getElementById('btnPrevMaterias');
+            const btnNextMaterias = document.getElementById('btnNextMaterias');
+            const pensumMateriasSearch = document.getElementById('pensumMateriasSearch');
+
+            let materiasSearchTimer = null;
+            if (materiasSearchInput) {
+                materiasSearchInput.addEventListener('input', () => {
+                    const value = materiasSearchInput.value.trim();
+                    clearTimeout(materiasSearchTimer);
+                    materiasSearchTimer = setTimeout(async () => {
+                        materiasLoaded = false;
+                        await fetchMateriasPage(1, value);
+                    }, 250);
+                });
+            }
+
+            if (btnPrevMaterias) {
+                btnPrevMaterias.addEventListener('click', async () => {
+                    if (materiasPage <= 1) return;
+                    await fetchMateriasPage(materiasPage - 1, materiasSearchTerm);
+                });
+            }
+
+            if (btnNextMaterias) {
+                btnNextMaterias.addEventListener('click', async () => {
+                    if (materiasPage >= materiasTotalPages) return;
+                    await fetchMateriasPage(materiasPage + 1, materiasSearchTerm);
+                });
+            }
+
+            let pensumSearchTimer = null;
+            if (pensumMateriasSearch) {
+                pensumMateriasSearch.addEventListener('input', () => {
+                    const term = pensumMateriasSearch.value.trim();
+                    clearTimeout(pensumSearchTimer);
+                    pensumSearchTimer = setTimeout(() => {
+                        loadPensumPickerMaterias(term);
+                    }, 250);
+                });
+            }
+
             document.querySelectorAll('.btn-download-template').forEach((btn) => {
                 btn.addEventListener('click', () => {
                     downloadTemplateAuthenticated(btn.dataset.endpoint, btn.dataset.filename || 'plantilla.xlsx');
