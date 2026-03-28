@@ -58,9 +58,9 @@ exports.parseCEUTECFormat = (text) => {
 
         const codigoMateria = normalizeSpaces(cols[5]);
         const nombreMateria = normalizeSpaces(cols[6]);
-        const nota = toNumber(cols[7]);
         const estadoRaw = normalizeSpaces(cols[8]);
-        const estado = estadoRaw || 'EN CURSO';
+        const estado = estadoRaw ? estadoRaw.toUpperCase() : 'EN CURSO';
+        const nota = estado === 'EQV' ? null : toNumber(cols[7]);
         const uvs = toInt(cols[9]);
 
         if (!codigoMateria || !nombreMateria) continue;

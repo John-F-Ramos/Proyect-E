@@ -1,4 +1,10 @@
 const { poolPromise, sql } = require('../config/db');
+const {
+    ESTADOS_APROBADOS,
+    SQL_IN_APROBADOS,
+    SQL_IN_PROMEDIO,
+    SQL_IN_ORDEN_HISTORIAL
+} = require('../services/historialConstants');
 
 // Mapeo de prefijos de electivas
 const ELECTIVAS_MAP = {
@@ -160,6 +166,7 @@ exports.getAlumnoDashboard = async (req, res) => {
             .input('cuenta', sql.VarChar, cuenta)
             .query(`
                 SELECT a.NumeroCuenta, a.NombreCompleto, a.IndiceAcademico,
+                       a.UVsTotalesRegistro,
                        p.IdPlan, p.NombrePlan, p.AnioPlan,
                        c.CodigoCarrera, c.NombreCarrera
                 FROM Alumnos a
@@ -252,7 +259,7 @@ exports.getAlumnoDashboard = async (req, res) => {
         const materiasExactasAprobadas = new Set();
 
         const materiasAprobadasHistorial = historialAlumno
-            .filter(h => ['APB', 'APR', 'APROBADO', 'REQ'].includes(h.Estado))
+            .filter(h => ESTADOS_APROBADOS.includes(h.Estado))
             .map(h => h.CodigoMateria);
 
         console.log(`[Dashboard] Materias aprobadas en historial: ${materiasAprobadasHistorial.length}`);
@@ -353,19 +360,25 @@ exports.getAlumnoDashboard = async (req, res) => {
 
         if (materiasNoEnPlan.length > 0) {
             console.log(`[Dashboard] Materias fuera del plan: ${materiasNoEnPlan.join(', ')}`);
+            for (const cod of materiasNoEnPlan) {
+                const h = historialAlumno.find((x) => x.CodigoMateria === cod);
+                if (h) {
+                    uvsAprobadas += Number(h.UVS) || 0;
+                }
+            }
         }
 
-        console.log(`[Dashboard] Cálculo final: ${clasesAprobadas} clases, ${uvsAprobadas} UVs`);
+        console.log(`[Dashboard] Cálculo final: ${clasesAprobadas} clases, ${uvsAprobadas} UVs (pensum + fuera de plan)`);
 
         // 7. Estadísticas de rendimiento
         const rendimientoResult = await pool.request()
             .input('cuenta', sql.VarChar, cuenta)
             .query(`
                 SELECT 
-                    SUM(CASE WHEN Estado IN ('APB', 'APR', 'APROBADO', 'REQ') THEN 1 ELSE 0 END) as Aprobadas,
+                    SUM(CASE WHEN Estado IN (${SQL_IN_APROBADOS}) THEN 1 ELSE 0 END) as Aprobadas,
                     SUM(CASE WHEN Estado = 'REP' THEN 1 ELSE 0 END) as Reprobadas,
                     SUM(CASE WHEN Estado = 'EN CURSO' THEN 1 ELSE 0 END) as EnCurso,
-                    AVG(CASE WHEN Estado IN ('APB', 'APR', 'APROBADO', 'REQ', 'REP') THEN Nota ELSE NULL END) as PromedioGeneral
+                    AVG(CASE WHEN Estado IN (${SQL_IN_PROMEDIO}) THEN Nota ELSE NULL END) as PromedioGeneral
                 FROM Historial_Importado
                 WHERE NumeroCuenta = @cuenta
             `);
@@ -394,7 +407,7 @@ exports.getAlumnoDashboard = async (req, res) => {
                 ORDER BY 
                     CASE 
                         WHEN h.Estado = 'EN CURSO' THEN 1
-                        WHEN h.Estado IN ('APB', 'APR', 'APROBADO') THEN 2
+                        WHEN h.Estado IN (${SQL_IN_ORDEN_HISTORIAL}) THEN 2
                         ELSE 3
                     END,
                     h.FechaCreacion DESC
@@ -409,7 +422,7 @@ exports.getAlumnoDashboard = async (req, res) => {
                 FROM Historial_Importado h
                 INNER JOIN Pensum_Materias pm ON h.CodigoMateria = pm.CodigoMateria AND pm.IdPlan = @idPlan
                 WHERE h.NumeroCuenta = @cuenta 
-                AND h.Estado IN ('APB', 'APR', 'APROBADO', 'REQ')
+                AND h.Estado IN (${SQL_IN_APROBADOS})
             `);
 
         const semestreActual = semestreActualResult.recordset[0]?.SemestreActual || 1;
@@ -469,9 +482,20 @@ exports.getAlumnoDashboard = async (req, res) => {
         
         console.log(`[Dashboard] Materias pendientes: ${materiasPendientes.length}, mostrando: ${proximasMateriasResult.length}`);
 
-        // 11. Calcular porcentaje
+        // 11. Calcular porcentaje (priorizar uvs_tot del registro guardado en importación)
         const totalUVSPlan = planInfo.TotalUVS || 1;
-        const porcentajeProgreso = Math.min(Math.round((uvsAprobadas / totalUVSPlan) * 100), 100);
+        const uvsRegistroRaw = alumnoInfo.UVsTotalesRegistro;
+        const uvsDesdeRegistro =
+            uvsRegistroRaw != null &&
+            Number.isFinite(Number(uvsRegistroRaw)) &&
+            Number(uvsRegistroRaw) >= 0;
+        const uvsAprobadasMostradas = uvsDesdeRegistro
+            ? Math.round(Number(uvsRegistroRaw))
+            : uvsAprobadas;
+        const porcentajeProgreso = Math.min(
+            Math.round((uvsAprobadasMostradas / totalUVSPlan) * 100),
+            100
+        );
 
         // 12. Construir respuesta
         const dashboardData = {
@@ -493,7 +517,9 @@ exports.getAlumnoDashboard = async (req, res) => {
             },
             progreso: {
                 clasesAprobadas: clasesAprobadas,
-                uvsAprobadas: uvsAprobadas,
+                uvsAprobadas: uvsAprobadasMostradas,
+                uvsAprobadasCalculadas: uvsAprobadas,
+                uvsAprobadasDesdeExcel: uvsDesdeRegistro,
                 materiasEnCurso: enCursoResult.recordset.length,
                 totalUvsPlan: totalUVSPlan,
                 porcentaje: porcentajeProgreso
@@ -509,7 +535,9 @@ exports.getAlumnoDashboard = async (req, res) => {
             historialCompleto: historialCompletoResult.recordset
         };
 
-        console.log(`[Dashboard] Alumno: ${cuenta} - Semestre: ${semestreActual} - Progreso: ${porcentajeProgreso}% (${uvsAprobadas}/${totalUVSPlan} UVs) - Próximas: ${proximasMateriasResult.length}`);
+        console.log(
+            `[Dashboard] Alumno: ${cuenta} - Semestre: ${semestreActual} - Progreso: ${porcentajeProgreso}% (${uvsAprobadasMostradas}/${totalUVSPlan} UVs${uvsDesdeRegistro ? ', desde registro' : ''}) - Próximas: ${proximasMateriasResult.length}`
+        );
         res.status(200).json(dashboardData);
 
     } catch (error) {
@@ -578,7 +606,7 @@ exports.getHistorialCompleto = async (req, res) => {
                 ORDER BY 
                     CASE 
                         WHEN h.Estado = 'EN CURSO' THEN 1
-                        WHEN h.Estado IN ('APB', 'APR', 'APROBADO') THEN 2
+                        WHEN h.Estado IN (${SQL_IN_ORDEN_HISTORIAL}) THEN 2
                         ELSE 3
                     END,
                     h.FechaCreacion DESC
@@ -639,7 +667,7 @@ exports.getMateriasPendientes = async (req, res) => {
                     WHERE NumeroCuenta = @cuenta
                 ) h ON pm.CodigoMateria = h.CodigoMateria
                 WHERE pm.IdPlan = @idPlan
-                AND (h.Estado IS NULL OR h.Estado NOT IN ('APB', 'APR', 'APROBADO', 'REQ'))
+                AND (h.Estado IS NULL OR h.Estado NOT IN (${SQL_IN_APROBADOS}))
                 ORDER BY 
                     CASE 
                         WHEN pm.Semestre <= @semestreActual THEN 1
@@ -679,7 +707,7 @@ exports.getResumenEstados = async (req, res) => {
                 GROUP BY h.Estado
                 ORDER BY 
                     CASE 
-                        WHEN h.Estado = 'APB' THEN 1
+                        WHEN h.Estado IN ('APB', 'EQV') THEN 1
                         WHEN h.Estado = 'EN CURSO' THEN 2
                         ELSE 3
                     END
@@ -735,7 +763,7 @@ async function getSemestreActual(pool, idPlan, cuenta) {
             FROM Historial_Importado h
             INNER JOIN Pensum_Materias pm ON h.CodigoMateria = pm.CodigoMateria AND pm.IdPlan = @idPlan
             WHERE h.NumeroCuenta = @cuenta 
-            AND h.Estado IN ('APB', 'APR', 'APROBADO', 'REQ')
+            AND h.Estado IN (${SQL_IN_APROBADOS})
         `);
     
     return result.recordset[0]?.SemestreActual || 1;

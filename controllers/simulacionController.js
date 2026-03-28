@@ -1,4 +1,5 @@
 const { poolPromise, sql } = require('../config/db');
+const { SQL_IN_APROBADOS } = require('../services/historialConstants');
 
 // Mapeo de electivas para equivalencias
 const ELECTIVAS_MAP = {
@@ -134,7 +135,7 @@ exports.calcularSimulacion = async (req, res) => {
                 SELECT DISTINCT h.CodigoMateria, h.NombreMateria, h.Estado
                 FROM Historial_Importado h
                 WHERE h.NumeroCuenta = @cuenta 
-                AND h.Estado IN ('APB', 'APR', 'APROBADO', 'REQ')
+                AND h.Estado IN (${SQL_IN_APROBADOS})
             `);
 
         const materiasAprobadas = historialResult.recordset.map(m => m.CodigoMateria);

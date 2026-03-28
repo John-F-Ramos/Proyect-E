@@ -1,4 +1,5 @@
 const { poolPromise, sql } = require('../config/db');
+const { SQL_IN_APROBADOS } = require('../services/historialConstants');
 
 // Student creates a career change request
 exports.crearSolicitud = async (req, res) => {
@@ -86,7 +87,7 @@ exports.crearSolicitud = async (req, res) => {
                 SELECT DISTINCT h.CodigoMateria
                 FROM Historial_Importado h
                 WHERE h.NumeroCuenta = @cuenta
-                AND h.Estado IN ('APB', 'APR', 'APROBADO', 'REQ')
+                AND h.Estado IN (${SQL_IN_APROBADOS})
             `);
 
         const materiasAprobadas = new Set(historialResult.recordset.map(m => m.CodigoMateria));

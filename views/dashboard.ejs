@@ -589,6 +589,11 @@
         let itemsPerPage = 10;
         let showAllMode = false;
 
+        function formatHistorialNotaCell(reg) {
+            if (reg.Estado === 'EQV' || reg.Nota == null) return '- -';
+            return reg.Nota;
+        }
+
         // Función para renderizar la tabla con o sin paginación según el toggle
         function renderHistorialWithPagination() {
             let dataToShow = currentHistorialData;
@@ -630,11 +635,11 @@
             // Renderizar tabla
             TABLE_BODY.innerHTML = '';
             if (dataToShow.length === 0) {
-                TABLE_BODY.innerHTML = '}<tr><td colspan="5" class="px-6 py-4 text-center">No hay historial disponible.</td></tr>';
+                TABLE_BODY.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center">No hay historial disponible.</td></tr>';
             } else {
                 dataToShow.forEach(reg => {
                     let badgeClass = 'bg-gray-100 text-gray-600';
-                    if (reg.Estado === 'APB' || reg.Estado === 'APR' || reg.Estado === 'APROBADO') {
+                    if (reg.Estado === 'APB' || reg.Estado === 'APR' || reg.Estado === 'APROBADO' || reg.Estado === 'EQV') {
                         badgeClass = 'bg-green-100 text-green-600';
                     } else if (reg.Estado === 'EN CURSO') {
                         badgeClass = 'bg-blue-100 text-blue-600';
@@ -646,7 +651,7 @@
                         <tr>
                             <td class="px-6 py-4 text-slate-500">${reg.CodigoMateria || '-'}</td>
                             <td class="px-6 py-4 font-medium">${reg.NombreMateria || '-'}</td>
-                            <td class="px-6 py-4 font-bold text-slate-800">${reg.Nota || '-'}</td>
+                            <td class="px-6 py-4 font-bold text-slate-800">${formatHistorialNotaCell(reg)}</td>
                             <td class="px-6 py-4"><span class="${badgeClass} px-3 py-1 rounded-full text-[10px] font-bold uppercase">${reg.Estado || '-'}</span></td>
                             <td class="px-6 py-4 text-slate-500">${reg.UVS || '-'}</td>
                         </tr>
@@ -1089,12 +1094,14 @@
 
             let html = '';
             data.forEach((row, index) => {
-                const estadoClass = row.estado === 'APB' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+                const est = (row.estado || '').toUpperCase();
+                const estadoClass = (est === 'APB' || est === 'EQV') ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+                const notaPreview = (est === 'EQV' || row.nota == null) ? '- -' : String(row.nota);
                 html += `
                     <tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">
                         <td class="px-4 py-2 whitespace-nowrap font-mono text-xs">${escapeHtml(row.codigo_materia || 'N/A')}</td>
                         <td class="px-4 py-2 whitespace-nowrap max-w-xs truncate text-xs">${escapeHtml(row.nombre_materia || 'N/A')}</td>
-                        <td class="px-4 py-2 whitespace-nowrap text-xs">${escapeHtml(row.nota || 'N/A')}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-xs">${escapeHtml(notaPreview)}</td>
                         <td class="px-4 py-2 whitespace-nowrap text-xs">
                             <span class="${estadoClass} px-2 py-1 rounded-full text-xs font-semibold">
                                 ${escapeHtml(row.estado || 'N/A')}

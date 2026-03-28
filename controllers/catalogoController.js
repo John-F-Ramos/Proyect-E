@@ -1,6 +1,3 @@
-const { DOMMatrix } = require('canvas');
-global.DOMMatrix = DOMMatrix;
-
 const { poolPromise, sql } = require('../config/db');
 const fs = require('fs');
 const path = require('path');

@@ -2,6 +2,163 @@ const excelProcessor = require('../services/excelProcessor');
 const textParser = require('../services/textparser');
 const { poolPromise, sql } = require('../config/db');
 
+function normalizeEstadoHistorial(raw) {
+    const s = (raw == null ? '' : String(raw)).trim().toUpperCase();
+    return s || 'EN CURSO';
+}
+
+/** Nota para Historial_Importado: número o null (EQV / placeholders / no numérico). */
+function parseNotaHistorial(estadoNorm, rawNota) {
+    if (estadoNorm === 'EQV') return null;
+    const t = (rawNota == null ? '' : String(rawNota)).replace(/\s+/g, ' ').trim();
+    if (!t) return null;
+    const compact = t.replace(/\s/g, '');
+    if (/^-+$/.test(compact)) return null;
+    const v = parseFloat(t.replace(',', '.'));
+    return Number.isFinite(v) ? v : null;
+}
+
+function normalizeNotaFromDb(v) {
+    if (v == null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+}
+
+function parseRowIdPlan(row) {
+    const raw = row.idplan ?? row.id_plan;
+    if (raw == null || String(raw).trim() === '') return null;
+    const n = parseInt(String(raw).trim(), 10);
+    return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+function parseRowAnioPlan(row) {
+    const raw = row.anioplan ?? row.anio_plan;
+    if (raw == null || String(raw).trim() === '') return null;
+    const n = parseInt(String(raw).trim(), 10);
+    return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+function userProvidedExcelPlanId(row) {
+    return parseRowIdPlan(row) != null;
+}
+
+function userProvidedExcelAnio(row) {
+    return parseRowAnioPlan(row) != null;
+}
+
+/** uvs_tot del Excel (total UV aprobadas según registro). */
+function parseRowUvsTot(row) {
+    const raw = row.uvs_tot ?? row.uvstot ?? row.uvs_total;
+    if (raw == null || String(raw).trim() === '') return null;
+    const n = parseInt(String(raw).replace(/\s/g, ''), 10);
+    return Number.isInteger(n) && n >= 0 ? n : null;
+}
+
+/**
+ * A: IdPlan del Excel existe en BD
+ * B: Carrera + AnioPlan del Excel
+ * C: IdPlanActual del alumno (cuenta fija o ADMIN por cuenta)
+ * D: crear Plan {año actual} solo si la fila no trae IdPlan ni AnioPlan en el Excel
+ */
+async function resolvePlanIdForRow({
+    row,
+    finalCodigoCarrera,
+    targetAcc,
+    idPlanAlumnoDb,
+    cuenta,
+    pool,
+    cache,
+    getIdPlanActualForCuenta
+}) {
+    const rowIdPlan = parseRowIdPlan(row);
+    if (rowIdPlan && cache.planesById.has(rowIdPlan)) {
+        const meta = cache.planesById.get(rowIdPlan);
+        const rowAnio = parseRowAnioPlan(row);
+        if (
+            rowAnio != null &&
+            meta.AnioPlan != null &&
+            Number(meta.AnioPlan) !== rowAnio
+        ) {
+            console.warn(
+                `[Ingest] AnioPlan en Excel (${rowAnio}) no coincide con plan IdPlan=${rowIdPlan} (AnioPlan BD=${meta.AnioPlan}); se usa IdPlan del Excel.`
+            );
+        }
+        return { idPlan: rowIdPlan, fromExcel: true };
+    }
+    if (rowIdPlan) {
+        console.warn(
+            `[Ingest] IdPlan=${rowIdPlan} del Excel no existe en PlanesEstudio; se intenta por carrera/año o alumno.`
+        );
+    }
+
+    const rowAnio = parseRowAnioPlan(row);
+    if (finalCodigoCarrera && finalCodigoCarrera !== 'S/D' && rowAnio != null) {
+        const key = `${finalCodigoCarrera}|${rowAnio}`;
+        const byCa = cache.planesByCarreraAnio.get(key);
+        if (byCa != null) {
+            return { idPlan: byCa, fromExcel: true };
+        }
+    }
+
+    let idPlan = null;
+    if (targetAcc === 'ADMIN_IMPORT') {
+        idPlan = await getIdPlanActualForCuenta(cuenta);
+    } else {
+        idPlan = idPlanAlumnoDb;
+    }
+    if (idPlan != null && cache.planesById.has(idPlan)) {
+        return { idPlan, fromExcel: false };
+    }
+    if (idPlan != null) {
+        console.warn(
+            `[Ingest] IdPlanActual del alumno (${idPlan}) no existe en PlanesEstudio; se ignora.`
+        );
+    }
+
+    const skipFallbackCreate =
+        userProvidedExcelPlanId(row) || userProvidedExcelAnio(row);
+    if (skipFallbackCreate) {
+        return { idPlan: null, fromExcel: false };
+    }
+
+    const anioFallback = new Date().getFullYear();
+    const nombrePlanFallback = `Plan ${anioFallback}`;
+    if (finalCodigoCarrera && finalCodigoCarrera !== 'S/D') {
+        const planKey = `${finalCodigoCarrera}|${nombrePlanFallback.toLowerCase()}`;
+        let fid = cache.planes.get(planKey);
+        if (!fid) {
+            const planResult = await pool
+                .request()
+                .input('codCarrera', sql.VarChar, finalCodigoCarrera)
+                .input('anio', sql.Int, anioFallback)
+                .input('nom', sql.VarChar, nombrePlanFallback)
+                .query(`
+                    INSERT INTO PlanesEstudio (CodigoCarrera, AnioPlan, NombrePlan)
+                    OUTPUT INSERTED.IdPlan
+                    VALUES (@codCarrera, @anio, @nom)
+                `);
+            fid = planResult.recordset[0].IdPlan;
+            cache.planes.set(planKey, fid);
+            cache.planesById.set(fid, {
+                CodigoCarrera: finalCodigoCarrera,
+                AnioPlan: anioFallback,
+                NombrePlan: nombrePlanFallback
+            });
+            const caKey = `${finalCodigoCarrera}|${anioFallback}`;
+            const cur = cache.planesByCarreraAnio.get(caKey);
+            if (cur == null || fid < cur) {
+                cache.planesByCarreraAnio.set(caKey, fid);
+            }
+            console.log(
+                `[Ingest] Creado Plan (fallback): ${nombrePlanFallback} (ID: ${fid}) para carrera ${finalCodigoCarrera}`
+            );
+        }
+        return { idPlan: fid, fromExcel: false, fallback: true };
+    }
+
+    return { idPlan: null, fromExcel: false };
+}
+
 // Función reutilizable para procesar datos en la BD
 async function processDataInDB(rawData, numeroCuenta, bypassPlanValidation = false) {
     const pool = await poolPromise;
@@ -42,10 +199,26 @@ async function processDataInDB(rawData, numeroCuenta, bypassPlanValidation = fal
     const cache = {
         carreras: new Set(),
         planes: new Map(),
+        planesById: new Map(),
+        planesByCarreraAnio: new Map(),
         materias: new Set(),
         alumnos: new Set(),
         historial: new Map() // key: 'cuenta|codigoMateria', value: { nota, estado }
     };
+
+    const alumnoIdPlanLazy = new Map();
+    async function getIdPlanActualForCuenta(cuenta) {
+        if (alumnoIdPlanLazy.has(cuenta)) return alumnoIdPlanLazy.get(cuenta);
+        const r = await pool.request()
+            .input('c', sql.VarChar, cuenta)
+            .query('SELECT IdPlanActual FROM Alumnos WHERE NumeroCuenta = @c');
+        const id = r.recordset[0]?.IdPlanActual ?? null;
+        alumnoIdPlanLazy.set(cuenta, id);
+        return id;
+    }
+
+    const idPlanSyncedForCuenta = new Set();
+    const uvsTotRegistroByCuenta = new Map();
 
     // Precargar cachés
     console.log('[Ingest] Precargando cachés...');
@@ -53,10 +226,24 @@ async function processDataInDB(rawData, numeroCuenta, bypassPlanValidation = fal
     const carrerasDB = await pool.request().query('SELECT CodigoCarrera FROM Carreras');
     carrerasDB.recordset.forEach(c => cache.carreras.add(c.CodigoCarrera));
 
-    const planesDB = await pool.request().query('SELECT IdPlan, CodigoCarrera, NombrePlan FROM PlanesEstudio');
-    planesDB.recordset.forEach(p => {
+    const planesDB = await pool.request().query(`
+        SELECT IdPlan, CodigoCarrera, AnioPlan, NombrePlan FROM PlanesEstudio
+    `);
+    planesDB.recordset.forEach((p) => {
         if (p.CodigoCarrera && p.NombrePlan) {
             cache.planes.set(`${p.CodigoCarrera}|${p.NombrePlan.toLowerCase()}`, p.IdPlan);
+        }
+        cache.planesById.set(p.IdPlan, {
+            CodigoCarrera: p.CodigoCarrera,
+            AnioPlan: p.AnioPlan,
+            NombrePlan: p.NombrePlan
+        });
+        if (p.CodigoCarrera != null && p.AnioPlan != null) {
+            const caKey = `${p.CodigoCarrera}|${Number(p.AnioPlan)}`;
+            const cur = cache.planesByCarreraAnio.get(caKey);
+            if (cur == null || p.IdPlan < cur) {
+                cache.planesByCarreraAnio.set(caKey, p.IdPlan);
+            }
         }
     });
 
@@ -72,9 +259,9 @@ async function processDataInDB(rawData, numeroCuenta, bypassPlanValidation = fal
         .query('SELECT CodigoMateria, Nota, Estado FROM Historial_Importado WHERE NumeroCuenta = @cuenta');
     
     historialDB.recordset.forEach(h => {
-        cache.historial.set(`${numeroCuenta}|${h.CodigoMateria}`, { 
-            nota: h.Nota, 
-            estado: h.Estado 
+        cache.historial.set(`${numeroCuenta}|${h.CodigoMateria}`, {
+            nota: normalizeNotaFromDb(h.Nota),
+            estado: h.Estado
         });
     });
     
@@ -86,17 +273,13 @@ async function processDataInDB(rawData, numeroCuenta, bypassPlanValidation = fal
             const row = {};
             Object.keys(record).forEach(k => row[k.toLowerCase().trim()] = record[k]);
 
-            // Extraer año del plan actual o actual global
-            const anioPlan = new Date().getFullYear();
-            const nombrePlanExcel = `Plan ${anioPlan}`;
-
             // Datos de la materia
             const codigoMateria = row.codigo_materia || 'S/D';
             const nombreMateria = row.nombre_materia || 'S/D';
             const uvs = parseInt(row.uvs || 0);
 
-            const nota = parseFloat(row.nota || 0);
-            const estado = row.estado || 'EN CURSO';
+            const estadoNormalizado = normalizeEstadoHistorial(row.estado);
+            const nota = parseNotaHistorial(estadoNormalizado, row.nota);
 
             // --- VALIDACIÓN Y EXTRACCIÓN DE CUENTA ---
             const cuentaEnData = row.cuenta || row.numerocuenta || row.account;
@@ -122,6 +305,15 @@ async function processDataInDB(rawData, numeroCuenta, bypassPlanValidation = fal
                     console.warn(`[Ingest] Fila ignorada: la cuenta en datos (${cuentaEnData}) no coincide con la seleccionada (${targetAcc})`);
                     continue;
                 }
+            }
+
+            const uvsTotParsed = parseRowUvsTot(row);
+            if (uvsTotParsed != null) {
+                const prev = uvsTotRegistroByCuenta.get(cuenta);
+                uvsTotRegistroByCuenta.set(
+                    cuenta,
+                    prev == null ? uvsTotParsed : Math.max(prev, uvsTotParsed)
+                );
             }
 
             // Datos de Carrera: si no tenemos carrera del alumno, intentar extraer del texto
@@ -155,33 +347,20 @@ async function processDataInDB(rawData, numeroCuenta, bypassPlanValidation = fal
                 }
             }
 
-            // Gestionar Plan (usar el plan del alumno o crear uno nuevo)
-            let idPlan = idPlanAlumno;
-            const planKey = `${finalCodigoCarrera}|${nombrePlanExcel.toLowerCase()}`;
+            const alumnoExistedBeforeAlumnoStep = cache.alumnos.has(cuenta);
 
-            if (!idPlan || numeroCuenta === 'ADMIN_IMPORT') {
-                idPlan = cache.planes.get(planKey);
-                
-                if (!idPlan && (finalCodigoCarrera && finalCodigoCarrera !== 'S/D')) {
-                    try {
-                        const planResult = await pool.request()
-                            .input('codCarrera', sql.VarChar, finalCodigoCarrera)
-                            .input('anio', sql.Int, anioPlan)
-                            .input('nom', sql.VarChar, nombrePlanExcel)
-                            .query(`
-                                INSERT INTO PlanesEstudio (CodigoCarrera, AnioPlan, NombrePlan) 
-                                OUTPUT INSERTED.IdPlan
-                                VALUES (@codCarrera, @anio, @nom)
-                            `);
-                        
-                        idPlan = planResult.recordset[0].IdPlan;
-                        cache.planes.set(planKey, idPlan);
-                        console.log(`[Ingest] Creado Plan: ${nombrePlanExcel} (ID: ${idPlan}) para carrera ${finalCodigoCarrera}`);
-                    } catch (e) {
-                        console.error(`[Ingest] Error al crear Plan ${nombrePlanExcel}:`, e.message);
-                    }
-                }
-            }
+            const planRes = await resolvePlanIdForRow({
+                row,
+                finalCodigoCarrera,
+                targetAcc,
+                idPlanAlumnoDb: idPlanAlumno,
+                cuenta,
+                pool,
+                cache,
+                getIdPlanActualForCuenta
+            });
+            const idPlan = planRes.idPlan;
+            const planFromExcel = planRes.fromExcel;
 
             // Gestionar Materia
             if (!cache.materias.has(codigoMateria)) {
@@ -228,20 +407,37 @@ async function processDataInDB(rawData, numeroCuenta, bypassPlanValidation = fal
                 cache.alumnos.add(cuenta);
             }
 
+            if (
+                planFromExcel &&
+                idPlan != null &&
+                alumnoExistedBeforeAlumnoStep &&
+                !idPlanSyncedForCuenta.has(cuenta)
+            ) {
+                try {
+                    await pool
+                        .request()
+                        .input('idPlan', sql.Int, idPlan)
+                        .input('c', sql.VarChar, cuenta)
+                        .query('UPDATE Alumnos SET IdPlanActual = @idPlan WHERE NumeroCuenta = @c');
+                    idPlanSyncedForCuenta.add(cuenta);
+                    alumnoIdPlanLazy.set(cuenta, idPlan);
+                    console.log(`[Ingest] IdPlanActual sincronizado desde Excel para ${cuenta} -> ${idPlan}`);
+                } catch (e) {
+                    console.error('[Ingest] Error actualizando IdPlanActual:', e.message);
+                }
+            }
+
             // --- UPSERT EN HISTORIAL ---
             const historialKey = `${cuenta}|${codigoMateria}`;
             const existeHistorial = cache.historial.has(historialKey);
-            
-            // Normalizar estado para comparación
-            const estadoNormalizado = estado || 'EN CURSO';
-            
+
             if (existeHistorial) {
                 // Verificar si los datos cambiaron (comparación exacta)
                 const datosPrevios = cache.historial.get(historialKey);
-                const estadoPrevNormalizado = datosPrevios.estado || 'EN CURSO';
-                
-                // Comparación EXACTA de notas y estados
-                const notaCambio = datosPrevios.nota !== nota;
+                const estadoPrevNormalizado = normalizeEstadoHistorial(datosPrevios.estado);
+
+                const prevNota = normalizeNotaFromDb(datosPrevios.nota);
+                const notaCambio = prevNota !== nota;
                 const estadoCambio = estadoPrevNormalizado !== estadoNormalizado;
                 
                 if (notaCambio || estadoCambio) {
@@ -291,6 +487,24 @@ async function processDataInDB(rawData, numeroCuenta, bypassPlanValidation = fal
                 record: { materia: record.codigo_materia }, 
                 error: innerErr.message 
             });
+        }
+    }
+
+    for (const [cuentaVal, v] of uvsTotRegistroByCuenta) {
+        try {
+            await pool
+                .request()
+                .input('v', sql.Int, v)
+                .input('c', sql.VarChar, cuentaVal)
+                .query(
+                    'UPDATE Alumnos SET UVsTotalesRegistro = @v WHERE NumeroCuenta = @c'
+                );
+            console.log(`[Ingest] UVsTotalesRegistro (registro universidad) = ${v} para ${cuentaVal}`);
+        } catch (e) {
+            console.warn(
+                '[Ingest] No se pudo guardar UVsTotalesRegistro (¿migración sql/2026-03-28-alumnos-uvs-registro.sql?):',
+                e.message
+            );
         }
     }
 
