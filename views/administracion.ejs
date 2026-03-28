@@ -14,39 +14,95 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar fijo */
+        .sidebar-fixed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 50;
+        }
+
+        .main-content {
+            margin-left: 256px;
+            min-height: 100vh;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+        @media print {
+            .sidebar-fixed {
+                display: none;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+
+        /* Estilos adicionales para mejorar la experiencia */
+        .table-row-hover:hover {
+            background-color: #fef2f2;
+            transition: background-color 0.2s ease;
+        }
+
+        .status-badge {
+            transition: all 0.2s ease;
+        }
+
+        .status-badge:hover {
+            transform: scale(1.05);
+        }
+
+        .action-button {
+            transition: all 0.2s ease;
+        }
+
+        .action-button:hover {
+            transform: translateY(-1px);
         }
     </style>
 </head>
 
-<body class="flex min-h-screen">
-    <%- include('partials/sidebar', { active: 'administracion', noPrint: false, extraAsideClasses: '' }) %>
+<body class="flex min-h-screen overflow-x-hidden">
+    <%- include('partials/sidebar', { active: 'administracion', noPrint: false, extraAsideClasses: 'sidebar-fixed' }) %>
 
-    <main class="flex-1 p-8 overflow-y-auto">
-        <header class="flex justify-between items-center mb-8">
+    <main class="flex-1 p-8 overflow-y-auto main-content">
+        <header class="flex justify-between items-center mb-8 no-print">
             <div>
                 <h1 class="text-2xl font-bold text-slate-800">Administración</h1>
                 <p class="text-sm text-slate-500 mt-1">Gestiona usuarios, roles y estados de acceso del sistema.</p>
             </div>
             <div class="flex items-center gap-3">
                 <button id="btnRefreshAdminData"
-                    class="bg-white border border-gray-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition flex items-center">
+                    class="bg-white border border-gray-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition flex items-center action-button">
                     <i class="fas fa-rotate mr-2"></i> Recargar
                 </button>
                 <%- include('partials/profile-widget') %>
             </div>
         </header>
 
-        <section class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6">
+        <section class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6 no-print">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 mb-1">Buscar usuario</label>
                     <input id="adminSearchInput" type="text" placeholder="Nombre, correo o cuenta"
-                        class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-[#B20000] focus:border-[#B20000]">
+                        class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-[#B20000] focus:border-[#B20000] transition">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 mb-1">Filtrar por rol</label>
                     <select id="adminRoleFilter"
-                        class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-[#B20000] focus:border-[#B20000]">
+                        class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-[#B20000] focus:border-[#B20000] transition">
                         <option value="">Todos</option>
                         <option value="1">Administrador</option>
                         <option value="2">Jefe de Carrera</option>
@@ -56,7 +112,7 @@
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 mb-1">Filtrar por estado</label>
                     <select id="adminStatusFilter"
-                        class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-[#B20000] focus:border-[#B20000]">
+                        class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-[#B20000] focus:border-[#B20000] transition">
                         <option value="">Todos</option>
                         <option value="active">Activos</option>
                         <option value="inactive">Inactivos</option>

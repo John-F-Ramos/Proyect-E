@@ -1,6 +1,10 @@
+const { DOMMatrix } = require('canvas');
+global.DOMMatrix = DOMMatrix;
+
 const { poolPromise, sql } = require('../config/db');
 const fs = require('fs');
 const path = require('path');
+const pdf = require('pdf-parse');
 const { PDFParse } = require('pdf-parse');
 const excelProcessor = require('../services/excelProcessor');
 const { extractCarreraAndAnio, parsePensumPdfText } = require('../services/pensumPdfConverter');
@@ -25,6 +29,7 @@ function sendTemplateFileOrFallback({ res, templatePath, downloadName, fallbackB
     }
     return fallbackBuilder();
 }
+
 
 // -------------------------------------------------------------
 // GET / CATÁLOGOS LIST

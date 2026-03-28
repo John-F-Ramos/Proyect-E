@@ -16,14 +16,50 @@
             font-family: 'Inter', sans-serif;
             background-color: #f8fafc;
         }
+        .metric-card {
+            transition: all 0.2s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        /* Estilos para paginación */
+        .pagination-btn {
+            transition: all 0.2s ease;
+        }
+        .pagination-btn:hover:not(:disabled) {
+            background-color: #f3f4f6;
+            transform: translateY(-1px);
+        }
+        .pagination-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        /* Sidebar fijo */
+        .sidebar-fixed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 50;
+        }
+        .main-content {
+            margin-left: 256px;
+            min-height: 100vh;
+        }
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+            }
+        }
     </style>
 </head>
 
 <body class="flex min-h-screen">
 
-    <%- include('partials/sidebar', { active: 'dashboard', noPrint: false, extraAsideClasses: '' }) %>
+    <%- include('partials/sidebar', { active: 'dashboard', noPrint: false, extraAsideClasses: 'sidebar-fixed' }) %>
 
-    <main class="flex-1 p-8 overflow-y-auto">
+    <main class="flex-1 p-8 overflow-y-auto main-content">
         <header class="flex justify-between items-center mb-8 gap-4">
             <div>
                 <h1 id="welcomeTitle" class="text-2xl font-bold text-slate-800">Estudiante: Cargando...</h1>
@@ -89,7 +125,7 @@
                     </form>
                 </div>
 
-                <!-- Sección Texto - AHORA CON COLORES COHERENTES -->
+                <!-- Sección Texto -->
                 <div id="textSection" class="hidden">
                     <div class="space-y-4">
                         <!-- Manual Account Input -->
@@ -202,22 +238,22 @@
         <!-- Dashboard de Administrador -->
         <div id="adminDashboard" class="hidden">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 metric-card">
                     <p class="text-xs text-slate-500 mb-1">Usuarios Totales</p>
                     <p id="adminTotalUsuarios" class="text-3xl font-bold text-slate-800">0</p>
                     <p class="text-xs text-slate-400 mt-2">Base total de usuarios registrados.</p>
                 </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 metric-card">
                     <p class="text-xs text-slate-500 mb-1">Usuarios Activos</p>
                     <p id="adminUsuariosActivos" class="text-3xl font-bold text-green-600">0</p>
                     <p class="text-xs text-slate-400 mt-2">Cuentas habilitadas para ingresar.</p>
                 </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 metric-card">
                     <p class="text-xs text-slate-500 mb-1">Usuarios Inactivos</p>
                     <p id="adminUsuariosInactivos" class="text-3xl font-bold text-red-600">0</p>
                     <p class="text-xs text-slate-400 mt-2">Cuentas suspendidas o desactivadas.</p>
                 </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 metric-card">
                     <p class="text-xs text-slate-500 mb-1">Altas (últimos 7 días)</p>
                     <p id="adminAltasUltimos7Dias" class="text-3xl font-bold text-[#B20000]">0</p>
                     <p class="text-xs text-slate-400 mt-2">Nuevos usuarios creados recientemente.</p>
@@ -225,7 +261,7 @@
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 metric-card">
                     <h3 class="text-sm font-semibold text-slate-700 mb-4">Distribución por Rol</h3>
                     <div class="space-y-3">
                         <div>
@@ -258,7 +294,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2 metric-card">
                     <h3 class="text-sm font-semibold text-slate-700 mb-4">Resumen de Plataforma</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="bg-slate-50 rounded-xl p-4">
@@ -279,10 +315,10 @@
         </div>
 
         <div id="academicDashboard">
-        <!-- Cards del Dashboard -->
+        <!-- Cards del Dashboard con métricas mejoradas -->
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
             <!-- Card 1: Progreso Curricular -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center metric-card">
                 <h3 class="text-sm font-semibold text-slate-500 mb-4 flex justify-between items-center">
                     Progreso Curricular <i class="far fa-clock"></i>
                 </h3>
@@ -310,7 +346,7 @@
             </div>
 
             <!-- Card 2: Rendimiento Académico -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 metric-card">
                 <h3 class="text-sm font-semibold text-slate-500 mb-4 flex justify-between items-center">
                     Rendimiento Académico <i class="fas fa-chart-line"></i>
                 </h3>
@@ -340,22 +376,71 @@
                 </div>
             </div>
 
-            <!-- Card 3: Materias en Curso -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <!-- Card 3: Progreso de Materias (REDISEÑADA del segundo código) -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 metric-card">
                 <h3 class="text-sm font-semibold text-slate-500 mb-4 flex justify-between items-center">
-                    Materias en Curso <i class="fas fa-book-open text-blue-400"></i>
+                    Progreso de Materias <i class="fas fa-chart-pie"></i>
                 </h3>
-                <div id="materiasEnCursoContainer" class="space-y-3 max-h-40 overflow-y-auto">
-                    <p class="text-xs text-slate-400 text-center py-2">Cargando...</p>
+                
+                <!-- Métricas Principales -->
+                <div class="space-y-3">
+                    <!-- Materias Restantes (Destacado) -->
+                    <div class="flex justify-between items-center p-2 bg-orange-50 rounded-lg">
+                        <span class="text-xs font-medium text-orange-700 flex items-center">
+                            <i class="fas fa-hourglass-half text-orange-500 mr-2"></i> Materias Restantes
+                        </span>
+                        <span id="totalMateriasRestantes" class="text-lg font-bold text-orange-600">0</span>
+                    </div>
+                    
+                    <!-- Materias en Curso -->
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-slate-500 flex items-center">
+                            <i class="fas fa-book-open text-blue-400 mr-2"></i> Materias en Curso
+                        </span>
+                        <span id="statEnCursoMaterias" class="font-semibold text-blue-600">0</span>
+                    </div>
+                    
+                    <!-- UVs en Curso -->
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-slate-500 flex items-center">
+                            <i class="fas fa-bolt text-yellow-500 mr-2"></i> UVs en Curso
+                        </span>
+                        <span id="totalUvsEnCurso" class="font-semibold text-yellow-600">0</span>
+                    </div>
+                    
+                    <!-- Total Materias Aprobadas -->
+                    <div class="flex justify-between items-center pt-2 border-t border-gray-100">
+                        <span class="text-xs text-slate-500 flex items-center">
+                            <i class="fas fa-check-circle text-green-500 mr-2"></i> Total Materias Aprobadas
+                        </span>
+                        <span id="statAprobadasTotal" class="font-semibold text-green-600">0</span>
+                    </div>
+                    
+                    <!-- Total Materias Plan -->
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-slate-500 flex items-center">
+                            <i class="fas fa-layer-group text-purple-500 mr-2"></i> Total Materias Plan
+                        </span>
+                        <span id="totalMateriasPlan" class="font-semibold text-purple-600">0</span>
+                    </div>
                 </div>
-                <div class="mt-3 pt-3 border-t border-gray-100">
-                    <p class="text-xs text-slate-400">Total UVs en curso</p>
-                    <p id="totalUvsEnCurso" class="text-lg font-bold">0</p>
+                
+                <!-- Lista de Materias en Curso (Expandible) -->
+                <div class="mt-4 pt-3 border-t border-gray-100">
+                    <details class="group">
+                        <summary class="text-xs font-medium text-slate-600 cursor-pointer list-none flex items-center">
+                            <i class="fas fa-chevron-right mr-2 text-[10px] group-open:rotate-90 transition-transform"></i>
+                            Ver materias en curso
+                        </summary>
+                        <div id="materiasEnCursoContainer" class="mt-2 space-y-2 max-h-28 overflow-y-auto pl-2">
+                            <p class="text-xs text-slate-400 text-center py-2">Cargando...</p>
+                        </div>
+                    </details>
                 </div>
             </div>
 
             <!-- Card 4: Próximas Materias Sugeridas -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 metric-card">
                 <h3 class="text-sm font-semibold text-slate-500 mb-4 flex justify-between items-center">
                     Próximas Materias Sugeridas <i class="fas fa-arrow-right text-green-400"></i>
                 </h3>
@@ -369,30 +454,65 @@
             </div>
         </div>
 
-        <!-- Tabla de Historial Académico -->
+        <!-- Tabla de Historial Académico CON PAGINACIÓN Y TOGGLE PARA VER TODO -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center flex-wrap gap-4">
                 <h3 class="font-bold text-slate-800">Historial Académico Reciente</h3>
-                <a href="/equivalencias" class="text-xs text-[#B20000] hover:underline">Ver historial completo →</a>
+                <div class="flex items-center gap-4">
+                    <!-- Toggle para ver todo / paginación -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500">Paginación</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="showAllToggle" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#B20000]"></div>
+                            <span class="ml-2 text-xs font-medium text-slate-600">Ver todo</span>
+                        </label>
+                    </div>
+                    <a href="/equivalencias" class="text-xs text-[#B20000] hover:underline">Ver Equivalencias</a>
+                </div>
             </div>
-            <table class="w-full text-left">
-                <thead class="bg-slate-50 text-slate-400 text-[10px] uppercase font-semibold">
-                    <tr>
-                        <th class="px-6 py-4">Código</th>
-                        <th class="px-6 py-4">Asignatura</th>
-                        <th class="px-6 py-4">Nota</th>
-                        <th class="px-6 py-4">Estado</th>
-                        <th class="px-6 py-4">UV</th>
-                    </tr>
-                </thead>
-                <tbody id="historialTableBody" class="divide-y divide-gray-100 text-sm">
-                    <tr>
-                        <td colspan="5" class="px-6 py-8 text-center text-slate-400 italic">
-                            Cargando historial...
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            
+            <!-- Tabla de historial -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 text-slate-400 text-[10px] uppercase font-semibold">
+                        <tr>
+                            <th class="px-6 py-4">Código</th>
+                            <th class="px-6 py-4">Asignatura</th>
+                            <th class="px-6 py-4">Nota</th>
+                            <th class="px-6 py-4">Estado</th>
+                            <th class="px-6 py-4">UV</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historialTableBody" class="divide-y divide-gray-100 text-sm">
+                        <tr>
+                            <td colspan="5" class="px-6 py-8 text-center text-slate-400 italic">
+                                Cargando historial...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Controles de paginación (se ocultan cuando "Ver todo" está activado) -->
+            <div id="paginationControls" class="px-6 py-4 border-t border-gray-100 bg-slate-50">
+                <div class="flex items-center justify-between">
+                    <div class="text-xs text-slate-500">
+                        Mostrando <span id="paginationStart">0</span> - <span id="paginationEnd">0</span> de <span id="paginationTotal">0</span> registros
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="prevPageBtn" 
+                            class="pagination-btn px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                            <i class="fas fa-chevron-left text-xs"></i> Anterior
+                        </button>
+                        <span id="pageIndicator" class="px-3 py-1 text-sm text-slate-600">Página 1</span>
+                        <button id="nextPageBtn" 
+                            class="pagination-btn px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                            Siguiente <i class="fas fa-chevron-right text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
         </div>
     </main>
@@ -445,12 +565,111 @@
         const APRO_UVS = document.getElementById('aprobadasUvsText');
         const PLAN_DETAILS = document.getElementById('planDetailsText');
         const TABLE_BODY = document.getElementById('historialTableBody');
+        
+        // Nuevos elementos para métricas de materias (del segundo código)
+        const totalMateriasRestantes = document.getElementById('totalMateriasRestantes');
+        const totalMateriasPlan = document.getElementById('totalMateriasPlan');
+        const statEnCursoMaterias = document.getElementById('statEnCursoMaterias');
+        const totalUvsEnCurso = document.getElementById('totalUvsEnCurso');
+        const statAprobadasTotal = document.getElementById('statAprobadasTotal');
+
+        // Elementos para paginación
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
+        const pageIndicator = document.getElementById('pageIndicator');
+        const paginationStart = document.getElementById('paginationStart');
+        const paginationEnd = document.getElementById('paginationEnd');
+        const paginationTotal = document.getElementById('paginationTotal');
+        const paginationControls = document.getElementById('paginationControls');
+        const showAllToggle = document.getElementById('showAllToggle');
 
         let currentPreviewData = null;
+        let currentHistorialData = [];
+        let currentPage = 1;
+        let itemsPerPage = 10;
+        let showAllMode = false;
 
-        // Ocultar buscador de alumnos para estudiantes (rol 3)
-        if (userFromStorage.rol === 3 && ALUMNO_INPUT) {
-            ALUMNO_INPUT.parentElement.style.display = 'none';
+        // Función para renderizar la tabla con o sin paginación según el toggle
+        function renderHistorialWithPagination() {
+            let dataToShow = currentHistorialData;
+            let totalItems = currentHistorialData.length;
+            
+            if (!showAllMode) {
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                dataToShow = currentHistorialData.slice(startIndex, endIndex);
+                
+                // Actualizar controles de paginación
+                const startItem = totalItems === 0 ? 0 : startIndex + 1;
+                const endItem = Math.min(endIndex, totalItems);
+                const totalPages = Math.ceil(totalItems / itemsPerPage);
+                
+                paginationStart.textContent = startItem;
+                paginationEnd.textContent = endItem;
+                paginationTotal.textContent = totalItems;
+                pageIndicator.textContent = `Página ${currentPage} de ${totalPages || 1}`;
+                
+                prevPageBtn.disabled = currentPage === 1;
+                nextPageBtn.disabled = currentPage === totalPages || totalPages === 0;
+                
+                // Mostrar controles de paginación
+                paginationControls.style.display = 'block';
+            } else {
+                // Mostrar todos los registros sin paginación
+                dataToShow = currentHistorialData;
+                
+                // Actualizar contadores
+                paginationStart.textContent = 1;
+                paginationEnd.textContent = totalItems;
+                paginationTotal.textContent = totalItems;
+                
+                // Ocultar controles de paginación
+                paginationControls.style.display = 'none';
+            }
+            
+            // Renderizar tabla
+            TABLE_BODY.innerHTML = '';
+            if (dataToShow.length === 0) {
+                TABLE_BODY.innerHTML = '}<tr><td colspan="5" class="px-6 py-4 text-center">No hay historial disponible.</td></tr>';
+            } else {
+                dataToShow.forEach(reg => {
+                    let badgeClass = 'bg-gray-100 text-gray-600';
+                    if (reg.Estado === 'APB' || reg.Estado === 'APR' || reg.Estado === 'APROBADO') {
+                        badgeClass = 'bg-green-100 text-green-600';
+                    } else if (reg.Estado === 'EN CURSO') {
+                        badgeClass = 'bg-blue-100 text-blue-600';
+                    } else if (reg.Estado === 'REP') {
+                        badgeClass = 'bg-red-100 text-red-600';
+                    }
+
+                    TABLE_BODY.innerHTML += `
+                        <tr>
+                            <td class="px-6 py-4 text-slate-500">${reg.CodigoMateria || '-'}</td>
+                            <td class="px-6 py-4 font-medium">${reg.NombreMateria || '-'}</td>
+                            <td class="px-6 py-4 font-bold text-slate-800">${reg.Nota || '-'}</td>
+                            <td class="px-6 py-4"><span class="${badgeClass} px-3 py-1 rounded-full text-[10px] font-bold uppercase">${reg.Estado || '-'}</span></td>
+                            <td class="px-6 py-4 text-slate-500">${reg.UVS || '-'}</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        // Evento del toggle para mostrar todo / paginación
+        if (showAllToggle) {
+            showAllToggle.addEventListener('change', (e) => {
+                showAllMode = e.target.checked;
+                if (!showAllMode && currentPage === 1) {
+                    // Si volvemos a paginación y estábamos en página 1, simplemente re-renderizar
+                    renderHistorialWithPagination();
+                } else if (!showAllMode) {
+                    // Resetear a página 1 al volver a paginación
+                    currentPage = 1;
+                    renderHistorialWithPagination();
+                } else {
+                    renderHistorialWithPagination();
+                }
+            });
         }
 
         function updateRoleBar(elementId, count, total) {
@@ -513,23 +732,108 @@
             }
         }
 
+        // Función para actualizar toda la UI del dashboard (fusionada con métricas del segundo código)
+        function actualizarDashboard(data) {
+            // Textos principales
+            WELCOME_TITLE.textContent = `Estudiante: ${data.alumno.NombreCompleto}`;
+            PLAN_DETAILS.innerHTML = `<b>${data.alumno.NombreCarrera}</b><br/>${data.alumno.NombrePlan} (${data.alumno.AnioPlan || ''})`;
+
+            // Progreso circular
+            const uvsAprobadas = data.progreso.uvsAprobadas || 0;
+            const uvsPlan = data.progreso.totalUvsPlan || 1;
+            const porcentaje = data.progreso.porcentaje || 0;
+
+            const perimetro = 314;
+            const offset = perimetro - (porcentaje / 100) * perimetro;
+
+            CIRCLE.style.strokeDashoffset = offset;
+            PERC_TEXT.textContent = `${porcentaje}%`;
+            TOTAL_UVS.textContent = uvsPlan;
+            APRO_UVS.textContent = uvsAprobadas;
+
+            // Rendimiento académico
+            const aprobadas = data.rendimiento.aprobadas || 0;
+            const enCurso = data.rendimiento.enCurso || 0;
+            
+            document.getElementById('indiceAcademico').textContent = data.alumno.IndiceAcademico || '0.00';
+            document.getElementById('statAprobadas').textContent = aprobadas;
+            document.getElementById('statReprobadas').textContent = data.rendimiento.reprobadas || 0;
+            document.getElementById('statEnCurso').textContent = enCurso;
+            document.getElementById('promedioGeneral').textContent = data.rendimiento.promedioGeneral || '0.00';
+
+            // NUEVAS MÉTRICAS (del segundo código)
+            const totalMaterias = data.planEstudio.totalMaterias || 0;
+            const materiasRestantes = totalMaterias - aprobadas;
+            
+            totalMateriasRestantes.textContent = materiasRestantes;
+            totalMateriasPlan.textContent = totalMaterias;
+            statEnCursoMaterias.textContent = enCurso;
+            statAprobadasTotal.textContent = aprobadas;
+
+            // Materias en curso (lista detallada)
+            const materiasContainer = document.getElementById('materiasEnCursoContainer');
+            let totalUvsCurso = 0;
+            
+            if (data.materiasEnCurso && data.materiasEnCurso.length > 0) {
+                let html = '';
+                data.materiasEnCurso.forEach(materia => {
+                    totalUvsCurso += materia.UVS || 0;
+                    html += `
+                        <div class="flex justify-between items-center text-xs py-1">
+                            <span class="font-medium truncate max-w-[150px]">${materia.CodigoMateria} - ${materia.NombreMateria}</span>
+                            <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-[10px] font-semibold">${materia.UVS || 0} UV</span>
+                        </div>
+                    `;
+                });
+                materiasContainer.innerHTML = html;
+            } else {
+                materiasContainer.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">No hay materias en curso</p>';
+            }
+            
+            totalUvsEnCurso.textContent = totalUvsCurso;
+
+            // Próximas materias sugeridas
+            const proximasContainer = document.getElementById('proximasMateriasContainer');
+            if (data.proximasMaterias && data.proximasMaterias.length > 0) {
+                let html = '';
+                data.proximasMaterias.forEach(materia => {
+                    html += `
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="font-medium truncate max-w-[150px]">${materia.CodigoMateria}</span>
+                            <span class="text-slate-500">${materia.UVS || 0} UV</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 -mt-2 mb-2">${materia.NombreMateria}</p>
+                    `;
+                });
+                proximasContainer.innerHTML = html;
+            } else {
+                proximasContainer.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">¡Has completado todas las materias!</p>';
+            }
+
+            // Guardar historial para paginación y resetear página
+            currentHistorialData = data.historialCompleto || [];
+            currentPage = 1;
+            // Resetear el toggle a paginación por defecto al cargar nuevo alumno
+            if (showAllToggle && showAllToggle.checked) {
+                showAllToggle.checked = false;
+                showAllMode = false;
+            }
+            renderHistorialWithPagination();
+        }
+
         // Función para obtener la cuenta a la que se importarán los datos
         function getTargetAccount() {
             if (userFromStorage.rol === 1 || userFromStorage.rol === 2) {
-                // Admin/Jefe:
-                // 1. Prioridad: Cuenta ingresada manualmente en el modal (si estamos en pestaña Texto)
                 const manualAccount = document.getElementById('manualAccountInput')?.value.trim();
                 if (manualAccount && !textSection.classList.contains('hidden')) {
                     return manualAccount;
                 }
 
-                // 2. Alumno seleccionado en el buscador global
                 const inputValue = ALUMNO_INPUT ? ALUMNO_INPUT.value : '';
                 if (inputValue) {
                     return inputValue.split(' - ')[0].trim();
                 }
 
-                // 3. Valor genérico para el backend (usará cuentas de las filas)
                 return 'ADMIN_IMPORT';
             }
             return userAccount;
@@ -543,11 +847,9 @@
         if (manualAccountSection) manualAccountSection.classList.remove('hidden');
 
         if (userFromStorage.rol === 3) {
-            // Estudiante: ocultar pestaña de archivo, solo permitir pegar texto
             if (tabFile) tabFile.style.display = 'none';
-            if (tabPaste) tabPaste.click(); // Forzar pestaña de pegar texto
+            if (tabPaste) tabPaste.click();
 
-            // Configurar input de cuenta para estudiante
             if (manualAccountInput) {
                 manualAccountInput.value = userAccount;
                 manualAccountInput.readOnly = true;
@@ -557,7 +859,6 @@
                 manualAccountHelp.innerHTML = '<i class="fas fa-info-circle mr-1"></i> Los registros se importarán obligatoriamente con tu número de cuenta actual.';
             }
         } else {
-            // Admin/Jefe
             if (manualAccountInput) {
                 manualAccountInput.readOnly = false;
                 manualAccountInput.classList.remove('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
@@ -589,100 +890,7 @@
             }
         }
 
-        // Función para actualizar toda la UI del dashboard
-        function actualizarDashboard(data) {
-            // Textos principales
-            WELCOME_TITLE.textContent = `Estudiante: ${data.alumno.NombreCompleto}`;
-            PLAN_DETAILS.innerHTML = `<b>${data.alumno.NombreCarrera}</b><br/>${data.alumno.NombrePlan} (${data.alumno.AnioPlan || ''})`;
-
-            // Progreso circular
-            const uvsAprobadas = data.progreso.uvsAprobadas || 0;
-            const uvsPlan = data.progreso.totalUvsPlan || 1;
-            const porcentaje = data.progreso.porcentaje || 0;
-
-            const perimetro = 314;
-            const offset = perimetro - (porcentaje / 100) * perimetro;
-
-            CIRCLE.style.strokeDashoffset = offset;
-            PERC_TEXT.textContent = `${porcentaje}%`;
-            TOTAL_UVS.textContent = uvsPlan;
-            APRO_UVS.textContent = uvsAprobadas;
-
-            // Rendimiento académico
-            document.getElementById('indiceAcademico').textContent = data.alumno.IndiceAcademico || '0.00';
-            document.getElementById('statAprobadas').textContent = data.rendimiento.aprobadas || 0;
-            document.getElementById('statReprobadas').textContent = data.rendimiento.reprobadas || 0;
-            document.getElementById('statEnCurso').textContent = data.rendimiento.enCurso || 0;
-            document.getElementById('promedioGeneral').textContent = data.rendimiento.promedioGeneral || '0.00';
-
-            // Materias en curso
-            const materiasContainer = document.getElementById('materiasEnCursoContainer');
-            let totalUvsCurso = 0;
-
-            if (data.materiasEnCurso && data.materiasEnCurso.length > 0) {
-                let html = '';
-                data.materiasEnCurso.forEach(materia => {
-                    totalUvsCurso += materia.UVS || 0;
-                    html += `
-                        <div class="flex justify-between items-center text-xs">
-                            <span class="font-medium truncate max-w-[150px]">${materia.CodigoMateria} - ${materia.NombreMateria}</span>
-                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-[10px] font-semibold">${materia.UVS || 0} UV</span>
-                        </div>
-                    `;
-                });
-                materiasContainer.innerHTML = html;
-            } else {
-                materiasContainer.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">No hay materias en curso</p>';
-            }
-            document.getElementById('totalUvsEnCurso').textContent = totalUvsCurso;
-
-            // Próximas materias sugeridas
-            const proximasContainer = document.getElementById('proximasMateriasContainer');
-            if (data.proximasMaterias && data.proximasMaterias.length > 0) {
-                let html = '';
-                data.proximasMaterias.forEach(materia => {
-                    html += `
-                        <div class="flex justify-between items-center text-xs">
-                            <span class="font-medium truncate max-w-[150px]">${materia.CodigoMateria}</span>
-                            <span class="text-slate-500">${materia.UVS || 0} UV</span>
-                        </div>
-                        <p class="text-[10px] text-slate-400 -mt-2 mb-2">${materia.NombreMateria}</p>
-                    `;
-                });
-                proximasContainer.innerHTML = html;
-            } else {
-                proximasContainer.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">¡Has completado todas las materias!</p>';
-            }
-
-            // Historial completo
-            TABLE_BODY.innerHTML = '';
-            if (data.historialCompleto.length === 0) {
-                TABLE_BODY.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center">No hay historial disponible.</td></tr>';
-            } else {
-                data.historialCompleto.forEach(reg => {
-                    let badgeClass = 'bg-gray-100 text-gray-600';
-                    if (reg.Estado === 'APB' || reg.Estado === 'APR' || reg.Estado === 'APROBADO') {
-                        badgeClass = 'bg-green-100 text-green-600';
-                    } else if (reg.Estado === 'EN CURSO') {
-                        badgeClass = 'bg-blue-100 text-blue-600';
-                    } else if (reg.Estado === 'REP') {
-                        badgeClass = 'bg-red-100 text-red-600';
-                    }
-
-                    TABLE_BODY.innerHTML += `
-                        <tr>
-                            <td class="px-6 py-4 text-slate-500">${reg.CodigoMateria}</td>
-                            <td class="px-6 py-4 font-medium">${reg.NombreMateria}</td>
-                            <td class="px-6 py-4 font-bold text-slate-800">${reg.Nota || '-'}</td>
-                            <td class="px-6 py-4"><span class="${badgeClass} px-3 py-1 rounded-full text-[10px] font-bold uppercase">${reg.Estado}</span></td>
-                            <td class="px-6 py-4 text-slate-500">${reg.UVS || '-'}</td>
-                        </tr>
-                    `;
-                });
-            }
-        }
-
-        // Cargar Lista de Alumnos y combobox de búsqueda (admin / jefe de carrera)
+        // Cargar Lista de Alumnos y combobox de búsqueda
         async function fetchAlumnos() {
             try {
                 const res = await fetch('/api/alumnos');
@@ -859,10 +1067,7 @@
                     throw new Error(data.error || 'Error al procesar el texto');
                 }
 
-                // Guardar todos los datos para importación posterior
                 currentPreviewData = data.allData;
-
-                // Mostrar preview
                 renderPreview(data.preview);
                 previewSection.classList.remove('hidden');
                 showStatus(`Se encontraron ${data.total} registros. Revisa la vista previa.`, 'text-green-600');
@@ -904,14 +1109,12 @@
             previewCount.textContent = `(${data.length} registros mostrados de ${currentPreviewData ? currentPreviewData.length : 0})`;
         }
 
-        // Cancelar preview
         btnCancelPreview.addEventListener('click', () => {
             previewSection.classList.add('hidden');
             currentPreviewData = null;
             showPasteTab();
         });
 
-        // Aceptar e importar
         btnAcceptPreview.addEventListener('click', async () => {
             if (!currentPreviewData || currentPreviewData.length === 0) {
                 showStatus('No hay datos para importar', 'text-red-600');
@@ -928,7 +1131,6 @@
                 btnAcceptPreview.disabled = true;
                 btnAcceptPreview.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Importando...';
 
-                // Si es Admin/Jefe, enviamos bypass=true para omitir validación de plan
                 const bypassPlan = (userFromStorage.rol === 1 || userFromStorage.rol === 2);
 
                 const response = await fetch('/api/ingest/import', {
@@ -976,6 +1178,26 @@
                 .replace(/'/g, '&#039;');
         }
 
+        // Eventos de paginación
+        if (prevPageBtn) {
+            prevPageBtn.addEventListener('click', () => {
+                if (currentPage > 1 && !showAllMode) {
+                    currentPage--;
+                    renderHistorialWithPagination();
+                }
+            });
+        }
+
+        if (nextPageBtn) {
+            nextPageBtn.addEventListener('click', () => {
+                const totalPages = Math.ceil(currentHistorialData.length / itemsPerPage);
+                if (currentPage < totalPages && !showAllMode) {
+                    currentPage++;
+                    renderHistorialWithPagination();
+                }
+            });
+        }
+
         // Inicialización
         if (IS_ADMIN) {
             cargarDashboardAdmin();
@@ -1015,8 +1237,7 @@
                 const files = dt.files;
 
                 if (files && files.length > 0) {
-                    hiddenExcelInput.files = files; // Asignar archivos al input oculto
-                    // Disparar evento change manualmente al input para activar la lógica
+                    hiddenExcelInput.files = files;
                     const event = new Event('change');
                     hiddenExcelInput.dispatchEvent(event);
                 }

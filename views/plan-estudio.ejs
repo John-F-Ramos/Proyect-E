@@ -14,6 +14,28 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar fijo */
+        .sidebar-fixed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 50;
+        }
+
+        .main-content {
+            margin-left: 256px;
+            min-height: 100vh;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+            }
         }
 
         .tab-active {
@@ -45,7 +67,6 @@
         /* Estilo para la carrera y plan del usuario - rojo muy sutil */
         .carrera-row.usuario-plan {
             background-color: rgba(178, 0, 0, 0.03);
-            /* Rojo muy tenue al 3% */
             border-left: 2px solid rgba(178, 0, 0, 0.2);
             position: relative;
         }
@@ -63,7 +84,6 @@
 
         .carrera-row.usuario-plan:hover {
             background-color: rgba(178, 0, 0, 0.08);
-            /* Un poco más visible al hover */
         }
 
         .carrera-row.usuario-plan:hover::after {
@@ -80,7 +100,6 @@
                 opacity: 0;
                 transform: translateY(-10px);
             }
-
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -220,14 +239,38 @@
         .action-menu.open {
             display: flex;
         }
+
+        /* Estilos para paginación */
+        .pagination-btn {
+            transition: all 0.2s ease;
+        }
+        .pagination-btn:hover:not(:disabled) {
+            background-color: #f3f4f6;
+            transform: translateY(-1px);
+        }
+        .pagination-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        @media print {
+            .sidebar-fixed {
+                display: none;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .no-print {
+                display: none;
+            }
+        }
     </style>
 </head>
 
-<body class="flex min-h-screen">
-    <%- include('partials/sidebar', { active: 'plan-estudio', noPrint: false, extraAsideClasses: '' }) %>
+<body class="flex min-h-screen overflow-x-hidden">
+    <%- include('partials/sidebar', { active: 'plan-estudio', noPrint: false, extraAsideClasses: 'sidebar-fixed' }) %>
 
-    <main class="flex-1 p-8 overflow-y-auto">
-        <header class="flex justify-between items-center mb-8">
+    <main class="flex-1 p-8 overflow-y-auto main-content">
+        <header class="flex justify-between items-center mb-8 no-print">
             <div>
                 <h1 class="text-2xl font-bold text-slate-800">Catálogos Académicos</h1>
                 <p class="text-slate-500 text-sm mt-1">Gestión de Carreras, Planes de Estudio y Materias del sistema.
@@ -255,7 +298,7 @@
         </header>
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-            <div class="flex border-b border-gray-200 px-6 pt-4 space-x-6">
+            <div class="flex border-b border-gray-200 px-6 pt-4 space-x-6 no-print">
                 <button onclick="switchTab('carreras')" id="tab-carreras" class="pb-3 tab-active transition">
                     Carreras y Planes de Estudio
                 </button>
@@ -271,8 +314,29 @@
             </div>
 
             <div class="p-0">
-                <!-- PANEL CARRERAS -->
+                <!-- PANEL CARRERAS CON PAGINACIÓN -->
                 <div id="panel-carreras" class="block">
+                    <!-- Controles de paginación para carreras -->
+                    <div class="p-4 border-b border-gray-100 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-slate-500" id="carrerasTotalLabel">0 registros</span>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <span class="text-xs text-slate-500">Paginación</span>
+                                <input type="checkbox" id="showAllCarrerasToggle" class="sr-only peer">
+                                <div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#B20000]"></div>
+                                <span class="text-xs font-medium text-slate-600">Ver todo</span>
+                            </label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="btnPrevCarreras" class="pagination-btn px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-chevron-left text-xs"></i> Anterior
+                            </button>
+                            <span id="carrerasPageInfo" class="text-xs text-slate-600 min-w-[90px] text-center">1 / 1</span>
+                            <button id="btnNextCarreras" class="pagination-btn px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                Siguiente <i class="fas fa-chevron-right text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left text-gray-500">
                             <thead class="text-xs text-gray-700 uppercase bg-gray-50">
@@ -295,7 +359,7 @@
                     </div>
                 </div>
 
-                <!-- PANEL MATERIAS -->
+                <!-- PANEL MATERIAS (con paginación existente) -->
                 <div id="panel-materias" class="hidden">
                     <div class="p-4 border-b border-gray-100 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
                         <div class="flex items-center gap-2">
@@ -304,9 +368,9 @@
                             <span id="materiasTotalLabel" class="text-xs text-slate-500">0 materias</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button id="btnPrevMaterias" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Anterior</button>
+                            <button id="btnPrevMaterias" class="pagination-btn px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">Anterior</button>
                             <span id="materiasPageInfo" class="text-xs text-slate-600 min-w-[90px] text-center">1 / 1</span>
-                            <button id="btnNextMaterias" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Siguiente</button>
+                            <button id="btnNextMaterias" class="pagination-btn px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">Siguiente</button>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
@@ -353,7 +417,7 @@
                     </div>
                 </div>
 
-                <!-- PANEL TEMPLATES -->
+                <!-- PANEL TEMPLATES (sin cambios) -->
                 <div id="panel-templates" class="hidden p-6">
                     <div class="mb-5 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-3">
                         <i class="fas fa-folder-open mr-2"></i>
@@ -362,13 +426,12 @@
                         (nombres esperados: <code>plantilla_pensum.xlsx</code>, <code>plantilla_reglas_equivalencia.xlsx</code> y <code>plantilla_status_alumno.xlsx</code>).
                     </div>
                     <div id="templateDownloadCards" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Cards de plantillas (igual que antes) -->
                         <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                             <div class="flex items-start justify-between">
                                 <div>
                                     <h3 class="text-lg font-semibold text-slate-800">Plantilla de Pensum</h3>
-                                    <p class="text-sm text-slate-500 mt-1">
-                                        Descarga el formato oficial para carga masiva de plan de estudio.
-                                    </p>
+                                    <p class="text-sm text-slate-500 mt-1">Descarga el formato oficial para carga masiva de plan de estudio.</p>
                                 </div>
                                 <i class="fas fa-file-excel text-2xl text-[#B20000]"></i>
                             </div>
@@ -376,21 +439,15 @@
                                 <strong>Columnas obligatorias:</strong><br>
                                 Codigo_Carrera, Anio_Plan, Codigo_Clase, Nombre_Clase, UV
                             </div>
-                            <button type="button"
-                                class="mt-5 inline-flex items-center bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition btn-download-template"
-                                data-endpoint="/api/catalogos/templates/pensum"
-                                data-filename="plantilla_pensum.xlsx">
+                            <button type="button" class="mt-5 inline-flex items-center bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition btn-download-template" data-endpoint="/api/catalogos/templates/pensum" data-filename="plantilla_pensum.xlsx">
                                 <i class="fas fa-download mr-2"></i> Descargar plantilla
                             </button>
                         </div>
-
                         <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                             <div class="flex items-start justify-between">
                                 <div>
                                     <h3 class="text-lg font-semibold text-slate-800">Plantilla de Reglas de Equivalencia</h3>
-                                    <p class="text-sm text-slate-500 mt-1">
-                                        Descarga el formato oficial para reglas internas y externas.
-                                    </p>
+                                    <p class="text-sm text-slate-500 mt-1">Descarga el formato oficial para reglas internas y externas.</p>
                                 </div>
                                 <i class="fas fa-scale-balanced text-2xl text-[#B20000]"></i>
                             </div>
@@ -398,21 +455,15 @@
                                 <strong>Columnas obligatorias:</strong><br>
                                 Tipo_Equivalencia, Universidad_Origen, Codigo_Origen, Codigo_Destino, Condicion
                             </div>
-                            <button type="button"
-                                class="mt-5 inline-flex items-center bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition btn-download-template"
-                                data-endpoint="/api/catalogos/templates/reglas-equivalencia"
-                                data-filename="plantilla_reglas_equivalencia.xlsx">
+                            <button type="button" class="mt-5 inline-flex items-center bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition btn-download-template" data-endpoint="/api/catalogos/templates/reglas-equivalencia" data-filename="plantilla_reglas_equivalencia.xlsx">
                                 <i class="fas fa-download mr-2"></i> Descargar plantilla
                             </button>
                         </div>
-
                         <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                             <div class="flex items-start justify-between">
                                 <div>
                                     <h3 class="text-lg font-semibold text-slate-800">Plantilla de Estado de Alumno</h3>
-                                    <p class="text-sm text-slate-500 mt-1">
-                                        Descarga el formato oficial para actualización masiva de estado de alumnos.
-                                    </p>
+                                    <p class="text-sm text-slate-500 mt-1">Descarga el formato oficial para actualización masiva de estado de alumnos.</p>
                                 </div>
                                 <i class="fas fa-user-check text-2xl text-[#B20000]"></i>
                             </div>
@@ -420,43 +471,32 @@
                                 <strong>Archivo esperado:</strong><br>
                                 plantilla_status_alumno.xlsx
                             </div>
-                            <button type="button"
-                                class="mt-5 inline-flex items-center bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition btn-download-template"
-                                data-endpoint="/api/catalogos/templates/status-alumno"
-                                data-filename="plantilla_status_alumno.xlsx">
+                            <button type="button" class="mt-5 inline-flex items-center bg-[#B20000] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition btn-download-template" data-endpoint="/api/catalogos/templates/status-alumno" data-filename="plantilla_status_alumno.xlsx">
                                 <i class="fas fa-download mr-2"></i> Descargar plantilla
                             </button>
                         </div>
                     </div>
-
-                    <div id="templateNoPermissionNotice"
-                        class="hidden mt-5 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 text-sm">
+                    <div id="templateNoPermissionNotice" class="hidden mt-5 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 text-sm">
                         <i class="fas fa-circle-info mr-2"></i>
                         Tu perfil no tiene permiso para descargar plantillas de carga.
                     </div>
-
                     <div class="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-5">
                         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                             <div>
                                 <h3 class="text-base font-semibold text-slate-800">Prueba: convertir PDF de pensum a plantilla</h3>
-                                <p class="text-sm text-slate-500">
-                                    Sube un PDF de pensum y descarga un Excel listo para cargar en formato oficial.
-                                </p>
+                                <p class="text-sm text-slate-500">Sube un PDF de pensum y descarga un Excel listo para cargar en formato oficial.</p>
                             </div>
-                            <button onclick="openModal('convertPdfModal')"
-                                class="inline-flex items-center bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-700 transition">
+                            <button onclick="openModal('convertPdfModal')" class="inline-flex items-center bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-700 transition">
                                 <i class="fas fa-file-pdf mr-2"></i> Convertir PDF a XLSX
                             </button>
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     </main>
 
-    <!-- MODALES -->
-
+    <!-- MODALES (mantener todos los modales existentes) -->
     <!-- Modal Upload Excel -->
     <div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 transform transition-all">
@@ -467,20 +507,17 @@
                 </button>
             </div>
             <form id="uploadForm" class="space-y-6">
-                <div class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-[#B20000] transition group cursor-pointer"
-                    id="dropZone">
+                <div class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-[#B20000] transition group cursor-pointer" id="dropZone">
                     <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 group-hover:text-[#B20000] mb-4"></i>
                     <p class="text-sm text-slate-600 mb-2">Arrastra el archivo Excel (Diccionario)</p>
                     <p class="text-xs text-slate-400 font-medium italic">o haz clic para buscar</p>
-                    <input type="file" id="fileInput" name="archivoCatalogo" accept=".xlsx, .xls" class="hidden"
-                        required>
+                    <input type="file" id="fileInput" name="archivoCatalogo" accept=".xlsx, .xls" class="hidden" required>
                 </div>
                 <div id="fileInfo" class="hidden bg-slate-50 p-3 rounded-lg flex items-center text-xs text-slate-600">
                     <i class="fas fa-file-excel text-[#B20000] mr-2"></i>
                     <span id="fileName" class="truncate flex-1 font-medium">archivo.xlsx</span>
                 </div>
-                <button type="submit" id="btnSubmitUpload"
-                    class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 transition">
+                <button type="submit" id="btnSubmitUpload" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 transition">
                     Importar y Procesar
                 </button>
             </form>
@@ -499,30 +536,23 @@
             <form id="convertPdfForm" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">PDF de Pensum</label>
-                    <input type="file" id="pensumPdfInput" accept=".pdf" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm">
+                    <input type="file" id="pensumPdfInput" accept=".pdf" required class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">Codigo Carrera (opcional)</label>
-                        <input type="text" id="pdfCodigoCarrera" placeholder="Ej: I-09"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <input type="text" id="pdfCodigoCarrera" placeholder="Ej: I-09" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">Anio Plan (opcional)</label>
-                        <input type="number" id="pdfAnioPlan" placeholder="Ej: 2018"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <input type="number" id="pdfAnioPlan" placeholder="Ej: 2018" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                     </div>
                 </div>
-                <p class="text-xs text-slate-500">
-                    Si no llenas Carrera/Año, el sistema intenta detectarlos automáticamente desde el PDF.
-                </p>
-                <button type="submit" id="btnConvertPdf"
-                    class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition">
+                <p class="text-xs text-slate-500">Si no llenas Carrera/Año, el sistema intenta detectarlos automáticamente desde el PDF.</p>
+                <button type="submit" id="btnConvertPdf" class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition">
                     Previsualizar
                 </button>
             </form>
-
             <div id="pdfPreviewSection" class="hidden mt-5 border border-slate-200 rounded-xl p-4">
                 <div class="flex items-center justify-between mb-3">
                     <h4 class="text-sm font-semibold text-slate-700">Previsualización editable</h4>
@@ -534,12 +564,7 @@
                 <div class="max-h-72 overflow-auto border border-slate-200 rounded-lg">
                     <table class="w-full text-xs text-left text-gray-600">
                         <thead class="bg-slate-50 text-slate-700 sticky top-0">
-                            <tr>
-                                <th class="px-3 py-2">Código</th>
-                                <th class="px-3 py-2">Nombre Materia</th>
-                                <th class="px-3 py-2 text-center">UV</th>
-                                <th class="px-3 py-2 text-center">Acción</th>
-                            </tr>
+                            <tr><th class="px-3 py-2">Código</th><th class="px-3 py-2">Nombre Materia</th><th class="px-3 py-2 text-center">UV</th><th class="px-3 py-2 text-center">Acción</th></tr>
                         </thead>
                         <tbody id="pdfPreviewBody"></tbody>
                     </table>
@@ -549,8 +574,7 @@
     </div>
 
     <!-- Modal Nueva Carrera -->
-    <div id="carreraModal"
-        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div id="carreraModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 transform transition-all">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-slate-800">Agregar Carrera</h3>
@@ -559,27 +583,15 @@
                 </button>
             </div>
             <form id="carreraForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Código de Carrera</label>
-                    <input type="text" id="codigoCarrera" required
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Nombre de la Carrera</label>
-                    <input type="text" id="nombreCarrera" required
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <button type="submit"
-                    class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition mt-4">
-                    Guardar
-                </button>
+                <div><label class="block text-sm font-medium text-slate-700 mb-1">Código de Carrera</label><input type="text" id="codigoCarrera" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></div>
+                <div><label class="block text-sm font-medium text-slate-700 mb-1">Nombre de la Carrera</label><input type="text" id="nombreCarrera" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></div>
+                <button type="submit" class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition mt-4">Guardar</button>
             </form>
         </div>
     </div>
 
     <!-- Modal Nueva Materia -->
-    <div id="materiaModal"
-        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div id="materiaModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 transform transition-all">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-slate-800">Agregar Materia</h3>
@@ -588,128 +600,47 @@
                 </button>
             </div>
             <form id="materiaForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Código de Materia</label>
-                    <input type="text" id="codigoMateria" required
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Nombre de la Materia</label>
-                    <input type="text" id="nombreMateria" required
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">UVs (Opcional)</label>
-                    <input type="number" id="uvsMateria" min="0" value="0"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <button type="submit"
-                    class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition mt-4">
-                    Guardar Materia
-                </button>
+                <div><label class="block text-sm font-medium text-slate-700 mb-1">Código de Materia</label><input type="text" id="codigoMateria" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></div>
+                <div><label class="block text-sm font-medium text-slate-700 mb-1">Nombre de la Materia</label><input type="text" id="nombreMateria" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></div>
+                <div><label class="block text-sm font-medium text-slate-700 mb-1">UVs (Opcional)</label><input type="number" id="uvsMateria" min="0" value="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></div>
+                <button type="submit" class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition mt-4">Guardar Materia</button>
             </form>
         </div>
     </div>
 
-    <!-- Modal Detalle de Plan de Estudio (AHORA MÁS GRANDE) -->
-    <div id="planDetalleModal"
-        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div
-            class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-8 transform transition-all max-h-[80vh] overflow-hidden flex flex-col">
+    <!-- Modal Detalle de Plan de Estudio -->
+    <div id="planDetalleModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-8 transform transition-all max-h-[80vh] overflow-hidden flex flex-col">
             <div class="flex justify-between items-start mb-6 flex-shrink-0">
-                <div class="flex-1">
-                    <h3 class="text-xl font-bold text-slate-800" id="modalPlanTitulo"></h3>
-                    <p class="text-sm text-slate-500 mt-1" id="modalPlanSubtitulo"></p>
-                </div>
+                <div class="flex-1"><h3 class="text-xl font-bold text-slate-800" id="modalPlanTitulo"></h3><p class="text-sm text-slate-500 mt-1" id="modalPlanSubtitulo"></p></div>
                 <div class="flex items-center space-x-3">
-                    <button type="button" id="btnModalEditData"
-                        class="btn-min btn-min-primary inline-flex items-center">
-                        <i class="fas fa-pen mr-1"></i> Editar datos
-                    </button>
-                    <!-- Botón de Descargar Plan de Estudio -->
-                    <a href="#" id="btnDescargarPlan" target="_blank" class="btn-descargar">
-                        <i class="fas fa-download"></i>
-                        Descargar Plan de Estudio
-                    </a>
-                    <button onclick="closeModal('planDetalleModal')"
-                        class="text-slate-400 hover:text-slate-600 transition">
-                        <i class="fas fa-times text-xl"></i>
-                    </button>
+                    <button type="button" id="btnModalEditData" class="btn-min btn-min-primary inline-flex items-center"><i class="fas fa-pen mr-1"></i> Editar datos</button>
+                    <a href="#" id="btnDescargarPlan" target="_blank" class="btn-descargar"><i class="fas fa-download"></i> Descargar Plan de Estudio</a>
+                    <button onclick="closeModal('planDetalleModal')" class="text-slate-400 hover:text-slate-600 transition"><i class="fas fa-times text-xl"></i></button>
                 </div>
             </div>
-
             <div class="overflow-y-auto flex-1 pr-2">
                 <div id="modalEditPlanBox" class="hidden mb-4 bg-slate-50 border border-slate-200 rounded-lg p-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Código Carrera</label>
-                            <input id="modalEditCodigoCarrera" type="text"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Nombre Carrera</label>
-                            <input id="modalEditNombreCarrera" type="text"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Nombre Plan</label>
-                            <input id="modalEditNombrePlan" type="text"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Año Plan</label>
-                            <input id="modalEditAnioPlan" type="number" min="1"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                        </div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Código Carrera</label><input id="modalEditCodigoCarrera" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Nombre Carrera</label><input id="modalEditNombreCarrera" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Nombre Plan</label><input id="modalEditNombrePlan" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Año Plan</label><input id="modalEditAnioPlan" type="number" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"></div>
                     </div>
-                    <div class="mt-3 flex justify-end gap-2">
-                        <button type="button" id="btnModalCancelEdit" class="btn-min btn-min-cancel">Cancelar</button>
-                        <button type="button" id="btnModalSaveEdit" class="btn-min btn-min-success">Guardar cambios</button>
-                    </div>
+                    <div class="mt-3 flex justify-end gap-2"><button type="button" id="btnModalCancelEdit" class="btn-min btn-min-cancel">Cancelar</button><button type="button" id="btnModalSaveEdit" class="btn-min btn-min-success">Guardar cambios</button></div>
                 </div>
-
                 <div class="mb-4 bg-white border border-slate-200 rounded-lg p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <h4 class="text-sm font-semibold text-slate-700">Agregar materia a este plan</h4>
-                    </div>
+                    <div class="flex items-center justify-between mb-2"><h4 class="text-sm font-semibold text-slate-700">Agregar materia a este plan</h4></div>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                        <div class="md:col-span-2">
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Materia</label>
-                            <select id="modalAddMateriaSelect"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                                <option value="">Selecciona una materia...</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Semestre</label>
-                            <input id="modalAddSemestreInput" type="number" min="1" placeholder="Opcional"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                        </div>
-                        <div class="flex items-end">
-                            <button type="button" id="btnModalAddMateria" class="btn-min btn-min-primary w-full">
-                                <i class="fas fa-plus mr-1"></i> Agregar
-                            </button>
-                        </div>
+                        <div class="md:col-span-2"><label class="block text-xs font-semibold text-slate-600 mb-1">Materia</label><select id="modalAddMateriaSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"><option value="">Selecciona una materia...</option></select></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Semestre</label><input id="modalAddSemestreInput" type="number" min="1" placeholder="Opcional" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"></div>
+                        <div class="flex items-end"><button type="button" id="btnModalAddMateria" class="btn-min btn-min-primary w-full"><i class="fas fa-plus mr-1"></i> Agregar</button></div>
                     </div>
                 </div>
-
-                <div class="mb-4 flex space-x-4 text-sm">
-                    <span class="badge-materias" id="modalTotalMaterias">0 materias</span>
-                    <span class="badge-uv" id="modalTotalUVs">0 UVs</span>
-                </div>
-
+                <div class="mb-4 flex space-x-4 text-sm"><span class="badge-materias" id="modalTotalMaterias">0 materias</span><span class="badge-uv" id="modalTotalUVs">0 UVs</span></div>
                 <table class="w-full text-sm text-left text-gray-500">
-                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
-                        <tr>
-                            <th class="px-4 py-3">Código</th>
-                            <th class="px-4 py-3">Materia</th>
-                            <th class="px-4 py-3 text-center">UVs</th>
-                            <th class="px-4 py-3 text-center">Semestre</th>
-                            <th class="px-4 py-3 text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="modalPlanBody" class="divide-y divide-gray-100">
-                    </tbody>
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0"><tr><th class="px-4 py-3">Código</th><th class="px-4 py-3">Materia</th><th class="px-4 py-3 text-center">UVs</th><th class="px-4 py-3 text-center">Semestre</th><th class="px-4 py-3 text-center">Acciones</th></tr></thead>
+                    <tbody id="modalPlanBody" class="divide-y divide-gray-100"></tbody>
                 </table>
             </div>
         </div>
@@ -720,49 +651,20 @@
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 transform transition-all">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-slate-800">Nuevo Plan de Estudio</h3>
-                <button onclick="closeModal('pensumModal')" class="text-slate-400 hover:text-slate-600 transition">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
+                <button onclick="closeModal('pensumModal')" class="text-slate-400 hover:text-slate-600 transition"><i class="fas fa-times text-xl"></i></button>
             </div>
             <form id="pensumForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Carrera</label>
-                    <select id="pensumCarreraSelect" required
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">Seleccione una carrera...</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Nombre del Plan</label>
-                    <input type="text" id="pensumNombrePlan" required placeholder="Ej: Plan 2024"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Año del Plan</label>
-                    <input type="number" id="pensumAnioPlan" required placeholder="2024"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1 uppercase tracking-wider">Seleccionar
-                        Materias</label>
-                    <input id="pensumMateriasSearch" type="text" placeholder="Buscar materia por código o nombre..."
-                        class="w-full mb-2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#B20000] focus:border-[#B20000]">
-                    <div id="pensumMateriasList"
-                        class="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2 bg-slate-50">
-                        <!-- Materias se cargarán aquí dinámicamente -->
-                        <p class="text-xs text-slate-400 italic">Cargando materias...</p>
-                    </div>
-                </div>
-                <button type="submit"
-                    class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition mt-4">
-                    Guardar Plan
-                </button>
+                <div><label class="block text-sm font-medium text-slate-700 mb-1">Carrera</label><select id="pensumCarreraSelect" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"><option value="">Seleccione una carrera...</option></select></div>
+                <div><label class="block text-sm font-medium text-slate-700 mb-1">Nombre del Plan</label><input type="text" id="pensumNombrePlan" required placeholder="Ej: Plan 2024" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></div>
+                <div><label class="block text-sm font-medium text-slate-700 mb-1">Año del Plan</label><input type="number" id="pensumAnioPlan" required placeholder="2024" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></div>
+                <div><label class="block text-sm font-medium text-slate-700 mb-1 uppercase tracking-wider">Seleccionar Materias</label><input id="pensumMateriasSearch" type="text" placeholder="Buscar materia por código o nombre..." class="w-full mb-2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#B20000] focus:border-[#B20000]"><div id="pensumMateriasList" class="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2 bg-slate-50"><p class="text-xs text-slate-400 italic">Cargando materias...</p></div></div>
+                <button type="submit" class="w-full bg-[#B20000] text-white py-2 rounded-lg font-bold hover:bg-red-700 transition mt-4">Guardar Plan</button>
             </form>
         </div>
     </div>
 
-    <!-- JS Logic -->
     <script>
+        // [Mantener TODO el JavaScript original, solo agregar las variables y funciones para paginación de carreras]
         // Estado global
         let carrerasData = [];
         let materiasData = [];
@@ -785,6 +687,234 @@
         let materiasTotalPages = 1;
         let materiasSearchTerm = '';
         let pensumMateriasData = [];
+
+        // Variables para paginación de carreras
+        let carrerasPage = 1;
+        let carrerasPageSize = 15;
+        let carrerasTotalPages = 1;
+        let carrerasShowAll = false;
+        let carrerasFlatList = []; // Lista plana de todos los registros (carreras + planes)
+
+        // Función para aplanar los datos de carreras y planes
+        function flattenCarrerasData() {
+            const flat = [];
+            if (!carrerasData || carrerasData.length === 0) return flat;
+            
+            carrerasData.forEach(carrera => {
+                const planesCarrera = planesData.filter(p => p.CodigoCarrera === carrera.CodigoCarrera);
+                
+                if (planesCarrera.length === 0) {
+                    flat.push({
+                        type: 'carrera',
+                        carrera: carrera,
+                        plan: null,
+                        isEditing: editingCarreraCodes.has(String(carrera.CodigoCarrera))
+                    });
+                } else {
+                    planesCarrera.sort((a, b) => b.AnioPlan - a.AnioPlan);
+                    planesCarrera.forEach(plan => {
+                        flat.push({
+                            type: 'plan',
+                            carrera: carrera,
+                            plan: plan,
+                            isEditing: editingCarreraPlanIds.has(String(plan.IdPlan))
+                        });
+                    });
+                }
+            });
+            return flat;
+        }
+
+        // Renderizar carreras con paginación
+        function renderCarrerasWithPagination() {
+            const tbody = document.getElementById('carrerasBody');
+            if (!tbody) return;
+
+            carrerasFlatList = flattenCarrerasData();
+            const totalItems = carrerasFlatList.length;
+            const totalPages = carrerasShowAll ? 1 : Math.ceil(totalItems / carrerasPageSize);
+            carrerasTotalPages = totalPages;
+            
+            if (carrerasPage > totalPages && totalPages > 0) carrerasPage = totalPages;
+            
+            const startIdx = carrerasShowAll ? 0 : (carrerasPage - 1) * carrerasPageSize;
+            const endIdx = carrerasShowAll ? totalItems : Math.min(startIdx + carrerasPageSize, totalItems);
+            const pageData = carrerasFlatList.slice(startIdx, endIdx);
+            
+            // Actualizar UI de paginación
+            document.getElementById('carrerasTotalLabel').textContent = `${totalItems} registros`;
+            document.getElementById('carrerasPageInfo').textContent = carrerasShowAll ? `1 / 1` : `${carrerasPage} / ${Math.max(1, totalPages)}`;
+            document.getElementById('btnPrevCarreras').disabled = carrerasShowAll || carrerasPage <= 1;
+            document.getElementById('btnNextCarreras').disabled = carrerasShowAll || carrerasPage >= totalPages;
+            
+            // Renderizar tabla
+            tbody.innerHTML = '';
+            if (pageData.length === 0) {
+                tbody.innerHTML = '§<td colspan="7" class="px-6 py-4 text-center">No hay carreras registradas.§</td></tr>';
+                return;
+            }
+            
+            pageData.forEach(item => {
+                if (item.type === 'carrera') {
+                    const carrera = item.carrera;
+                    const isEditingCarrera = item.isEditing;
+                    tbody.innerHTML += `
+                        <tr class="bg-white hover:bg-gray-50 carrera-row" data-codigo="${carrera.CodigoCarrera}">
+                            <td class="px-6 py-4 font-medium text-gray-900">${carrera.CodigoCarrera}</td>
+                            <td class="px-6 py-4" colspan="2">
+                                ${isEditingCarrera
+                                    ? `<input type="text" class="js-carrera-nombre w-full px-2 py-1 border border-blue-300 rounded" value="${escapeHtml(carrera.NombreCarrera)}">`
+                                    : `${carrera.NombreCarrera} - Sin planes registrados`}
+                            </td>
+                            <td class="px-6 py-4 text-center">-</td>
+                            <td class="px-6 py-4 text-center">-</td>
+                            <td class="px-6 py-4 text-center">-</td>
+                            <td class="px-6 py-4 text-center">
+                                ${isEditingCarrera
+                                    ? `<button class="btn-min btn-min-success btn-save-carrera" data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Guardar</button>
+                                       <button class="btn-min btn-min-cancel btn-cancel-carrera ml-1" data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Cancelar</button>`
+                                    : `<div class="relative inline-block text-left">
+                                        <button class="btn-min btn-action-gear" data-menu-id="menu-carrera-${toDomSafe(carrera.CodigoCarrera)}" title="Acciones">
+                                            <i class="fas fa-cog"></i>
+                                        </button>
+                                        <div id="menu-carrera-${toDomSafe(carrera.CodigoCarrera)}" class="action-menu">
+                                            <button class="btn-min btn-min-primary btn-edit-carrera" data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Editar carrera</button>
+                                            <button class="btn-min btn-min-danger btn-delete-carrera" data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Eliminar carrera</button>
+                                        </div>
+                                    </div>`}
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    const carrera = item.carrera;
+                    const plan = item.plan;
+                    const isEditingCarreraPlan = item.isEditing;
+                    const esMiPlan = esPlanDelUsuario(plan.IdPlan);
+                    const claseAdicional = esMiPlan ? 'usuario-plan' : '';
+                    const nombreCarreraFila = plan.NombreCarreraPlan || carrera.NombreCarrera;
+                    
+                    tbody.innerHTML += `
+                        <tr class="bg-white hover:bg-gray-50 carrera-row ${claseAdicional}" 
+                            data-idplan="${plan.IdPlan}" 
+                            data-carrera="${escapeHtml(nombreCarreraFila)}"
+                            data-codigo="${carrera.CodigoCarrera}"
+                            data-plan="${plan.NombrePlan}"
+                            data-anio="${plan.AnioPlan}"
+                            data-materias="${plan.TotalMaterias || 0}"
+                            data-uvs="${plan.TotalUVS || 0}">
+                            <td class="px-6 py-4 font-medium text-gray-900">${carrera.CodigoCarrera}</td>
+                            <td class="px-6 py-4">
+                                ${isEditingCarreraPlan
+                                    ? `<input type="text" class="js-carrera-nombre w-full px-2 py-1 border border-blue-300 rounded" value="${escapeHtml(nombreCarreraFila)}">`
+                                    : `${nombreCarreraFila}`}
+                                ${esMiPlan ? '<span class="badge-mi-plan"><i class="fas fa-graduation-cap mr-1"></i>Mi Plan</span>' : ''}
+                            </td>
+                            <td class="px-6 py-4">
+                                ${plan.NombrePlan}
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="badge-materias">${plan.TotalMaterias || 0}</span>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="badge-uv">${plan.TotalUVS || 0} UVs</span>
+                            </td>
+                            <td class="px-6 py-4 text-center">${plan.AnioPlan}</td>
+                            <td class="px-6 py-4 text-center">
+                                ${isEditingCarreraPlan
+                                    ? `<button class="btn-min btn-min-success btn-save-carrera-plan" data-idplan="${plan.IdPlan}">Guardar</button>
+                                       <button class="btn-min btn-min-cancel btn-cancel-carrera-plan ml-1" data-idplan="${plan.IdPlan}">Cancelar</button>`
+                                    : `<div class="relative inline-block text-left">
+                                        <button class="btn-min btn-action-gear" data-menu-id="menu-plan-${plan.IdPlan}" title="Acciones">
+                                            <i class="fas fa-cog"></i>
+                                        </button>
+                                        <div id="menu-plan-${plan.IdPlan}" class="action-menu">
+                                            <button class="btn-min btn-min-primary btn-edit-carrera-plan" data-idplan="${plan.IdPlan}">Editar carrera</button>
+                                            <button class="btn-min btn-min-danger btn-delete-carrera" data-codigo="${escapeHtml(carrera.CodigoCarrera)}">Eliminar carrera</button>
+                                            <button class="btn-min btn-min-primary btn-edit-plan" data-id="${plan.IdPlan}" data-codigo="${escapeHtml(plan.CodigoCarrera)}" data-nombre="${escapeHtml(plan.NombrePlan)}" data-anio="${plan.AnioPlan}">Editar plan</button>
+                                            <button class="btn-min btn-min-danger btn-delete-plan" data-id="${plan.IdPlan}">Eliminar plan</button>
+                                        </div>
+                                    </div>`}
+                            </td>
+                        </tr>
+                    `;
+                }
+            });
+            
+            // Re-attach event listeners
+            attachCarrerasEventListeners();
+        }
+
+        function attachCarrerasEventListeners() {
+            document.querySelectorAll('.carrera-row').forEach(row => {
+                row.removeEventListener('dblclick', handleRowDoubleClick);
+                row.addEventListener('dblclick', handleRowDoubleClick);
+            });
+            
+            document.querySelectorAll('#carrerasBody .btn-edit-carrera').forEach(btn => {
+                btn.removeEventListener('click', handleEditCarrera);
+                btn.addEventListener('click', handleEditCarrera);
+            });
+            
+            document.querySelectorAll('#carrerasBody .btn-cancel-carrera').forEach(btn => {
+                btn.removeEventListener('click', handleCancelCarrera);
+                btn.addEventListener('click', handleCancelCarrera);
+            });
+            
+            document.querySelectorAll('#carrerasBody .btn-save-carrera').forEach(btn => {
+                btn.removeEventListener('click', handleSaveCarrera);
+                btn.addEventListener('click', handleSaveCarrera);
+            });
+            
+            document.querySelectorAll('#carrerasBody .btn-edit-carrera-plan').forEach(btn => {
+                btn.removeEventListener('click', handleEditCarreraPlan);
+                btn.addEventListener('click', handleEditCarreraPlan);
+            });
+            
+            document.querySelectorAll('#carrerasBody .btn-cancel-carrera-plan').forEach(btn => {
+                btn.removeEventListener('click', handleCancelCarreraPlan);
+                btn.addEventListener('click', handleCancelCarreraPlan);
+            });
+            
+            document.querySelectorAll('#carrerasBody .btn-save-carrera-plan').forEach(btn => {
+                btn.removeEventListener('click', handleSaveCarreraPlan);
+                btn.addEventListener('click', handleSaveCarreraPlan);
+            });
+            
+            document.querySelectorAll('#carrerasBody .btn-delete-carrera').forEach(btn => {
+                btn.removeEventListener('click', handleDeleteCarrera);
+                btn.addEventListener('click', handleDeleteCarrera);
+            });
+            
+            document.querySelectorAll('#carrerasBody .btn-edit-plan').forEach(btn => {
+                btn.removeEventListener('click', handleEditPlan);
+                btn.addEventListener('click', handleEditPlan);
+            });
+            
+            document.querySelectorAll('#carrerasBody .btn-delete-plan').forEach(btn => {
+                btn.removeEventListener('click', handleDeletePlan);
+                btn.addEventListener('click', handleDeletePlan);
+            });
+            
+            initActionMenus();
+        }
+        
+        function handleRowDoubleClick(e) {
+            const row = e.currentTarget;
+            const idPlan = row.dataset.idplan;
+            if (idPlan) {
+                verDetallePlan(idPlan, row.dataset.carrera, row.dataset.plan, row.dataset.anio, row.dataset.codigo, idPlan);
+            }
+        }
+        
+        function handleEditCarrera(e) { e.stopPropagation(); startEditCarreraRow(e.currentTarget.dataset.codigo); }
+        function handleCancelCarrera(e) { e.stopPropagation(); cancelEditCarreraRow(e.currentTarget.dataset.codigo); }
+        async function handleSaveCarrera(e) { e.stopPropagation(); const codigo = e.currentTarget.dataset.codigo; const row = e.currentTarget.closest('tr'); const nombre = row.querySelector('.js-carrera-nombre')?.value?.trim(); if (!nombre) return alert('Debes ingresar un nombre válido.'); await saveCarreraInline(codigo, nombre); }
+        function handleEditCarreraPlan(e) { e.stopPropagation(); startEditCarreraPlanRow(e.currentTarget.dataset.idplan); }
+        function handleCancelCarreraPlan(e) { e.stopPropagation(); cancelEditCarreraPlanRow(e.currentTarget.dataset.idplan); }
+        async function handleSaveCarreraPlan(e) { e.stopPropagation(); await saveCarreraPlanInline(e.currentTarget.dataset.idplan, e.currentTarget.closest('tr')); }
+        async function handleDeleteCarrera(e) { e.stopPropagation(); await deleteCarrera(e.currentTarget.dataset.codigo); }
+        function handleEditPlan(e) { e.stopPropagation(); startEditPlanRow(e.currentTarget.dataset.id); }
+        async function handleDeletePlan(e) { e.stopPropagation(); await deletePlan(e.currentTarget.dataset.id); }
 
         function escapeHtml(value) {
             return String(value ?? '')
@@ -2392,15 +2522,48 @@
 
         document.addEventListener('click', closeAllActionMenus);
 
-        // Initialize
+        // Inicialización con paginación de carreras
         document.addEventListener('DOMContentLoaded', () => {
             getUsuarioActual();
             applyTemplateVisibilityByRole();
+            
+            // Configurar controles de paginación de carreras
+            const btnPrevCarreras = document.getElementById('btnPrevCarreras');
+            const btnNextCarreras = document.getElementById('btnNextCarreras');
+            const showAllToggle = document.getElementById('showAllCarrerasToggle');
+            
+            if (btnPrevCarreras) {
+                btnPrevCarreras.addEventListener('click', () => {
+                    if (carrerasPage > 1 && !carrerasShowAll) {
+                        carrerasPage--;
+                        renderCarrerasWithPagination();
+                    }
+                });
+            }
+            
+            if (btnNextCarreras) {
+                btnNextCarreras.addEventListener('click', () => {
+                    if (carrerasPage < carrerasTotalPages && !carrerasShowAll) {
+                        carrerasPage++;
+                        renderCarrerasWithPagination();
+                    }
+                });
+            }
+            
+            if (showAllToggle) {
+                showAllToggle.addEventListener('change', (e) => {
+                    carrerasShowAll = e.target.checked;
+                    if (!carrerasShowAll) carrerasPage = 1;
+                    renderCarrerasWithPagination();
+                });
+            }
+            
+            // Configurar controles de materias (existentes)
             const materiasSearchInput = document.getElementById('materiasSearchInput');
             const btnPrevMaterias = document.getElementById('btnPrevMaterias');
             const btnNextMaterias = document.getElementById('btnNextMaterias');
             const pensumMateriasSearch = document.getElementById('pensumMateriasSearch');
-
+            
             let materiasSearchTimer = null;
             if (materiasSearchInput) {
                 materiasSearchInput.addEventListener('input', () => {
@@ -2412,21 +2575,21 @@
                     }, 250);
                 });
             }
-
+            
             if (btnPrevMaterias) {
                 btnPrevMaterias.addEventListener('click', async () => {
                     if (materiasPage <= 1) return;
                     await fetchMateriasPage(materiasPage - 1, materiasSearchTerm);
                 });
             }
-
+            
             if (btnNextMaterias) {
                 btnNextMaterias.addEventListener('click', async () => {
                     if (materiasPage >= materiasTotalPages) return;
                     await fetchMateriasPage(materiasPage + 1, materiasSearchTerm);
                 });
             }
-
+            
             let pensumSearchTimer = null;
             if (pensumMateriasSearch) {
                 pensumMateriasSearch.addEventListener('input', () => {
@@ -2437,15 +2600,23 @@
                     }, 250);
                 });
             }
-
+            
             document.querySelectorAll('.btn-download-template').forEach((btn) => {
                 btn.addEventListener('click', () => {
                     downloadTemplateAuthenticated(btn.dataset.endpoint, btn.dataset.filename || 'plantilla.xlsx');
                 });
             });
+            
             loadData();
         });
-
+        
+        // Sobrescribir la función loadData para usar renderCarrerasWithPagination
+        const originalLoadData = loadData;
+        window.loadData = async function() {
+            await originalLoadData();
+            renderCarrerasWithPagination();
+        };
+        loadData = window.loadData;
     </script>
 </body>
 

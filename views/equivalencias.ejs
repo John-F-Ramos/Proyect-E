@@ -47,13 +47,37 @@
             height: auto !important;
         }
 
+        /* Sidebar fijo */
+        .sidebar-fixed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 50;
+        }
+
+        .main-content {
+            margin-left: 256px;
+            min-height: 100vh;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
         @media print {
             body * {
                 visibility: hidden;
             }
-            #panelSimulacion, #panelSimulacion * {
+
+            #panelSimulacion,
+            #panelSimulacion * {
                 visibility: visible;
             }
+
             #panelSimulacion {
                 position: absolute;
                 left: 0;
@@ -64,7 +88,11 @@
                 border: none;
                 box-shadow: none;
             }
-            aside, header, #btnDescargarSimulacion, #btnCancelarSimulacion {
+
+            aside,
+            header,
+            #btnDescargarSimulacion,
+            #btnCancelarSimulacion {
                 display: none !important;
             }
         }
@@ -72,9 +100,9 @@
 </head>
 
 <body class="flex min-h-screen overflow-x-hidden">
-    <%- include('partials/sidebar', { active: 'equivalencias', noPrint: false, extraAsideClasses: 'flex-shrink-0' }) %>
+    <%- include('partials/sidebar', { active: 'equivalencias', noPrint: false, extraAsideClasses: 'sidebar-fixed' }) %>
 
-    <main class="flex-1 p-4 md:p-8 overflow-y-auto w-full max-w-full">
+    <main class="flex-1 p-4 md:p-8 overflow-y-auto w-full max-w-full main-content">
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-slate-800">Equivalencias</h1>
@@ -581,7 +609,7 @@
         function renderSolicitudesCambio(rows) {
             if (!tablaSolicitudesCambioBody) return;
             if (!Array.isArray(rows) || rows.length === 0) {
-                tablaSolicitudesCambioBody.innerHTML = '<tr><td colspan=\"5\" class=\"px-4 py-6 text-center text-slate-400 italic\">No hay solicitudes pendientes.</td></tr>';
+                tablaSolicitudesCambioBody.innerHTML = '<td colspan=\"5\" class=\"px-4 py-6 text-center text-slate-400 italic\">No hay solicitudes pendientes.</tr>';
                 return;
             }
 
@@ -599,7 +627,7 @@
                         <td class=\"px-4 py-3 text-slate-700\">
                             <div class=\"font-semibold\">${alumno || '-'}</div>
                             ${motivoHtml}
-                        </td>
+                         </td>
                         <td class=\"px-4 py-3 text-slate-700\">${actual || '-'}</td>
                         <td class=\"px-4 py-3 text-slate-700\">${destino || '-'}</td>
                         <td class=\"px-4 py-3 text-slate-600\">${creado}</td>
@@ -622,12 +650,12 @@
             if (userRol !== 1 && userRol !== 2) return;
             if (!tablaSolicitudesCambioBody) return;
 
-            tablaSolicitudesCambioBody.innerHTML = '<tr><td colspan=\"5\" class=\"px-4 py-6 text-center text-slate-400 italic\">Cargando...</td></tr>';
+            tablaSolicitudesCambioBody.innerHTML = '§<td colspan=\"5\" class=\"px-4 py-6 text-center text-slate-400 italic\">Cargando...§</tr>';
 
             const res = await fetch('/api/solicitudes-cambio?estado=PENDIENTE');
             const data = await res.json();
             if (!res.ok) {
-                tablaSolicitudesCambioBody.innerHTML = '<tr><td colspan=\"5\" class=\"px-4 py-6 text-center text-red-500 italic\">No se pudieron cargar solicitudes.</td></tr>';
+                tablaSolicitudesCambioBody.innerHTML = '§<td colspan=\"5\" class=\"px-4 py-6 text-center text-red-500 italic\">No se pudieron cargar solicitudes.§</tr>';
                 return;
             }
             renderSolicitudesCambio(data);
@@ -800,88 +828,94 @@
         }
 
         // Calcular simulación
-        btnCalcular.addEventListener('click', async () => {
-            const destino = planDestino.value;
-            if (!destino) {
-                alert('Selecciona un plan destino');
-                return;
-            }
-
-            const cuentaSimulacion = simAccountSeleccionado || userAccount;
-            if (!cuentaSimulacion) {
-                alert('Por favor selecciona un estudiante primero');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/simulacion/calcular', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        cuenta: cuentaSimulacion,
-                        idPlanDestino: Number(destino)
-                    })
-                });
-
-                const data = await response.json();
-
-                document.getElementById('simMateriasEquiv').textContent = data.materiasEquivalentes;
-                document.getElementById('simUVSEquiv').textContent = data.uvsEquivalentes;
-                document.getElementById('simMateriasFalt').textContent = data.materiasFaltantes;
-                document.getElementById('simUVSFalt').textContent = data.uvsFaltantes;
-
-                // Nueva lógica para leer correctamente la estructura de tu API
-                const uvsObtenidas = data.uvsEquivalentes || 0;
-                const uvsTotales = data.planDestino ? data.planDestino.totalUvs : 0;
-
-                const porcentaje = uvsTotales > 0 ? Math.round((uvsObtenidas / uvsTotales) * 100) : 0;
-
-                document.getElementById('simPorcentaje').textContent = porcentaje + '%';
-                document.getElementById('simProgressBar').style.width = porcentaje + '%';
-
-                const tbody = document.getElementById('tablaEquivalenciasSim');
-                if (Array.isArray(data.equivalencias) && data.equivalencias.length > 0) {
-                    tbody.innerHTML = data.equivalencias.map(e => `
-                        <tr>
-                            <td class="px-3 md:px-4 py-2">${e.materiaCursada}</td>
-                            <td class="px-3 md:px-4 py-2">${e.materiaEquivalente}</td>
-                            <td class="px-3 md:px-4 py-2">${e.uvs}</td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="3" class="px-3 md:px-4 py-3 text-slate-400 italic">No se encontraron equivalencias para este plan.</td></tr>';
+        if (btnCalcular) {
+            btnCalcular.addEventListener('click', async () => {
+                const destino = planDestino.value;
+                if (!destino) {
+                    alert('Selecciona un plan destino');
+                    return;
                 }
 
-                const faltantesBody = document.getElementById('tablaFaltantesSim');
-                if (Array.isArray(data.materiasFaltantesDetalle) && data.materiasFaltantesDetalle.length > 0) {
-                    faltantesBody.innerHTML = data.materiasFaltantesDetalle.map(m => `
-                        <tr>
-                            <td class="px-3 md:px-4 py-2 font-medium">${m.codigoMateria || ''}</td>
-                            <td class="px-3 md:px-4 py-2">${m.nombreMateria || ''}</td>
-                            <td class="px-3 md:px-4 py-2">${m.uvs ?? 0}</td>
-                            <td class="px-3 md:px-4 py-2">${m.semestre ?? '-'}</td>
-                        </tr>
-                    `).join('');
-                } else {
-                    faltantesBody.innerHTML = '<tr><td colspan="4" class="px-3 md:px-4 py-3 text-green-600 italic">No hay materias faltantes en el plan seleccionado.</td></tr>';
+                const cuentaSimulacion = simAccountSeleccionado || userAccount;
+                if (!cuentaSimulacion) {
+                    alert('Por favor selecciona un estudiante primero');
+                    return;
                 }
 
-                resultadosSimulacion.classList.remove('hidden');
+                try {
+                    const response = await fetch('/api/simulacion/calcular', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            cuenta: cuentaSimulacion,
+                            idPlanDestino: Number(destino)
+                        })
+                    });
 
-            } catch (error) {
-                console.error('Error en simulación:', error);
-                alert('Error al calcular la simulación');
-            }
-        });
+                    const data = await response.json();
+
+                    document.getElementById('simMateriasEquiv').textContent = data.materiasEquivalentes;
+                    document.getElementById('simUVSEquiv').textContent = data.uvsEquivalentes;
+                    document.getElementById('simMateriasFalt').textContent = data.materiasFaltantes;
+                    document.getElementById('simUVSFalt').textContent = data.uvsFaltantes;
+
+                    // Nueva lógica para leer correctamente la estructura de tu API
+                    const uvsObtenidas = data.uvsEquivalentes || 0;
+                    const uvsTotales = data.planDestino ? data.planDestino.totalUvs : 0;
+
+                    const porcentaje = uvsTotales > 0 ? Math.round((uvsObtenidas / uvsTotales) * 100) : 0;
+
+                    document.getElementById('simPorcentaje').textContent = porcentaje + '%';
+                    document.getElementById('simProgressBar').style.width = porcentaje + '%';
+
+                    const tbody = document.getElementById('tablaEquivalenciasSim');
+                    if (Array.isArray(data.equivalencias) && data.equivalencias.length > 0) {
+                        tbody.innerHTML = data.equivalencias.map(e => `
+                            70cea
+                                <td class="px-3 md:px-4 py-2">${e.materiaCursada}</td>
+                                <td class="px-3 md:px-4 py-2">${e.materiaEquivalente}</td>
+                                <td class="px-3 md:px-4 py-2">${e.uvs}</td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tbody.innerHTML = '§<td colspan="3" class="px-3 md:px-4 py-3 text-slate-400 italic">No se encontraron equivalencias para este plan.</td></tr>';
+                    }
+
+                    const faltantesBody = document.getElementById('tablaFaltantesSim');
+                    if (Array.isArray(data.materiasFaltantesDetalle) && data.materiasFaltantesDetalle.length > 0) {
+                        faltantesBody.innerHTML = data.materiasFaltantesDetalle.map(m => `
+                             <tr>
+                                <td class="px-3 md:px-4 py-2 font-medium">${m.codigoMateria || ''}</td>
+                                <td class="px-3 md:px-4 py-2">${m.nombreMateria || ''}</td>
+                                <td class="px-3 md:px-4 py-2">${m.uvs ?? 0}</td>
+                                <td class="px-3 md:px-4 py-2">${m.semestre ?? '-'}</td>
+                             </tr>
+                        `).join('');
+                    } else {
+                        faltantesBody.innerHTML = '§<td colspan="4" class="px-3 md:px-4 py-3 text-green-600 italic">No hay materias faltantes en el plan seleccionado.</td></tr>';
+                    }
+
+                    resultadosSimulacion.classList.remove('hidden');
+
+                } catch (error) {
+                    console.error('Error en simulación:', error);
+                    alert('Error al calcular la simulación');
+                }
+            });
+        }
 
         // Descargar simulación (imprimir)
-        btnDescargarSimulacion.addEventListener('click', () => {
-            window.print();
-        });
+        if (btnDescargarSimulacion) {
+            btnDescargarSimulacion.addEventListener('click', () => {
+                window.print();
+            });
+        }
 
-        btnCancelarSimulacion.addEventListener('click', () => {
-            resultadosSimulacion.classList.add('hidden');
-        });
+        if (btnCancelarSimulacion) {
+            btnCancelarSimulacion.addEventListener('click', () => {
+                resultadosSimulacion.classList.add('hidden');
+            });
+        }
 
         function actualizarEstadisticas(data) {
             const aprobadas = data.filter(e => e.TipoEquivalencia === 'Interna' || e.Estado === 'Aprobada');
@@ -981,10 +1015,10 @@
             const aprobadas = data.filter(e => e.TipoEquivalencia === 'Interna');
 
             if (aprobadas.length === 0) {
-                aprobadasBody.innerHTML = '<tr><td colspan="5" class="px-2 md:px-4 py-6 md:py-8 text-center text-slate-400 italic">No tienes equivalencias aprobadas.</td></tr>';
+                aprobadasBody.innerHTML = '§<td colspan="5" class="px-2 md:px-4 py-6 md:py-8 text-center text-slate-400 italic">No tienes equivalencias aprobadas.</td></tr>';
             } else {
                 aprobadasBody.innerHTML = aprobadas.map(e => `
-                    <tr>
+                     <tr>
                         <td class="px-2 md:px-4 py-2 md:py-3">
                             <span class="font-medium">${e.CodigoMateriaPlan}</span>
                             <p class="text-[10px] md:text-xs text-slate-500">${e.NombreMateriaPlan || ''}</p>
@@ -998,68 +1032,82 @@
                             <span class="bg-green-100 text-green-600 px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-semibold">Interna</span>
                         </td>
                         <td class="px-2 md:px-4 py-2 md:py-3">${new Date(e.FechaRegistro).toLocaleDateString()}</td>
-                    </tr>
+                     </tr>
                 `).join('');
             }
         }
 
         // Tabs
-        tabAprobadas.addEventListener('click', () => {
-            tabAprobadas.classList.add('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
-            tabPendientes.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
-            tabHistorial.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
-            tabPendientes.classList.add('text-gray-500');
-            tabHistorial.classList.add('text-gray-500');
+        if (tabAprobadas) {
+            tabAprobadas.addEventListener('click', () => {
+                tabAprobadas.classList.add('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+                tabPendientes.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+                tabHistorial.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+                tabPendientes.classList.add('text-gray-500');
+                tabHistorial.classList.add('text-gray-500');
 
-            tablaAprobadas.classList.remove('hidden');
-            tablaPendientes.classList.add('hidden');
-            tablaHistorial.classList.add('hidden');
-        });
+                tablaAprobadas.classList.remove('hidden');
+                tablaPendientes.classList.add('hidden');
+                tablaHistorial.classList.add('hidden');
+            });
+        }
 
-        tabPendientes.addEventListener('click', () => {
-            tabPendientes.classList.add('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
-            tabAprobadas.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
-            tabHistorial.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
-            tabAprobadas.classList.add('text-gray-500');
-            tabHistorial.classList.add('text-gray-500');
+        if (tabPendientes) {
+            tabPendientes.addEventListener('click', () => {
+                tabPendientes.classList.add('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+                tabAprobadas.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+                tabHistorial.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+                tabAprobadas.classList.add('text-gray-500');
+                tabHistorial.classList.add('text-gray-500');
 
-            tablaPendientes.classList.remove('hidden');
-            tablaAprobadas.classList.add('hidden');
-            tablaHistorial.classList.add('hidden');
-        });
+                tablaPendientes.classList.remove('hidden');
+                tablaAprobadas.classList.add('hidden');
+                tablaHistorial.classList.add('hidden');
+            });
+        }
 
-        tabHistorial.addEventListener('click', () => {
-            tabHistorial.classList.add('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
-            tabAprobadas.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
-            tabPendientes.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
-            tabAprobadas.classList.add('text-gray-500');
-            tabPendientes.classList.add('text-gray-500');
+        if (tabHistorial) {
+            tabHistorial.addEventListener('click', () => {
+                tabHistorial.classList.add('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+                tabAprobadas.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+                tabPendientes.classList.remove('text-[#B20000]', 'border-b-2', 'border-[#B20000]');
+                tabAprobadas.classList.add('text-gray-500');
+                tabPendientes.classList.add('text-gray-500');
 
-            tablaHistorial.classList.remove('hidden');
-            tablaAprobadas.classList.add('hidden');
-            tablaPendientes.classList.add('hidden');
-        });
+                tablaHistorial.classList.remove('hidden');
+                tablaAprobadas.classList.add('hidden');
+                tablaPendientes.classList.add('hidden');
+            });
+        }
 
         // Modal
-        btnSolicitar.addEventListener('click', () => modalSolicitud.classList.remove('hidden'));
-        btnCerrarModal.addEventListener('click', cerrarModal);
-        modalSolicitud.addEventListener('click', (e) => {
-            if (e.target === modalSolicitud) cerrarModal();
-        });
+        if (btnSolicitar) {
+            btnSolicitar.addEventListener('click', () => modalSolicitud.classList.remove('hidden'));
+        }
+        if (btnCerrarModal) {
+            btnCerrarModal.addEventListener('click', cerrarModal);
+        }
+        if (modalSolicitud) {
+            modalSolicitud.addEventListener('click', (e) => {
+                if (e.target === modalSolicitud) cerrarModal();
+            });
+        }
 
         function cerrarModal() {
             modalSolicitud.classList.add('hidden');
             statusMsg.classList.add('hidden');
         }
 
-        formSolicitud.onsubmit = async (e) => {
-            e.preventDefault();
-            showStatus('Enviando solicitud...', 'text-blue-600');
-            setTimeout(() => {
-                showStatus('Solicitud enviada correctamente', 'text-green-600');
-                setTimeout(cerrarModal, 2000);
-            }, 1500);
-        };
+        if (formSolicitud) {
+            formSolicitud.onsubmit = async (e) => {
+                e.preventDefault();
+                showStatus('Enviando solicitud...', 'text-blue-600');
+                setTimeout(() => {
+                    showStatus('Solicitud enviada correctamente', 'text-green-600');
+                    setTimeout(cerrarModal, 2000);
+                }, 1500);
+            };
+        }
 
         function showStatus(text, colorClass) {
             statusMsg.textContent = text;
